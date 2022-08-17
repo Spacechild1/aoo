@@ -288,7 +288,29 @@ public:
             const AooData& data, AooFlag flags,
             AooResponseHandler cb, void *context) = 0;
 
-    // TODO: findGroupByName() and getGroupName()?
+    /** \brief find group by name
+     *
+     * \note Threadsafe
+     *
+     * Find group by name and return group ID
+     *
+     * \param groupName the group name
+     * \param[out] groupId group ID
+     */
+    virtual AooError AOO_CALL findGroupByName(
+            const AooChar *groupName, AooId *groupId) = 0;
+
+    /** \brief get the name of a group
+     *
+     * \note Threadsafe
+     *
+     * \param group the group ID
+     * \param[out] buffer the group name buffer
+     * \param[in,out] size the buffer size;
+     *        updated to the actual size (excluding the 0 character)
+     */
+    virtual AooError AOO_CALL getGroupName(
+        AooId group, AooChar *buffer, AooSize *size) = 0;
 
     /** \brief find peer by name
      *

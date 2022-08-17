@@ -126,9 +126,17 @@ AOO_API AooError AOO_CALL AooClient_customRequest(
         AooClient *client, const AooData *data, AooFlag flags,
         AooResponseHandler cb, void *context);
 
+/** \copydoc AooClient::findGroupByName() */
+AOO_API AooError AOO_CALL AooClient_findGroupByName(
+        AooClient *client, const AooChar *groupName, AooId *groupId);
+
+/** \copydoc AooClient::getGroupName() */
+AOO_API AooError AOO_CALL AooClient_getGroupName(
+    AooClient *client, AooId group, AooChar *buffer, AooSize *size);
+
 /** \copydoc AooClient::findPeerByName() */
 AOO_API AooError AOO_CALL AooClient_findPeerByName(
-        AooClient *client, const AooChar *group, const AooChar *user,
+        AooClient *client, const AooChar *groupName, const AooChar *userName,
         AooId *groupId, AooId *userId, void *address, AooAddrSize *addrlen);
 
 /** \copydoc AooClient::findPeerByAddress() */

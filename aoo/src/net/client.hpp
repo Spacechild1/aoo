@@ -279,6 +279,10 @@ public:
     AooError AOO_CALL customRequest(const AooData& data, AooFlag flags,
                                     AooResponseHandler cb, void *context) override;
 
+    AooError AOO_CALL findGroupByName(const AooChar *name, AooId *id) override;
+
+    AooError AOO_CALL getGroupName(AooId group, AooChar *buffer, AooSize *size) override;
+
     AooError AOO_CALL findPeerByName(
             const AooChar *group, const AooChar *user, AooId *groupId,
             AooId *userId, void *address, AooAddrSize *addrlen) override;
@@ -403,7 +407,8 @@ private:
         AooId user_id;
         ip_address_list relay_list;
     };
-    std::vector<group_membership> memberships_;
+    std::vector<group_membership> groups_;
+    sync::mutex group_mutex_;
     ping_timer server_ping_timer_;
     // commands
     using command_queue = aoo::unbounded_mpsc_queue<command_ptr>;

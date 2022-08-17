@@ -696,6 +696,50 @@ AooError AOO_CALL aoo::net::Client::customRequest(
     return kAooOk;
 }
 
+AOO_API AooError AOO_CALL AooClient_findGroupByName(
+    AooClient *client, const AooChar *name, AooId *id)
+{
+    return client->findGroupByName(name, id);
+}
+
+AooError AOO_CALL aoo::net::Client::findGroupByName(
+    const char *name, AooId *id)
+{
+    sync::scoped_lock<sync::mutex> lock(group_mutex_);
+    auto grp = find_group_membership(name);
+    if (grp) {
+        *id = grp->group_id;
+        return kAooOk;
+    } else {
+        return kAooErrorNotFound;
+    }
+}
+
+AOO_API AooError AOO_CALL AooClient_getGroupName(
+    AooClient *client, AooId group, AooChar *buffer, AooSize *size)
+{
+    return client->getGroupName(group, buffer, size);
+}
+
+AooError AOO_CALL aoo::net::Client::getGroupName(
+    AooId group, AooChar *buffer, AooSize *size)
+{
+    sync::scoped_lock<sync::mutex> lock(group_mutex_);
+    auto grp = find_group_membership(group);
+    if (grp) {
+        auto nbytes = grp->group_name.size() + 1;
+        if (*size >= nbytes) {
+            memcpy(buffer, grp->group_name.c_str(), nbytes);
+            *size = nbytes - 1; // exclude the 0 character!
+            return kAooOk;
+        } else {
+            return kAooErrorInsufficientBuffer;
+        }
+    } else {
+        return kAooErrorNotFound;
+    }
+}
+
 AOO_API AooError AOO_CALL AooClient_findPeerByName(
         AooClient *client, const AooChar *group, const AooChar *user,
         AooId *groupId, AooId *userId, void *address, AooAddrSize *addrlen)
@@ -1060,7 +1104,7 @@ void Client::perform(const connect_cmd& cmd)
     }
 
     assert(connection_ == nullptr);
-    assert(memberships_.empty());
+    assert(groups_.empty());
     connection_ = std::make_unique<connect_cmd>(cmd);
 
     LOG_DEBUG("AooClient: server address list:");
@@ -1123,7 +1167,7 @@ int Client::try_connect(const ip_host& server){
 
 void Client::perform(const login_cmd& cmd) {
     assert(connection_ != nullptr);
-    assert(memberships_.empty());
+    assert(groups_.empty());
 
     state_.store(client_state::connecting);
 
@@ -1220,8 +1264,8 @@ void Client::perform(const group_join_cmd& cmd)
         return;
     }
     // check if we're already a group member
-    for (auto& m : memberships_) {
-        if (m.group_name == cmd.group_name_) {
+    for (auto& g : groups_) {
+        if (g.group_name == cmd.group_name_) {
             cmd.reply_error(kAooErrorAlreadyGroupMember);
             return;
         }
@@ -1284,7 +1328,9 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
                     }
                 }
             }
-            memberships_.push_back(std::move(m));
+            // we only have to lock for findGroupByName() and getGroupName()
+            sync::scoped_lock<sync::mutex> lock(group_mutex_);
+            groups_.push_back(std::move(m));
         } else {
             // shouldn't happen...
             LOG_ERROR("AooClient: group join response: already a member of group " << cmd.group_name_);
@@ -1353,10 +1399,12 @@ void Client::handle_response(const group_leave_cmd& cmd, const osc::ReceivedMess
         lock.unlock();
 
         // remove group membership
-        auto mit = std::find_if(memberships_.begin(), memberships_.end(),
-                                [&](auto& m) { return m.group_id == cmd.group_; });
-        if (mit != memberships_.end()) {
-            memberships_.erase(mit);
+        auto grp = std::find_if(groups_.begin(), groups_.end(),
+                                [&](auto& g) { return g.group_id == cmd.group_; });
+        if (grp != groups_.end()) {
+            // we only have to lock for findGroupByName() and getGroupName()
+            sync::scoped_lock<sync::mutex> lock(group_mutex_);
+            groups_.erase(grp);
         } else {
             LOG_ERROR("AooClient: group leave response: not a member of group " << cmd.group_);
         }
@@ -1614,7 +1662,7 @@ void Client::send_server_message(const osc::OutboundPacketStream& msg) {
     // we know that the buffer is not really constnat
     aoo::to_bytes<int32_t>(msg.Size(), const_cast<char *>(data));
 
-    int32_t nbytes = 0;
+    size_t nbytes = 0;
     while (nbytes < size){
         auto result = ::send(tcp_socket_, data + nbytes, size - nbytes, 0);
         if (result >= 0){
@@ -1768,10 +1816,12 @@ void Client::handle_group_eject(const osc::ReceivedMessage& msg) {
     lock.unlock();
 
     // remove group membership
-    auto mit = std::find_if(memberships_.begin(), memberships_.end(),
+    auto grp = std::find_if(groups_.begin(), groups_.end(),
                             [&](auto& m) { return m.group_id == group; });
-    if (mit != memberships_.end()) {
-        memberships_.erase(mit);
+    if (grp != groups_.end()) {
+        // we only have to lock for findGroupByName() and getGroupName()
+        sync::scoped_lock<sync::mutex> lock(group_mutex_);
+        groups_.erase(grp);
     } else {
         LOG_ERROR("AooClient: group eject: not a member of group " << group);
     }
@@ -2029,7 +2079,11 @@ void Client::do_close() {
     }
 
     connection_ = nullptr;
-    memberships_.clear();
+    {
+        // we only have to lock for findGroupByName() and getGroupName()
+        sync::scoped_lock<sync::mutex> lock(group_mutex_);
+        groups_.clear();
+    }
 
     // remove all peers
     peer_lock lock(peers_);
@@ -2042,16 +2096,16 @@ void Client::do_close() {
 }
 
 Client::group_membership * Client::find_group_membership(const std::string &name) {
-    for (auto& m : memberships_) {
-        if (m.group_name == name) {
-            return &m;
+    for (auto& g : groups_) {
+        if (g.group_name == name) {
+            return &g;
         }
     }
     return nullptr;
 }
 
 Client::group_membership * Client::find_group_membership(AooId id) {
-    for (auto& m : memberships_) {
+    for (auto& m : groups_) {
         if (m.group_id == id) {
             return &m;
         }
