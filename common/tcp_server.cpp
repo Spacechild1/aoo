@@ -13,14 +13,15 @@
 namespace aoo {
 
 void tcp_server::start(int port, accept_handler accept, receive_handler receive) {
+    do_close();
+
     accept_handler_ = std::move(accept);
     receive_handler_ = std::move(receive);
 
     event_socket_ = socket_udp(0);
     if (event_socket_ < 0) {
         auto e = socket_errno();
-        throw std::runtime_error("couldn't create event socket: "
-                                 + socket_strerror(e));
+        throw tcp_error(e, socket_strerror(e));
     }
 
     listen_socket_ = socket_tcp(port);
@@ -29,8 +30,7 @@ void tcp_server::start(int port, accept_handler accept, receive_handler receive)
         auto e = socket_errno();
         // clean up
         socket_close(event_socket_);
-        throw std::runtime_error("couldn't create/bind TCP socket: "
-                                 + socket_strerror(e));
+        throw tcp_error(e, socket_strerror(e));
     }
     // listen
     if (listen(listen_socket_, SOMAXCONN) < 0){
@@ -54,16 +54,56 @@ void tcp_server::start(int port, accept_handler accept, receive_handler receive)
     poll_array_[event_index].revents = 0;
     poll_array_[event_index].fd = event_socket_;
 
-    LOG_DEBUG("tcp_server: start listening on port " << port);
-}
-
-void tcp_server::run() {
     last_error_ = 0;
     running_.store(true);
 
-    loop();
+    LOG_DEBUG("tcp_server: start listening on port " << port);
+}
 
-    do_close();
+bool tcp_server::run(double timeout) {
+    while (running_.load()) {
+        // NOTE: macOS/BSD requires the negative timeout to be exactly -1!
+        auto timeout_ms = timeout >= 0 ? timeout * 1000 : -1;
+#ifdef _WIN32
+        int result = WSAPoll(poll_array_.data(), poll_array_.size(), timeout_ms);
+#else
+        int result = ::poll(poll_array_.data(), poll_array_.size(), timeout_ms);
+#endif
+        if (result < 0) {
+#ifdef _WIN32
+            int err = WSAGetLastError();
+#else
+            int err = errno;
+#endif
+            if (err != EINTR) {
+                throw tcp_error(err, socket_strerror(err));
+            }
+        } else if (result == 0) {
+            return false; // timeout
+        }
+
+        // drain event socket
+        if (poll_array_[event_index].revents != 0) {
+            char dummy[64];
+            ::recv(event_socket_, dummy, sizeof(dummy), 0);
+        }
+
+        // first receive from clients
+        receive_from_clients();
+
+        // finally accept new clients (modifies the client list!)
+        accept_client();
+
+        if (timeout >= 0) {
+            return true;
+        }
+    }
+
+    if (timeout < 0) {
+        do_close();
+    }
+
+    return true;
 }
 
 void tcp_server::stop() {
@@ -154,40 +194,6 @@ bool tcp_server::close(AooId client) {
     return false;
 }
 
-void tcp_server::loop() {
-    while (running_.load()) {
-        // NOTE: macOS/BSD requires the negative timeout to be exactly -1!
-    #ifdef _WIN32
-        int result = WSAPoll(poll_array_.data(), poll_array_.size(), -1);
-    #else
-        int result = ::poll(poll_array_.data(), poll_array_.size(), -1);
-    #endif
-        if (result < 0) {
-        #ifdef _WIN32
-            int err = WSAGetLastError();
-        #else
-            int err = errno;
-        #endif
-            if (err != EINTR) {
-                LOG_ERROR("tcp_server: poll() failed (" << err << ")");
-                break;
-            }
-        }
-
-        // drain event socket
-        if (poll_array_[event_index].revents != 0) {
-            char dummy[64];
-            ::recv(event_socket_, dummy, sizeof(dummy), 0);
-        }
-
-        // first receive from clients
-        receive_from_clients();
-
-        // finally accept new clients (modifies the client list!)
-        accept_client();
-    }
-}
-
 void tcp_server::receive_from_clients() {
     for (int i = 0; i < clients_.size(); ++i) {
         auto& fdp = poll_array_[client_index + i];
@@ -213,7 +219,7 @@ void tcp_server::receive_from_clients() {
         if (revents & POLLNVAL) {
             // invalid socket, shouldn't happen...
             LOG_DEBUG("tcp_server: POLLNVAL");
-            on_client_error(c, EINVAL);
+            handle_client_error(c, EINVAL);
             close_and_remove_client(i);
             return;
         }
@@ -224,11 +230,11 @@ void tcp_server::receive_from_clients() {
         if (c.id != kAooIdInvalid) {
             if (result > 0) {
                 // received data
-                receive_handler_(0, c.id, c.address, buffer, result);
+                receive_handler_(c.id, 0, buffer, result, c.address);
             } else if (result == 0) {
                 // client disconnected
                 LOG_DEBUG("tcp_server: connection closed by client");
-                on_client_error(c, 0);
+                handle_client_error(c, 0);
                 close_and_remove_client(i);
             } else {
                 // error
@@ -237,7 +243,7 @@ void tcp_server::receive_from_clients() {
                     continue;
                 }
                 LOG_DEBUG("tcp_server: recv() failed: " << socket_strerror(e));
-                on_client_error(c, e);
+                handle_client_error(c, e);
                 close_and_remove_client(i);
             }
         } else {
@@ -285,11 +291,7 @@ void tcp_server::accept_client() {
 
     if (revents & POLLNVAL) {
         LOG_DEBUG("tcp_server: POLLNVAL");
-        accept_handler_(EINVAL, ip_address{});
-    #if 1
-        running_.store(false); // quit server
-    #endif
-        return;
+        throw tcp_error(EINVAL, socket_strerror(EINVAL));
     }
     if (revents & POLLERR) {
         LOG_DEBUG("tcp_server: POLLERR");
@@ -311,7 +313,7 @@ void tcp_server::accept_client() {
             LOG_ERROR("tcp_server: couldn't set TCP_NODELAY");
         }
     #endif
-        auto id = accept_handler_(0, addr);
+        auto id = accept_handler_(addr);
         if (id == kAooIdInvalid) {
             // user refused to accept client
             socket_close(sock);
@@ -337,11 +339,11 @@ void tcp_server::accept_client() {
         LOG_DEBUG("tcp_server: accepted client " << addr << " " << id);
         client_count_++;
     } else {
-        on_accept_error(socket_errno(), addr);
+        handle_accept_error(socket_errno(), addr);
     }
 }
 
-void tcp_server::on_accept_error(int code, const ip_address &addr) {
+void tcp_server::handle_accept_error(int code, const ip_address &addr) {
     // avoid spamming the console with repeated errors
     thread_local ip_address last_addr;
     if (code != last_error_ || addr != last_addr) {
@@ -397,11 +399,7 @@ void tcp_server::on_accept_error(int code, const ip_address &addr) {
 
     default:
         // fatal error
-        on_accept_error(code, addr);
-#if 1
-        running_.store(false); // quit server
-#endif
-        break;
+        throw tcp_error(code, socket_strerror(code));
     }
 }
 
