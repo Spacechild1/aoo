@@ -22,7 +22,21 @@
 #include <unordered_map>
 #include <vector>
 
-#define DEBUG_THREADS 0
+#ifndef AOO_SERVER_PING_INTERVAL
+# define AOO_SERVER_PING_INTERVAL 5.0
+#endif
+
+#ifndef AOO_SERVER_PROBE_TIME
+# define AOO_SERVER_PROBE_TIME 10.0
+#endif
+
+#ifndef AOO_SERVER_PROBE_INTERVAL
+# define AOO_SERVER_PROBE_INTERVAL 1.0
+#endif
+
+#ifndef AOO_SERVER_PROBE_COUNT
+# define AOO_SERVER_PROBE_COUNT 5
+#endif
 
 namespace aoo {
 namespace net {
@@ -140,7 +154,9 @@ private:
     void handle_client_data(AooId id, int error, const AooByte *data,
                             AooInt32 size, const aoo::ip_address& addr);
 
-    void handle_ping(const client_endpoint& client, const osc::ReceivedMessage& msg);
+    void handle_ping(client_endpoint& client, const osc::ReceivedMessage& msg);
+
+    void handle_pong(client_endpoint& client, const osc::ReceivedMessage& msg);
 
     void handle_login(client_endpoint& client, const osc::ReceivedMessage& msg);
 
@@ -218,6 +234,7 @@ private:
     std::thread udp_thread_;
     aoo::tcp_server tcp_server_;
     std::vector<char> sendbuffer_;
+    aoo::time_tag next_timeout_;
     // mutex for protecting the client and group list
     //
     // NB: shared_recursive_mutex only supports recursive shared
@@ -244,6 +261,13 @@ private:
     std::string password_;
     parameter<bool> allow_relay_{AOO_SERVER_RELAY};
     parameter<bool> group_auto_create_{AOO_GROUP_AUTO_CREATE};
+    AooPingSettings ping_settings_ {
+        AOO_SERVER_PING_INTERVAL,
+        AOO_SERVER_PROBE_TIME,
+        AOO_SERVER_PROBE_INTERVAL,
+        AOO_SERVER_PROBE_COUNT
+    };
+    sync::spinlock settings_lock_;
 };
 
 } // net

@@ -350,6 +350,26 @@ public:
         return control(kAooCtlGetBinaryClientMsg, 0, AOO_ARG(b));
     }
 
+    /** \brief Set peer ping interval in seconds */
+    AooError setPeerPingInterval(AooSeconds interval) {
+        return control(kAooCtlSetPingInterval, 0, AOO_ARG(interval));
+    }
+
+    /** \brief Get peer ping interval in seconds */
+    AooError getPeerPingInterval(AooSeconds& interval) {
+        return control(kAooCtlGetPingInterval, 0, AOO_ARG(interval));
+    }
+
+    /** \brief Set server ping settings */
+    AooError setServerPingSettings(const AooPingSettings& settings) {
+        return control(kAooCtlSetPingSettings, 1, AOO_ARG(settings));
+    }
+
+    /** \brief Get server ping settings */
+    AooError getServerPingSettings(AooPingSettings& settings) {
+        return control(kAooCtlGetPingSettings, 1, AOO_ARG(settings));
+    }
+
     /** \brief add interface address */
     AooError addInterfaceAddress(const AooChar *address) {
         return control(kAooCtlAddInterfaceAddress, (AooIntPtr)address, NULL, 0);

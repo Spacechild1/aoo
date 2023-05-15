@@ -53,6 +53,9 @@
 
 // client messages
 
+#define kAooMsgClientPing \
+    kAooMsgDomain kAooMsgClient kAooMsgPing
+
 #define kAooMsgClientPong \
     kAooMsgDomain kAooMsgClient kAooMsgPong
 
@@ -108,6 +111,9 @@
 
 #define kAooMsgServerPing \
     kAooMsgDomain kAooMsgServer kAooMsgPing
+
+#define kAooMsgServerPong \
+kAooMsgDomain kAooMsgServer kAooMsgPong
 
 #define kAooMsgServerGroupJoin \
     kAooMsgDomain kAooMsgServer kAooMsgGroupJoin

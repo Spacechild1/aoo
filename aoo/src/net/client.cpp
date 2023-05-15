@@ -147,35 +147,34 @@ AOO_API AooError AOO_CALL AooClient_run(AooClient *client, AooBool nonBlocking){
 }
 
 AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
-    start_time_ = time_tag::now();
-
     try {
         while (!quit_.load()){
             double timeout = -1;
 
-            time_tag now = time_tag::now();
-            auto elapsed_time = time_tag::duration(start_time_, now);
+            if (state_.load() == client_state::connected) {
+                auto now = aoo::time_tag::now();
+                server_settings_lock_.lock();
+                auto settings = server_ping_settings_;
+                server_settings_lock_.unlock();
 
-            if (state_.load() == client_state::connected){
-                auto delta = elapsed_time - last_ping_time_;
-                auto interval = ping_interval();
-                if (delta >= interval) {
+                auto result = server_ping_timer_.update(now, settings);
+                if (result.state == ping_state::inactive) {
+                    LOG_ERROR("AooClient: server not responding");
+                    close();
+                } else if (result.ping) {
                     // send ping
-                    if (socket_ >= 0){
-                        auto msg = start_server_message();
+                    auto msg = start_server_message();
 
-                        msg << osc::BeginMessage(kAooMsgServerPing)
-                            << osc::EndMessage;
+                    msg << osc::BeginMessage(kAooMsgServerPing)
+                        << osc::EndMessage;
 
-                        send_server_message(msg);
+                    send_server_message(msg);
+
+                    if (result.state == ping_state::probe) {
+                        LOG_DEBUG("AooClient: send TCP probe ping to server");
                     } else {
-                        LOG_ERROR("AooClient: bug send_ping()");
+                        LOG_DEBUG("AooClient: send TCP ping to server");
                     }
-
-                    last_ping_time_ = elapsed_time;
-                    timeout = interval;
-                } else {
-                    timeout = interval - delta;
                 }
             }
 
@@ -698,10 +697,16 @@ AooError AOO_CALL aoo::net::Client::send(
     if (state_.load() != client_state::disconnected) {
         udp_client_.update(*this, reply, now);
 
+        // NB: if we use a seqlock, we probably do not have
+        // to pass the settings to the send() method.
+        peer_settings_lock_.lock();
+        auto settings = peer_ping_settings_;
+        peer_settings_lock_.unlock();
+
         // update peers
         peer_lock lock(peers_);
         for (auto& p : peers_){
-            p.send(*this, reply, now);
+            p.send(*this, reply, now, settings);
         }
     }
 
@@ -785,6 +790,34 @@ AooError AOO_CALL aoo::net::Client::control(
     case kAooCtlGetBinaryClientMsg:
         CHECKARG(AooBool);
         as<AooBool>(ptr) = binary_.load();
+        break;
+    case kAooCtlSetPingSettings:
+        CHECKARG(AooPingSettings);
+        if (index == 0) {
+            peer_settings_lock_.lock();
+            peer_ping_settings_ = as<AooPingSettings>(ptr);
+            peer_settings_lock_.unlock();
+        } else if (index == 1) {
+            server_settings_lock_.lock();
+            server_ping_settings_ = as<AooPingSettings>(ptr);
+            server_settings_lock_.unlock();
+        } else {
+            return kAooErrorBadArgument;
+        }
+        break;
+    case kAooCtlGetPingSettings:
+        CHECKARG(AooPingSettings);
+        if (index == 0) {
+            peer_settings_lock_.lock();
+            as<AooPingSettings>(ptr) = peer_ping_settings_;
+            peer_settings_lock_.unlock();
+        } else if (index == 1) {
+            server_settings_lock_.lock();
+            as<AooPingSettings>(ptr) = server_ping_settings_;
+            server_settings_lock_.unlock();
+        } else {
+            return kAooErrorBadArgument;
+        }
         break;
     case kAooCtlAddInterfaceAddress:
     {
@@ -965,8 +998,9 @@ void Client::perform(const connect_cmd& cmd)
         return ((a.type() == ip_address::IPv4) || (a.is_ipv4_mapped()))
                && b.type() == ip_address::IPv6;
     });
-    state_.store(client_state::handshake);
     udp_client_.start_handshake(addrlist.front());
+    // after start_handshake()! see udp_client::update()
+    state_.store(client_state::handshake);
 }
 
 int Client::try_connect(const ip_host& server){
@@ -1083,7 +1117,7 @@ void Client::perform(const disconnect_cmd& cmd) {
         return;
     }
 
-    close(true); // do not send disconnect event!
+    do_close();
 
     AooResponseDisconnect response;
     AOO_RESPONSE_INIT(&response, Disconnect, structSize);
@@ -1479,6 +1513,10 @@ osc::OutboundPacketStream Client::start_server_message(size_t extra) {
 }
 
 void Client::send_server_message(const osc::OutboundPacketStream& msg) {
+    if (socket_ < 0) {
+        LOG_ERROR("AooClient: send_server_message: invalid socket");
+        return;
+    }
     // prepend message size (int32_t)
     auto data = msg.Data() - 4;
     auto size = msg.Size() + 4;
@@ -1517,8 +1555,10 @@ void Client::handle_server_message(const osc::ReceivedMessage& msg, int32_t n){
             auto pattern = msg.AddressPattern() + onset;
             LOG_DEBUG("AooClient: got message " << pattern << " from server");
 
-            if (!strcmp(pattern, kAooMsgPong)){
-                LOG_DEBUG("AooClient: got TCP pong from server");
+            if (!strcmp(pattern, kAooMsgPing)) {
+                handle_ping(msg);
+            } else if (!strcmp(pattern, kAooMsgPong)) {
+                handle_pong(msg);
             } else if (!strcmp(pattern, kAooMsgPeerJoin)) {
                 handle_peer_add(msg);
             } else if (!strcmp(pattern, kAooMsgPeerLeave)) {
@@ -1588,6 +1628,9 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
             state_.store(client_state::connected);
             LOG_VERBOSE("AooClient: successfully logged in (client ID: "
                         << id << ")");
+            // start ping timer
+            server_ping_timer_.reset();
+
             // notify
             AooResponseConnect response;
             AOO_RESPONSE_INIT(&response, Connect, metadata);
@@ -1833,12 +1876,42 @@ void Client::handle_peer_changed(const osc::ReceivedMessage& msg) {
                 << " updated, but not found in list");
 }
 
+void Client::handle_ping(const osc::ReceivedMessage& msg) {
+    LOG_DEBUG("AooClient: got TCP ping from server");
+
+    // reply with /pong message
+    auto reply = start_server_message();
+
+    reply << osc::BeginMessage(kAooMsgServerPong)
+        << osc::EndMessage;
+
+    send_server_message(reply);
+
+    LOG_DEBUG("AooClient: send TCP pong to server");
+}
+
+void Client::handle_pong(const osc::ReceivedMessage& msg) {
+    LOG_DEBUG("AooClient: got TCP pong from server");
+    server_ping_timer_.pong();
+}
+
 bool Client::signal() {
     // LOG_DEBUG("aoo_client signal");
     return socket_signal(eventsocket_);
 }
 
-void Client::close(bool silent){
+void Client::close(AooError error){
+    bool notify = state_.load() == client_state::connected;
+
+    do_close();
+
+    if (notify){
+        auto e = std::make_unique<disconnect_event>(error, aoo_strerror(error));
+        send_event(std::move(e));
+    }
+}
+
+void Client::do_close() {
     if (socket_ >= 0){
         socket_close(socket_);
         socket_ = -1;
@@ -1855,10 +1928,6 @@ void Client::close(bool silent){
     // clear pending request
     pending_requests_.clear();
 
-    if (!silent && state_.load() == client_state::connected){
-        auto e = std::make_unique<disconnect_event>(0, "no error");
-        send_event(std::move(e));
-    }
     state_.store(client_state::disconnected);
 }
 
@@ -1938,6 +2007,9 @@ AooError udp_client::setup(int port, AooSocketFlags flags) {
     }
 
     use_ipv4_mapped_ = flags & kAooSocketIPv4Mapped;
+
+    query_deadline_.clear();
+    next_ping_time_.clear();
 
     return kAooOk;
 }
@@ -2024,26 +2096,24 @@ AooError udp_client::handle_osc_message(Client& client, const AooByte *data, int
 }
 
 void udp_client::update(Client& client, const sendfn& fn, time_tag now){
-    auto elapsed_time = client.elapsed_time_since(now);
-    auto delta = elapsed_time - last_ping_time_;
-
     auto state = client.current_state();
-
     if (state == client_state::handshake) {
+        // initialize timer; see start_handshake()
+        if (start_handshake_.exchange(false)) {
+            query_deadline_ = now + aoo::time_tag::from_seconds(client.query_timeout());
+            next_ping_time_ = now;
+        }
         // check for time out
-        // "first_ping_time_" is guaranteed to be set to 0
-        // before the state changes to "handshake"
-        auto start = first_ping_time_.load();
-        if (start == 0){
-            first_ping_time_.store(elapsed_time);
-        } else if ((elapsed_time - start) > client.query_timeout()){
+        if (now >= query_deadline_) {
             // handshake has timed out!
             auto cmd = std::make_unique<Client::timeout_cmd>();
             client.push_command(std::move(cmd));
             return;
         }
-        // send handshakes in fast succession
-        if (delta >= client.query_interval()) {
+        // send handshake pings
+        if (now >= next_ping_time_) {
+            LOG_DEBUG("AooClient: send " << kAooMsgServerQuery);
+
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage(kAooMsgServerQuery)
@@ -2051,11 +2121,14 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
 
             send_server_message(msg, fn);
 
-            last_ping_time_ = elapsed_time;
+            next_ping_time_ += aoo::time_tag::from_seconds(client.query_interval());
         }
     } else if (state == client_state::connected) {
         // send regular pings
-        if (delta >= client.ping_interval()){
+        // TODO: only do this when there are no (active) peers?
+        if (now >= next_ping_time_) {
+            LOG_DEBUG("AooClient: send UDP ping to server");
+
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage(kAooMsgServerPing)
@@ -2063,7 +2136,7 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
 
             send_server_message(msg, fn);
 
-            last_ping_time_ = elapsed_time;
+            next_ping_time_ += aoo::time_tag::from_seconds(client.ping_interval());
         }
     }
 
@@ -2077,9 +2150,9 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
 void udp_client::start_handshake(const ip_address& remote) {
     LOG_DEBUG("AooClient: start UDP handshake with " << remote);
     scoped_lock lock(mutex_);
-    first_ping_time_ = 0;
     remote_addr_ = remote;
     public_addr_.clear();
+    start_handshake_.store(true);
 }
 
 void udp_client::queue_message(message&& m) {

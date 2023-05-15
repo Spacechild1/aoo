@@ -75,6 +75,8 @@ AOO_ENUM(AooEventType)
     kAooEventGroupEject,
     /** AooClient: received ping (reply) from peer */
     kAooEventPeerPing,
+    /** AooClient: peer state change */
+    kAooEventPeerState,
     /** AooClient: peer handshake has started */
     kAooEventPeerHandshake,
     /** AooClient: peer handshake has timed out */
@@ -97,6 +99,8 @@ AOO_ENUM(AooEventType)
     kAooEventClientLogin,
     /** AooServer: client logged in successfully or failed */
     kAooEventClientLogout,
+    /** AooServer: client error */
+    kAooEventClientError,
     /** AooServer: a new group has been added (automatically) */
     kAooEventGroupAdd,
     /** AooServer: a group has been removed (automatically) */
@@ -360,6 +364,15 @@ typedef struct AooEventPeerPing
     AooNtpTime t3; /** receive time */
 } AooEventPeerPing;
 
+/** \brief peer state */
+typedef struct AooEventPeerState
+{
+    AOO_EVENT_HEADER
+    AooId group;
+    AooId user;
+    AooBool active; /** peer is (in)active */
+} AooEventPeerState;
+
 /** \brief received peer message */
 typedef struct AooEventPeerMessage
 {
@@ -380,6 +393,15 @@ typedef struct AooEventPeerUpdate
 } AooEventPeerUpdate;
 
 /* server events */
+
+/** \brief client error */
+typedef struct AooEventClientError
+{
+    AOO_EVENT_HEADER
+    AooId id;
+    AooError error;
+    const AooChar *message;
+} AooEventClientError;
 
 /** \brief client logged in */
 typedef struct AooEventClientLogin
@@ -492,6 +514,7 @@ union AooEvent
     AooEventGroupEject groupEject;
     AooEventPeer peer;
     AooEventPeerPing peerPing;
+    AooEventPeerState peerState;
     AooEventPeerHandshake peerHandshake;
     AooEventPeerTimeout peerTimeout;
     AooEventPeerJoin peerJoin;
@@ -500,6 +523,7 @@ union AooEvent
     AooEventPeerUpdate peerUpdate;
     AooEventGroupUpdate groupUpdate;
     AooEventUserUpdate userUpdate;
+    AooEventClientError clientError;
     AooEventClientLogin clientLogin;
     AooEventClientLogout clientLogout;
     AooEventGroupAdd groupAdd;

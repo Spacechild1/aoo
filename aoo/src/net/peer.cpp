@@ -39,8 +39,6 @@ peer::peer(const std::string& group_name, AooId group_id,
       metadata_(metadata), addrlist_(std::move(addrlist)),
       user_relay_(std::move(user_relay)), relay_list_(relay_list)
 {
-    start_time_ = time_tag::now();
-
     LOG_DEBUG("AooClient: create peer " << *this);
     for (auto& addr : addrlist_) {
         LOG_DEBUG("\t" << addr);
@@ -90,22 +88,27 @@ ip_address peer::address() const {
     }
 }
 
-void peer::send(Client& client, const sendfn& fn, time_tag now) {
+void peer::send(Client& client, const sendfn& fn, time_tag now,
+                const AooPingSettings& settings) {
     if (connected()) {
-        do_send(client, fn, now);
+        do_send(client, fn, now, settings);
     } else if (!timeout_) {
         // try to establish UDP connection with peer
-        auto elapsed_time = time_tag::duration(start_time_, now);
-        auto delta = elapsed_time - last_pingtime_;
-        if (elapsed_time > client.query_timeout()){
+
+        if (handshake_deadline_.is_empty()) {
+            // initialize timer
+            handshake_deadline_ = now + aoo::time_tag::from_seconds(client.query_timeout());
+            next_handshake_ = now;
+        }
+
+        if (now >= handshake_deadline_) {
             // time out -> try to relay
             if (!relay_list_.empty() && !need_relay()) {
-                start_time_ = now;
-                last_pingtime_ = 0;
-                // for now we just try with the first relay address.
+                // for now we just try the first relay address.
                 // LATER try all of them.
                 relay_address_ = relay_list_.front();
                 flags_ |= kAooPeerNeedRelay;
+                handshake_deadline_.clear(); // reset timer
                 LOG_WARNING("AooClient: UDP handshake with " << *this
                             << " timed out, try to relay over " << relay_address_);
                 return;
@@ -131,9 +134,12 @@ void peer::send(Client& client, const sendfn& fn, time_tag now) {
 
             return;
         }
-        // send handshakes in fast succession to all addresses
-        // until we get a reply from one of them (see handle_message())
-        if (delta >= client.query_interval()){
+
+        // send handshake pings to all addresses until we get a reply
+        // from one of them; see handle_message().
+        if (now >= next_handshake_) {
+            next_handshake_ += aoo::time_tag::from_seconds(client.query_interval());
+
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             // /aoo/peer/ping <group> <user> <tt>
@@ -171,18 +177,16 @@ void peer::send(Client& client, const sendfn& fn, time_tag now) {
                 }
             }
 
-            last_pingtime_ = elapsed_time;
-
             LOG_DEBUG("AooClient: send handshake ping to " << *this);
         }
     }
 }
 
-void peer::do_send(Client& client, const sendfn& fn, time_tag now) {
-    auto elapsed_time = time_tag::duration(start_time_, now);
-    auto delta = elapsed_time - last_pingtime_;
-    // 1) send regular ping
-    if (delta >= client.ping_interval()) {
+void peer::do_send(Client& client, const sendfn& fn, time_tag now,
+                   const AooPingSettings& settings) {
+    // send regular ping or probe ping
+    auto result = ping_timer_.update(now, settings, true);
+    if (result.ping) {
         // /aoo/peer/ping
         // NB: we send *our* user ID, so that the receiver can easily match the message.
         // We do not have to specifiy the peer's user ID because the group Id is already
@@ -195,10 +199,28 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now) {
 
         send(msg, fn);
 
-        last_pingtime_ = elapsed_time;
-
-        LOG_DEBUG("AooClient: send ping to " << *this << " (" << now << ")");
+        if (result.state == ping_state::probe) {
+            LOG_DEBUG("AooClient: send probe ping to " << *this << " (" << now << ")");
+        } else {
+            LOG_DEBUG("AooClient: send ping to " << *this << " (" << now << ")");
+        }
     }
+    if (active_ && result.state == ping_state::inactive) {
+        active_ = false; // -> inactive
+        // send event
+        auto e = std::make_unique<peer_state_event>(*this, true);
+        client.send_event(std::move(e));
+
+        LOG_VERBOSE("AooClient: " << *this << " became inactive");
+    } else if (!active_ && result.state != ping_state::inactive) {
+        active_ = true; // -> active
+        // send event
+        auto e = std::make_unique<peer_state_event>(*this, false);
+        client.send_event(std::move(e));
+
+        LOG_VERBOSE("AooClient: " << *this << " became active again");
+    }
+
     // 2) reply to /ping message
     // NB: we send *our* user ID, see above.
     if (got_ping_.exchange(false, std::memory_order_acquire)) {
@@ -216,7 +238,7 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now) {
 
             send(msg, fn);
 
-            LOG_DEBUG("AooClient: send ping reply to " << *this
+            LOG_DEBUG("AooClient: send pong to " << *this
                       << " (" << time_tag(tt1) << " " << now << ")");
         } else {
             // handshake pong
@@ -229,7 +251,7 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now) {
 
             send(msg, fn);
 
-            LOG_DEBUG("AooClient: send handshake ping reply to " << *this);
+            LOG_DEBUG("AooClient: send handshake pong to " << *this);
         }
     }
     // 3) send outgoing acks
@@ -271,7 +293,7 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now) {
     if (!send_buffer_.empty()) {
         bool binary = client.binary();
         for (auto& msg : send_buffer_) {
-            if (msg.need_resend(elapsed_time)) {
+            if (msg.need_resend(now)) {
                 message_packet p;
                 p.type = msg.data_.type();
                 p.data = nullptr;
@@ -530,6 +552,8 @@ void peer::handle_ping(Client& client, osc::ReceivedMessageArgumentIterator it,
         handle_first_ping(client, addr);
     }
 
+    ping_timer_.pong();
+
     time_tag tt1 = (it++)->AsTimeTag();
     // reply to both handshake and regular pings!!!
     // otherwise, the handshake might fail on the other side.
@@ -552,6 +576,8 @@ void peer::handle_pong(Client& client, osc::ReceivedMessageArgumentIterator it,
     if (!connected()) {
         handle_first_ping(client, addr);
     }
+
+    ping_timer_.pong();
 
     time_tag tt1 = (it++)->AsTimeTag();
     if (!tt1.is_empty()) {

@@ -67,6 +67,26 @@ struct peer_ping_event : ievent
     time_tag tt3_;
 };
 
+struct peer_state_event : ievent
+{
+    peer_state_event(const peer& p, bool active)
+        : group_(p.group_id()), user_(p.user_id()), active_(active) {}
+
+    void dispatch(const event_handler &fn) const override {
+        AooEventPeerState e;
+        AOO_EVENT_INIT(&e, AooEventPeerState, active);
+        e.group = group_;
+        e.user = user_;
+        e.active = active_;
+
+        fn(e);
+    }
+
+    AooId group_;
+    AooId user_;
+    bool active_;
+};
+
 struct peer_message_event : ievent
 {
     peer_message_event(AooId group, AooId user, time_tag tt, const AooData& msg)

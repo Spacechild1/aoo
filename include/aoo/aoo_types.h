@@ -243,6 +243,8 @@ AOO_ENUM(AooError)
     kAooErrorUserDoesNotExist,
     /** cannot create user */
     kAooErrorCannotCreateUser,
+    /** client or server not responding */
+    kAooErrorNotResponding,
     /** start of user defined error codes (for custom AOO versions) */
     kAooErrorCustom = 10000
 };
@@ -514,6 +516,17 @@ typedef struct AooFormatStorage
     AooFormat header;
     AooByte data[kAooFormatExtMaxSize];
 } AooFormatStorage;
+
+/*------------------------------------------------------------------*/
+
+/** \brief ping settings */
+typedef struct AooPingSettings
+{
+    AooSeconds interval; /** regular ping interval */
+    AooSeconds probeTime; /** time to wait before probing */
+    AooSeconds probeInterval; /** probe ping interval */
+    AooInt32 probeCount; /** max. number of probe pings */
+} AooPingSettings;
 
 /*------------------------------------------------------------------*/
 

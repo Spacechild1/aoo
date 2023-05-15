@@ -16,20 +16,53 @@
 #include "detail.hpp"
 #include "event.hpp"
 #include "peer.hpp"
+#include "ping_timer.hpp"
 
 #include "oscpack/osc/OscOutboundPacketStream.h"
 #include "oscpack/osc/OscReceivedElements.h"
 
+#ifndef AOO_CLIENT_SERVER_PING_INTERVAL
+# define AOO_CLIENT_SERVER_PING_INTERVAL 5.0
+#endif
+
+#ifndef AOO_CLIENT_SERVER_PROBE_TIME
+# define AOO_CLIENT_SERVER_PROBE_TIME 10.0
+#endif
+
+#ifndef AOO_CLIENT_SERVER_PROBE_INTERVAL
+# define AOO_CLIENT_SERVER_PROBE_INTERVAL 1.0
+#endif
+
+#ifndef AOO_CLIENT_SERVER_PROBE_COUNT
+# define AOO_CLIENT_SERVER_PROBE_COUNT 5
+#endif
+
+#ifndef AOO_CLIENT_PEER_PING_INTERVAL
+# define AOO_CLIENT_PEER_PING_INTERVAL 5.0
+#endif
+
+#ifndef AOO_CLIENT_PEER_PROBE_TIME
+# define AOO_CLIENT_PEER_PROBE_TIME 10.0
+#endif
+
+#ifndef AOO_CLIENT_PEER_PROBE_INTERVAL
+# define AOO_CLIENT_PEER_PROBE_INTERVAL 1.0
+#endif
+
+#ifndef AOO_CLIENT_PEER_PROBE_COUNT
+# define AOO_CLIENT_PEER_PROBE_COUNT 5
+#endif
+
 #ifndef AOO_CLIENT_PING_INTERVAL
- #define AOO_CLIENT_PING_INTERVAL 5000
+#define AOO_CLIENT_PING_INTERVAL 5.0
 #endif
 
 #ifndef AOO_CLIENT_QUERY_INTERVAL
- #define AOO_CLIENT_QUERY_INTERVAL 100
+ #define AOO_CLIENT_QUERY_INTERVAL 0.1
 #endif
 
 #ifndef AOO_CLIENT_QUERY_TIMEOUT
- #define AOO_CLIENT_QUERY_TIMEOUT 5000
+ #define AOO_CLIENT_QUERY_TIMEOUT 5.0
 #endif
 
 #ifndef AOO_CLIENT_SIMULATE
@@ -106,13 +139,14 @@ private:
     int port_ = 0;
     ip_address::ip_type address_family_ = ip_address::Unspec;
     bool use_ipv4_mapped_ = false;
+    std::atomic<bool> start_handshake_{false};
 
     ip_address remote_addr_;
     ip_address public_addr_;
     sync::shared_mutex mutex_; // LATER replace with sequence lock
 
-    double last_ping_time_ = 0;
-    std::atomic<double> first_ping_time_{0};
+    aoo::time_tag next_ping_time_;
+    aoo::time_tag query_deadline_;
 
     using message_queue = aoo::unbounded_mpsc_queue<message>;
     message_queue messages_;
@@ -276,10 +310,6 @@ public:
 
     void push_command(command_ptr cmd);
 
-    double elapsed_time_since(time_tag now) const {
-        return time_tag::duration(start_time_, now);
-    }
-
     client_state current_state() const { return state_.load(); }
 private:
     // networking
@@ -308,9 +338,6 @@ private:
     using peer_list = aoo::rcu_list<peer>;
     using peer_lock = std::unique_lock<peer_list>;
     peer_list peers_;
-    // time
-    time_tag start_time_;
-    double last_ping_time_ = 0;
     // connect/login
     std::atomic<client_state> state_{client_state::disconnected};
     std::unique_ptr<connect_cmd> connection_;
@@ -322,6 +349,7 @@ private:
         ip_address_list relay_list;
     };
     std::vector<group_membership> memberships_;
+    ping_timer server_ping_timer_;
     // commands
     using command_queue = aoo::unbounded_mpsc_queue<command_ptr>;
     command_queue commands_;
@@ -367,9 +395,23 @@ private:
     void *eventcontext_ = nullptr;
     AooEventMode eventmode_ = kAooEventModeNone;
     // options
-    parameter<AooSeconds> ping_interval_{AOO_CLIENT_PING_INTERVAL * 0.001};
-    parameter<AooSeconds> query_interval_{AOO_CLIENT_QUERY_INTERVAL * 0.001};
-    parameter<AooSeconds> query_timeout_{AOO_CLIENT_QUERY_TIMEOUT * 0.001};
+    AooPingSettings server_ping_settings_ {
+        AOO_CLIENT_SERVER_PING_INTERVAL,
+        AOO_CLIENT_SERVER_PROBE_TIME,
+        AOO_CLIENT_SERVER_PROBE_INTERVAL,
+        AOO_CLIENT_SERVER_PROBE_COUNT
+    };
+    sync::spinlock server_settings_lock_; // LATER use seqlock?
+    AooPingSettings peer_ping_settings_ {
+        AOO_CLIENT_PEER_PING_INTERVAL,
+        AOO_CLIENT_PEER_PROBE_TIME,
+        AOO_CLIENT_PEER_PROBE_INTERVAL,
+        AOO_CLIENT_PEER_PROBE_COUNT
+    };
+    sync::spinlock peer_settings_lock_; // LATER use seqlock?
+    parameter<AooSeconds> ping_interval_{AOO_CLIENT_PING_INTERVAL};
+    parameter<AooSeconds> query_interval_{AOO_CLIENT_QUERY_INTERVAL};
+    parameter<AooSeconds> query_timeout_{AOO_CLIENT_QUERY_TIMEOUT};
     parameter<bool> binary_{AOO_CLIENT_BINARY_MSG};
 #if AOO_CLIENT_SIMULATE
     parameter<float> sim_packet_loss_{0};
@@ -425,12 +467,18 @@ private:
 
     void handle_peer_remove(const osc::ReceivedMessage& msg);
 
+    void handle_ping(const osc::ReceivedMessage& msg);
+
+    void handle_pong(const osc::ReceivedMessage& msg);
+
     void on_socket_error(int err);
 
     void on_exception(const char *what, const osc::Exception& err,
                       const char *pattern = nullptr);
 
-    void close(bool silent = false);
+    void close(AooError error = kAooErrorNone);
+
+    void do_close();
 
     group_membership * find_group_membership(const std::string& name);
 

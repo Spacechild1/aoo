@@ -159,6 +159,20 @@ AOO_INLINE AooError AooServer_getGroupAutoCreate(AooServer *server, AooBool* b)
     return AooServer_control(server, kAooCtlGetGroupAutoCreate, 0, AOO_ARG(*b));
 }
 
+/** \copydoc AooServer::setPingSettings() */
+AOO_INLINE AooError AooServer_setPingSettings(
+    AooServer *server, const AooPingSettings *settings)
+{
+    return AooServer_control(server, kAooCtlSetPingSettings, 0, AOO_ARG(*settings));
+}
+
+/** \copydoc AooServer::getPingSettings() */
+AOO_INLINE AooError AooServer_getPingSettings(
+    AooServer *server, AooPingSettings *settings)
+{
+    return AooServer_control(server, kAooCtlGetPingSettings, 0, AOO_ARG(*settings));
+}
+
 /*--------------------------------------------------*/
 /*         type-safe group control functions        */
 /*--------------------------------------------------*/

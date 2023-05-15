@@ -8,18 +8,18 @@ namespace net {
 #define AOO_MAX_RESEND_INTERVAL 1.0
 #define AOO_RESEND_INTERVAL_BACKOFF 2.0
 
-bool sent_message::need_resend(double now) {
-    if (time_ > 0) {
-        if ((now - time_) >= interval_) {
-            time_ = now;
-            interval_ *= AOO_RESEND_INTERVAL_BACKOFF;
-            if (interval_ > AOO_MAX_RESEND_INTERVAL) {
-                interval_ = AOO_MAX_RESEND_INTERVAL;
+bool sent_message::need_resend(aoo::time_tag now) {
+    if (next_time_.is_empty()) {
+        next_time_ = now + aoo::time_tag::from_seconds(resend_interval_);
+    } else {
+        if (now >= next_time_) {
+            resend_interval_ *= AOO_RESEND_INTERVAL_BACKOFF;
+            if (resend_interval_ > AOO_MAX_RESEND_INTERVAL) {
+                resend_interval_ = AOO_MAX_RESEND_INTERVAL;
             }
+            next_time_ += aoo::time_tag::from_seconds(resend_interval_);
             return true;
         }
-    } else {
-        time_ = now;
     }
     return false;
 }

@@ -226,6 +226,16 @@ public:
         return control(kAooCtlGetGroupAutoCreate, 0, AOO_ARG(b));
     }
 
+    /** \brief Set client ping settings */
+    AooError setPingSettings(const AooPingSettings& settings) {
+        return control(kAooCtlSetPingSettings, 0, AOO_ARG(settings));
+    }
+
+    /** \brief Get client ping settings */
+    AooError getPingSettings(AooPingSettings& settings) {
+        return control(kAooCtlGetPingSettings, 0, AOO_ARG(settings));
+    }
+
     /*--------------------------------------------------*/
     /*         type-safe group control functions        */
     /*--------------------------------------------------*/

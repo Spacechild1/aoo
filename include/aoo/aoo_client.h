@@ -165,6 +165,34 @@ AOO_INLINE AooError AooClient_getBinaryMsg(AooClient *client, AooBool *b)
     return AooClient_control(client, kAooCtlGetBinaryClientMsg, 0, AOO_ARG(*b));
 }
 
+/** \copydoc AooClient::setPeerPingInterval() */
+AOO_INLINE AooError AooClient_setPeerPingInterval(
+    AooClient *client, AooSeconds interval)
+{
+    return AooClient_control(client, kAooCtlSetPingInterval, 0, AOO_ARG(interval));
+}
+
+/** \copydoc AooClient::getPeerPingInterval() */
+AOO_INLINE AooError AooClient_getPeerPingInterval(
+    AooClient *client, AooSeconds *interval)
+{
+    return AooClient_control(client, kAooCtlGetPingInterval, 0, AOO_ARG(*interval));
+}
+
+/** \copydoc AooClient::setServerPingSettings() */
+AOO_INLINE AooError AooClient_setServerPingSettings(
+    AooClient *client, const AooPingSettings *settings)
+{
+    return AooClient_control(client, kAooCtlSetPingSettings, 1, AOO_ARG(*settings));
+}
+
+/** \copydoc AooClient::getServerPingSettings() */
+AOO_INLINE AooError AooClient_getServerPingSettings(
+    AooClient *client, AooPingSettings *settings)
+{
+    return AooClient_control(client, kAooCtlGetPingSettings, 1, AOO_ARG(*settings));
+}
+
 /** \copydoc AooClient::addInterfaceAddress() */
 AOO_INLINE AooError AooClient_addInterfaceAddress(
     AooClient *client, const AooChar *address)

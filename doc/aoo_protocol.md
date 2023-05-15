@@ -705,6 +705,50 @@ Generic server notification.
 
 <br>
 
+## 2.4 Other
+
+<br>
+
+## `/aoo/server/ping`
+
+Send a ping message to the server. This is used as a heartbeat to keep the TCP connection open. (For example, NAT proxies or firewalls tend to drop connections after a certain timeout.)
+
+### Arguments:
+
+None
+
+---
+
+## `/aoo/client/pong`
+
+Reply to a client `/ping` message. This can be used to detect broken server connections.
+
+### Arguments:
+
+None
+
+---
+
+## `/aoo/client/ping`
+
+Send a ping message to the client. This is used as a heartbeat to keep the TCP connection open.
+
+### Arguments:
+
+None
+
+---
+
+## `/aoo/server/pong`
+
+Reply to a server `/ping` message. This can be used to detect broken client connections.
+
+### Arguments:
+
+None
+
+<br>
+
 # 3 Relay (UDP)
 
 <br>

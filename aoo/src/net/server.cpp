@@ -110,12 +110,46 @@ AOO_API AooError AOO_CALL AooServer_run(
 
 AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
     try {
-        // the TCP handler methods will lock the mutex to
-        // prevent concurrent access from API methods.
-        // The run() method itself must only be called after
-        // the setup() method, so there is no race condition
-        // regarding the TCP server itself.
-        tcp_server_.run(nonBlocking ? 0 : -1);
+        while  (tcp_server_.running()) {
+            // first check client timers
+            auto now = aoo::time_tag::now();
+            double timeout = 1e9;
+
+            if (!nonBlocking || now >= next_timeout_) {
+                settings_lock_.lock();
+                auto settings = ping_settings_;
+                settings_lock_.unlock();
+
+                std::vector<AooId> client_timeouts;
+
+                for (auto& [id, client] : clients_) {
+                    auto [timeout, wait] = client.update(*this, now, settings);
+                    if (timeout) {
+                        LOG_VERBOSE("AooServer: client " << id << " not responding");
+                        client_timeouts.push_back(id);
+                    } else if (wait < timeout) {
+                        timeout = wait;
+                    }
+                }
+
+                // remove timed-out clients
+                for (auto& id : client_timeouts) {
+                    remove_client(id, kAooErrorNotResponding, "client is not responding");
+                }
+            }
+
+            // then wait for network events (with timeout)
+            // NB: the TCP handler methods will lock the mutex to
+            // prevent concurrent access from API methods.
+            // The run() method itself must only be called after
+            // the setup() method, so there is no race condition
+            // regarding the TCP server itself.
+            if (nonBlocking) {
+                return tcp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
+            } else {
+                tcp_server_.run(timeout);
+            }
+        }
     }  catch (const aoo::tcp_error& e) {
         LOG_ERROR("AooServer: TCP server failed: " << e.what());
         aoo::socket_set_errno(e.code());
@@ -576,6 +610,18 @@ AooError AOO_CALL aoo::net::Server::control(
         CHECKARG(AooBool);
         as<AooBool>(ptr) = group_auto_create_.load();
         break;
+    case kAooCtlSetPingSettings:
+        CHECKARG(AooPingSettings);
+        settings_lock_.lock();
+        ping_settings_ = as<AooPingSettings>(ptr);
+        settings_lock_.unlock();
+        break;
+    case kAooCtlGetPingSettings:
+        CHECKARG(AooPingSettings);
+        settings_lock_.lock();
+        as<AooPingSettings>(ptr) = ping_settings_;
+        settings_lock_.unlock();
+        break;
     default:
         LOG_WARNING("AooServer: unsupported control " << ctl);
         return kAooErrorNotImplemented;
@@ -765,6 +811,9 @@ AooId Server::accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_
     auto id = get_next_client_id();
     // TODO: check max. client count
     clients_.emplace(id, client_endpoint(id, fn));
+    // force timer update! See run().
+    next_timeout_.clear();
+
     LOG_DEBUG("AooServer: add client " << id);
     return id;
 }
@@ -820,6 +869,21 @@ void Server::handle_client_data(AooId id, int err, const AooByte *data,
     }
 }
 
+void Server::handle_ping(client_endpoint& client,
+                         const osc::ReceivedMessage& msg) {
+    // send reply
+    auto reply = start_message();
+
+    reply << osc::BeginMessage(kAooMsgClientPong) << osc::EndMessage;
+
+    client.send_message(reply);
+}
+
+void Server::handle_pong(client_endpoint &client,
+                         const osc::ReceivedMessage &msg) {
+    client.handle_pong();
+}
+
 void Server::handle_message(client_endpoint& client,
                             const osc::ReceivedMessage& msg, int32_t size) {
     AooMsgType type;
@@ -842,6 +906,8 @@ void Server::handle_message(client_endpoint& client,
                 }
                 if (!strcmp(pattern, kAooMsgPing)){
                     handle_ping(client, msg);
+                } else if (!strcmp(pattern, kAooMsgPong)) {
+                    handle_pong(client, msg);
                 } else if (!strcmp(pattern, kAooMsgGroupJoin)){
                     handle_group_join(client, msg);
                 } else if (!strcmp(pattern, kAooMsgGroupLeave)){
@@ -878,16 +944,6 @@ void Server::handle_message(client_endpoint& client,
         ss << "malformed " << msg.AddressPattern() << " message: " << e.what();
         throw error(kAooErrorBadFormat, ss.str());
     }
-}
-
-void Server::handle_ping(const client_endpoint& client,
-                         const osc::ReceivedMessage& msg) {
-    // send reply
-    auto reply = start_message();
-
-    reply << osc::BeginMessage(kAooMsgClientPong) << osc::EndMessage;
-
-    client.send_message(reply);
 }
 
 //------------------------- login ------------------------------//

@@ -225,6 +225,25 @@ void client_endpoint::handle_data(Server &server, const AooByte *data, int32_t n
     });
 }
 
+std::pair<bool, double> client_endpoint::update(Server& server, aoo::time_tag now,
+                                                const AooPingSettings &settings) {
+    auto result = ping_timer_.update(now, settings);
+    if (result.ping) {
+        auto msg = server.start_message();
+
+        msg << osc::BeginMessage(kAooMsgClientPing) << osc::EndMessage;
+
+        send_message(msg);
+    }
+    if (result.state == ping_state::inactive) {
+        if (active_) {
+            active_ = false;
+            return std::make_pair(true, result.wait);
+        }
+    }
+    return std::make_pair(false, result.wait);
+}
+
 void client_endpoint::on_group_join(Server&, const group& grp, const user& usr) {
 #if 1
     for (auto& gu : group_users_) {

@@ -2,6 +2,7 @@
 
 #include "detail.hpp"
 #include "message_buffer.hpp"
+#include "ping_timer.hpp"
 
 namespace aoo {
 namespace net {
@@ -79,7 +80,8 @@ public:
 
     const aoo::metadata& metadata() const { return metadata_; }
 
-    void send(Client& client, const sendfn& fn, time_tag now);
+    void send(Client& client, const sendfn& fn, time_tag now,
+              const AooPingSettings& settings);
 
     void send_message(const message& msg, const sendfn& fn, bool binary);
 
@@ -108,7 +110,8 @@ private:
 
     void handle_ack(Client& client, const AooByte *data, AooSize size);
 
-    void do_send(Client& client, const sendfn& fn, time_tag now);
+    void do_send(Client& client, const sendfn& fn, time_tag now,
+                 const AooPingSettings& settings);
 
     void send_packet_osc(const message_packet& frame, const sendfn& fn) const;
 
@@ -144,14 +147,16 @@ private:
     ip_address::ip_type address_family_;
     bool use_ipv4_mapped_;
     bool timeout_ = false;
+    bool active_ = true;
     aoo::metadata metadata_;
     ip_address_list addrlist_;
     ip_address_list user_relay_;
     ip_address_list relay_list_;
     ip_address real_address_; // IPv4-mapped if peer-to-peer, unmapped if relayed
     ip_address relay_address_;
-    time_tag start_time_;
-    double last_pingtime_ = 0;
+    ping_timer ping_timer_;
+    aoo::time_tag next_handshake_;
+    aoo::time_tag handshake_deadline_;
     time_tag ping_tt1_;
     std::atomic<float> average_rtt_{0};
     std::atomic<bool> connected_{false};

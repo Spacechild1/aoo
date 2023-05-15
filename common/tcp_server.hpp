@@ -60,6 +60,7 @@ public:
 
     void start(int port, accept_handler accept, receive_handler receive);
     bool run(double timeout = -1.0);
+    bool running() const { return running_.load(std::memory_order_relaxed); }
     void stop();
     void notify();
 

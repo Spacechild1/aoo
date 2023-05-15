@@ -12,9 +12,9 @@ namespace net {
 
 struct sent_message {
     sent_message(const metadata& data, aoo::time_tag tt, int32_t seq,
-                 int32_t nframes, int32_t framesize, float interval)
+                 int32_t nframes, int32_t framesize, float resend_interval)
         : data_(data), tt_(tt), sequence_(seq), nframes_(nframes),
-          framesize_(framesize), interval_(interval) {
+          framesize_(framesize), resend_interval_(resend_interval) {
         // LATER support messages with arbitrary number of frames
         assert(nframes <= (int32_t)frames_.size());
         for (int i = 0; i < nframes; ++i){
@@ -22,10 +22,12 @@ struct sent_message {
         }
     }
     // methods
-    bool need_resend(double now);
+    bool need_resend(aoo::time_tag now);
+
     bool has_frame(int32_t which) const {
         return !frames_[which];
     }
+
     void get_frame(int32_t which, const AooByte *& data, int32_t& size) {
         if (nframes_ == 1) {
             // single-frame message
@@ -44,13 +46,17 @@ struct sent_message {
             }
         }
     }
+
     void ack_frame(int32_t which) {
         frames_[which] = false;
     }
+
     void ack_all() {
         frames_.reset();
     }
+
     bool complete() const { return frames_.none(); }
+
     // data
     aoo::metadata data_;
     aoo::time_tag tt_;
@@ -59,8 +65,8 @@ struct sent_message {
     int32_t framesize_;
     int32_t remainder_;
 private:
-    double time_ = 0;
-    double interval_;
+    aoo::time_tag next_time_;
+    double resend_interval_;
     std::bitset<256> frames_;
 };
 

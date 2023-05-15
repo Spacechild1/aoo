@@ -7,6 +7,7 @@
 
 #include "detail.hpp"
 #include "osc_stream_receiver.hpp"
+#include "ping_timer.hpp"
 
 namespace aoo {
 namespace net {
@@ -206,6 +207,13 @@ public:
     void on_close(Server& server);
 
     void handle_data(Server& server, const AooByte *data, int32_t n);
+
+    std::pair<bool, double> update(Server& server, aoo::time_tag now,
+                                   const AooPingSettings& settings);
+
+    void handle_pong() {
+        ping_timer_.pong();
+    }
 private:
     AooId id_;
     aoo::tcp_server::reply_func replyfn_;
@@ -217,6 +225,8 @@ private:
         AooId user;
     };
     std::vector<group_user> group_users_;
+    ping_timer ping_timer_;
+    bool active_ = true;
 };
 
 } // net

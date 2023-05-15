@@ -234,6 +234,8 @@ const char *aoo_strerror(AooError e){
         return "user does not exist";
     case kAooErrorCannotCreateUser:
         return "cannot create user";
+    case kAooErrorNotResponding:
+        return "not responding";
     default:
         return "unknown error code";
     }
