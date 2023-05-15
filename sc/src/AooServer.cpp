@@ -53,12 +53,11 @@ namespace sc {
 AooServer::AooServer(World *world, int port, const char *password)
     : world_(world), port_(port)
 {
-    // setup UDP server
+    // setup UDP server (throw on error)
     // TODO: increase socket receive buffer for relay? Use threaded receive?
-    udpserver_.start(port,
-                     [this](auto&&... args) { handleUdpReceive(args...); });
+    udpserver_.start(port, [this](auto&&... args) { handleUdpReceive(args...); });
 
-    // setup TCP server
+    // setup TCP server (throws on error)
     tcpserver_.start(port,
                      [this](auto&&... args) { return handleAccept(args...); },
                      [this](auto&&... args) { return handleReceive(args...); });
@@ -81,10 +80,18 @@ AooServer::AooServer(World *world, int port, const char *password)
     }, this, kAooEventModeCallback);
     // then start network threads
     udpthread_ = std::thread([this](){
-        udpserver_.run(-1);
+        try {
+            udpserver_.run();
+        } catch (const aoo::udp_error& e) {
+            LOG_ERROR("AooServer: UDP error: " << e.what());
+        }
     });
     tcpthread_ = std::thread([this](){
-        tcpserver_.run();
+        try {
+            tcpserver_.run();
+        } catch (const aoo::tcp_error& e) {
+            LOG_ERROR("AooServer: TCP error: " << e.what());
+        }
     });
 }
 
@@ -154,26 +161,21 @@ void AooServer::handleEvent(const AooEvent *event){
     ::sendMsgNRT(world_, msg);
 }
 
-AooId AooServer::handleAccept(int e, const aoo::ip_address& addr) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, AooId client,
-                const AooByte *data, AooSize size) -> AooInt32 {
-            return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
-        };
-        AooId client;
-        server_->addClient(replyfn, &tcpserver_, &client); // doesn't fail
-        addClient(client, addr);
-        return client;
-    } else {
-        LOG_ERROR("AooServer: accept() failed: " << aoo::socket_strerror(e));
-        // TODO handle error?
-        return kAooIdInvalid;
-    }
+AooId AooServer::handleAccept(const aoo::ip_address& addr) {
+    // reply function
+    auto replyfn = [](void *x, AooId client,
+            const AooByte *data, AooSize size) -> AooInt32 {
+        return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
+    };
+
+    AooId client;
+    server_->addClient(replyfn, &tcpserver_, &client); // doesn't fail
+    addClient(client, addr);
+    return client;
 }
 
-void AooServer::handleReceive(int e, AooId client, const aoo::ip_address& addr,
-                              const AooByte *data, AooSize size) {
+void AooServer::handleReceive(AooId client, int e, const AooByte *data,
+                              AooSize size, const aoo::ip_address& addr) {
     if (e == 0 && size > 0) {
         if (server_->handleClientMessage(client, data, size) != kAooOk) {
             // close and remove client!
@@ -194,21 +196,17 @@ void AooServer::handleReceive(int e, AooId client, const aoo::ip_address& addr,
     }
 }
 
-void AooServer::handleUdpReceive(int e, const aoo::ip_address& addr,
-                                 const AooByte *data, AooSize size) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
-                const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
-            aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-            return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
-        };
-        server_->handleUdpMessage(data, size, addr.address(), addr.length(),
-                                  replyfn, &udpserver_);
-    } else {
-        LOG_ERROR("AooServer: UDP error: " << aoo::socket_strerror(e));
-        // TODO handle error?
-    }
+void AooServer::handleUdpReceive(const AooByte *data, AooSize size,
+                                 const aoo::ip_address& addr) {
+    // reply function
+    auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
+            const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
+        aoo::ip_address addr((const struct sockaddr *)address, addrlen);
+        return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
+    };
+
+    server_->handleUdpMessage(data, size, addr.address(), addr.length(),
+                              replyfn, &udpserver_);
 }
 
 void AooServer::addClient(AooId client, const aoo::ip_address& addr) {

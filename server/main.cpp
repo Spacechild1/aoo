@@ -56,48 +56,35 @@ void stop_server(int error) {
 
 aoo::udp_server g_udp_server;
 
-void handle_udp_receive(int e, const aoo::ip_address& addr,
-                        const AooByte *data, AooSize size) {
-    if (e == 0) {
-        g_aoo_server->handleUdpMessage(data, size, addr.address(), addr.length(),
-            [](void *, const AooByte *data, AooInt32 size,
-                    const void *address, AooAddrSize addrlen, AooFlag) {
-                aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-                return g_udp_server.send(addr, data, size);
-            }, nullptr);
-    } else {
-        if (g_loglevel >= kAooLogLevelError)
-            std::cout << "UDP server: recv() failed: " << aoo::socket_strerror(e) << std::endl;
-        stop_server(e);
-    }
+int udp_send_function(void *, const AooByte *data, AooInt32 size,
+                      const void *address, AooAddrSize addrlen, AooFlag) {
+    aoo::ip_address addr((const struct sockaddr *)address, addrlen);
+    return g_udp_server.send(addr, data, size);
+}
+
+void handle_udp_receive(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
+    g_aoo_server->handleUdpMessage(data, size, addr.address(), addr.length(),
+        udp_send_function, nullptr);
 }
 
 aoo::tcp_server g_tcp_server;
 
-AooId handle_tcp_accept(int e, const aoo::ip_address& addr) {
-    if (e == 0) {
-        // add new client
-        AooId id;
-        g_aoo_server->addClient([](void *, AooId client, const AooByte *data, AooSize size) {
-            return g_tcp_server.send(client, data, size);
-        }, nullptr, &id);
-        if (g_loglevel >= kAooLogLevelVerbose) {
-            std::cout << "Add new client " << id << std::endl;
-        }
-        return id;
-    } else {
-        // error
-        if (g_loglevel >= kAooLogLevelError)
-            std::cout << "TCP server: accept() failed: " << aoo::socket_strerror(e) << std::endl;
-    #if 1
-        stop_server(e);
-    #endif
-        return kAooIdInvalid;
-    }
+int tcp_send_function(void *, AooId client, const AooByte *data, AooSize size) {
+    return g_tcp_server.send(client, data, size);
 }
 
-void handle_tcp_receive(int e, AooId client, const aoo::ip_address& addr,
-                        const AooByte *data, AooSize size) {
+AooId handle_tcp_accept(const aoo::ip_address& addr) {
+    // add new client
+    AooId id;
+    g_aoo_server->addClient(tcp_send_function, nullptr, &id);
+    if (g_loglevel >= kAooLogLevelVerbose) {
+        std::cout << "Add new client " << id << std::endl;
+    }
+    return id;
+}
+
+void handle_tcp_receive(AooId client, int e, const AooByte *data, AooSize size,
+                        const aoo::ip_address& addr) {
     if (e == 0 && size > 0) {
         // handle client message
         if (auto err = g_aoo_server->handleClientMessage(client, data, size); err != kAooOk) {
@@ -260,16 +247,20 @@ int main(int argc, const char **argv) {
     // TODO: increase socket receive buffer for relay? Use threaded receive?
     try {
         g_udp_server.start(port, handle_udp_receive);
-    } catch (const std::exception& e) {
-        std::cout << "Could not start UDP server: " << e.what() << std::endl;
+    } catch (const aoo::udp_error& e) {
+        if (g_loglevel >= kAooLogLevelError) {
+            std::cout << "Could not start UDP server: " << e.what() << std::endl;
+        }
         return EXIT_FAILURE;
     }
 
     // setup TCP server
     try {
         g_tcp_server.start(port, handle_tcp_accept, handle_tcp_receive);
-    } catch (const std::exception& e) {
-        std::cout << "Could not start TCP server: " << e.what() << std::endl;
+    } catch (const aoo::tcp_error& e) {
+        if (g_loglevel >= kAooLogLevelError) {
+            std::cout << "Could not start TCP server: " << e.what() << std::endl;
+        }
         return EXIT_FAILURE;
     }
 
@@ -286,10 +277,20 @@ int main(int argc, const char **argv) {
 
     // finally start network threads
     auto udp_thread = std::thread([]() {
-        g_udp_server.run();
+        try {
+            g_udp_server.run();
+        } catch (const aoo::udp_error& e) {
+            std::cout << "UDP server failed: " << e.what() << std::endl;
+            stop_server(e.code());
+        }
     });
     auto tcp_thread = std::thread([]() {
-        g_tcp_server.run();
+        try {
+            g_tcp_server.run();
+        } catch (const aoo::tcp_error& e) {
+            std::cout << "TCP server failed: " << e.what() << std::endl;
+            stop_server(e.code());
+        }
     });
 
     if (g_loglevel >= kAooLogLevelVerbose) {

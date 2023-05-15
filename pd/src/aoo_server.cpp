@@ -35,11 +35,11 @@ struct t_aoo_server
     t_outlet *x_msgout = nullptr;
 
     void close();
-    AooId handle_accept(int e, const aoo::ip_address& addr);
-    void handle_receive(int e, AooId client, const aoo::ip_address& addr,
-                        const AooByte *data, AooSize size);
-    void handle_udp_receive(int e, const aoo::ip_address& addr,
-                            const AooByte *data, AooSize size);
+    AooId handle_accept(const aoo::ip_address& addr);
+    void handle_receive(AooId client, int e, const AooByte *data,
+                        AooSize size, const aoo::ip_address& addr);
+    void handle_udp_receive(const AooByte *data, AooSize size,
+                            const aoo::ip_address& addr);
     void add_client(AooId id, const aoo::ip_address& addr);
     void remove_client(AooId id, const aoo::ip_address& addr);
 };
@@ -60,34 +60,24 @@ void t_aoo_server::close() {
     x_port = 0;
 }
 
-AooId t_aoo_server::handle_accept(int e, const aoo::ip_address& addr) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, AooId client,
-                const AooByte *data, AooSize size) -> AooInt32 {
-            return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
-        };
-        AooId client;
-        x_server->addClient(replyfn, &x_tcpserver, &client); // doesn't fail
+AooId t_aoo_server::handle_accept(const aoo::ip_address& addr) {
+    // reply function
+    auto replyfn = [](void *x, AooId client,
+            const AooByte *data, AooSize size) -> AooInt32 {
+        return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
+    };
+    AooId client;
+    x_server->addClient(replyfn, &x_tcpserver, &client); // doesn't fail
 
-        sys_lock();
-        add_client(client, addr);
-        sys_unlock();
+    sys_lock();
+    add_client(client, addr);
+    sys_unlock();
 
-        return client;
-    } else {
-        // called on network thread - must lock Pd!
-        sys_lock();
-        pd_error(this, "%s: accept() failed: %s",
-                 classname(this), aoo::socket_strerror(e).c_str());
-        // TODO handle error?
-        sys_unlock();
-        return kAooIdInvalid;
-    }
+    return client;
 }
 
-void t_aoo_server::handle_receive(int e, AooId client, const aoo::ip_address& addr,
-                                  const AooByte *data, AooSize size) {
+void t_aoo_server::handle_receive(AooId client, int e, const AooByte *data,
+                                  AooSize size, const aoo::ip_address& addr) {
     if (e == 0 && size > 0) {
         if (auto err = x_server->handleClientMessage(client, data, size); err != kAooOk) {
             // remove client!
@@ -116,25 +106,16 @@ void t_aoo_server::handle_receive(int e, AooId client, const aoo::ip_address& ad
     }
 }
 
-void t_aoo_server::handle_udp_receive(int e, const aoo::ip_address& addr,
-                                    const AooByte *data, AooSize size) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
-                const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
-            aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-            return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
-        };
-        x_server->handleUdpMessage(data, size, addr.address(), addr.length(),
-                                   replyfn, &x_udpserver);
-    } else {
-        // called on network thread - must lock Pd!
-        sys_lock();
-        pd_error(this, "%s: UDP error: %s",
-                 classname(this), aoo::socket_strerror(e).c_str());
-        // TODO handle error
-        sys_unlock();
-    }
+void t_aoo_server::handle_udp_receive(const AooByte *data, AooSize size,
+                                      const aoo::ip_address& addr) {
+    // reply function
+    auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
+            const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
+        aoo::ip_address addr((const struct sockaddr *)address, addrlen);
+        return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
+    };
+    x_server->handleUdpMessage(data, size, addr.address(), addr.length(),
+                               replyfn, &x_udpserver);
 }
 
 void t_aoo_server::add_client(AooId id, const aoo::ip_address& addr) {
@@ -286,7 +267,7 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
                 [x](auto&&... args) { x->handle_receive(args...); });
 
             verbose(0, "aoo server listening on port %d", port);
-        } catch (const std::runtime_error& e) {
+        } catch (const std::exception& e) {
             pd_error(x, "%s: %s", classname(x), e.what());
             return;
         }
@@ -299,13 +280,29 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
         #ifdef PDINSTANCE
             pd_setinstance(pd);
         #endif
-            x->x_udpserver.run(-1);
+            try {
+                x->x_udpserver.run();
+            } catch (const aoo::udp_error& e) {
+                // called on network thread - must lock Pd!
+                sys_lock();
+                pd_error(x, "%s: UDP error: %s", classname(x), e.what());
+                // TODO handle error
+                sys_unlock();
+            }
         });
         x->x_tcpthread = std::thread([x, pd=pd_this]() {
         #ifdef PDINSTANCE
             pd_setinstance(pd);
         #endif
-            x->x_tcpserver.run();
+            try {
+                x->x_tcpserver.run();
+            } catch (const aoo::tcp_error& e) {
+                // called on network thread - must lock Pd!
+                sys_lock();
+                pd_error(x, "%s: TCP error: %s", classname(x), e.what());
+                // TODO handle error
+                sys_unlock();
+            }
         });
         // start clock
         clock_delay(x->x_clock, AOO_SERVER_POLL_INTERVAL);

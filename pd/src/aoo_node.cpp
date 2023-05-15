@@ -129,13 +129,14 @@ private:
     static AooInt32 send(void *user, const AooByte *msg, AooInt32 size,
                          const void *addr, AooAddrSize len, AooFlag flags);
 
-    void handle_packet(int e, const aoo::ip_address& addr,
-                       const AooByte *data, AooSize size);
+    void handle_packet(const AooByte *data, AooSize size, const aoo::ip_address& addr);
 
 #if NETWORK_THREAD_POLL
     void perform_io();
 #else
     void send_packets();
+
+    void receive_packets();
 #endif
 
     bool add_object(t_pd *obj, void *x, AooId id);
@@ -237,16 +238,23 @@ bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
 
 #if NETWORK_THREAD_POLL
 void t_node_imp::perform_io() {
-    while (!x_quit.load(std::memory_order_relaxed)) {
-        x_server.run(POLL_INTERVAL);
+    try {
+        while (!x_quit.load(std::memory_order_relaxed)) {
+            x_server.run(POLL_INTERVAL);
 
-        if (x_update.exchange(false, std::memory_order_acquire)) {
-            scoped_lock lock(x_clientmutex);
-        #if DEBUG_THREADS
-            std::cout << "send messages" << std::endl;
-        #endif
-            x_client->send(send, this);
+            if (x_update.exchange(false, std::memory_order_acquire)) {
+                scoped_lock lock(x_clientmutex);
+            #if DEBUG_THREADS
+                std::cout << "send messages" << std::endl;
+            #endif
+                x_client->send(send, this);
+            }
         }
+    } catch (const aoo::udp_error& e) {
+        sys_lock();
+        pd_error(nullptr, "aoo_node: network error: %s\n", e.what());
+        // TODO handle error
+        sys_unlock();
     }
 }
 #else
@@ -261,6 +269,17 @@ void t_node_imp::send_packets() {
         x_client->send(send, this);
     }
 }
+
+void t_node_imp::receive_packets() {
+    try {
+        x_server.run();
+    } catch (const aoo::udp_error& e) {
+        sys_lock();
+        pd_error(nullptr, "aoo_node: network error: %s\n", e.what());
+        // TODO handle error
+        sys_unlock();
+    }
+}
 #endif
 
 AooInt32 t_node_imp::send(void *user, const AooByte *msg, AooInt32 size,
@@ -271,21 +290,12 @@ AooInt32 t_node_imp::send(void *user, const AooByte *msg, AooInt32 size,
     return x->x_server.send(dest, msg, size);
 }
 
-void t_node_imp::handle_packet(int e, const aoo::ip_address& addr,
-                               const AooByte *data, AooSize size) {
-    if (e == 0) {
-        scoped_lock lock(x_clientmutex);
-    #if DEBUG_THREADS
-        std::cout << "handle message" << std::endl;
-    #endif
-        x_client->handleMessage(data, size, addr.address(), addr.length());
-    } else {
-        sys_lock();
-        pd_error(nullptr, "aoo_node: recv() failed: %s\n",
-                 aoo::socket_strerror(e).c_str());
-        // TODO handle error
-        sys_unlock();
-    }
+void t_node_imp::handle_packet(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
+    scoped_lock lock(x_clientmutex);
+#if DEBUG_THREADS
+    std::cout << "handle message" << std::endl;
+#endif
+    x_client->handleMessage(data, size, addr.address(), addr.length());
 }
 
 t_node * t_node::get(t_pd *obj, int port, void *x, AooId id)
@@ -373,7 +383,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
         pd_setinstance(pd);
     #endif
         aoo::sync::lower_thread_priority();
-        x_server.run();
+        receive_packets();
     });
 #endif
 
@@ -413,13 +423,13 @@ t_node_imp::~t_node_imp()
 #if NETWORK_THREAD_POLL
     LOG_DEBUG("join network thread");
     // notify I/O thread
-    x_quit = true;
+    x_quit.store(true);
     x_iothread.join();
     x_server.stop();
 #else
     LOG_DEBUG("join network threads");
     // notify send thread
-    x_quit = true;
+    x_quit.store(true);
     x_event.set();
     // stop UDP server
     x_server.stop();

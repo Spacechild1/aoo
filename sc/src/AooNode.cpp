@@ -12,9 +12,9 @@ AooNode::AooNode(World *world, int port) {
 #else
     const int recvbufsize = 1 << 18; // 256 KB
 #endif
-    // udp_server::start() throws on error!
     server_.set_send_buffer_size(sendbufsize);
     server_.set_receive_buffer_size(recvbufsize);
+    // udp_server::start() throws on error!
     server_.start(port, [this](auto&&... args) { handlePacket(args...); }, false);
 
     LOG_DEBUG("create AooClient on port " << port);
@@ -43,7 +43,7 @@ AooNode::AooNode(World *world, int port) {
     LOG_DEBUG("start network receive thread");
     recvthread_ = std::thread([this](){
         aoo::sync::lower_thread_priority();
-        server_.run();
+        receivePackets();
     });
 #endif
 
@@ -209,18 +209,24 @@ AooInt32 AooNode::send(void *user, const AooByte *msg, AooInt32 size,
 }
 
 #if NETWORK_THREAD_POLL
-void AooNode::performNetworkIO(){
-    while (!quit_.load(std::memory_order_relaxed)) {
-        server_.run(POLL_INTERVAL);
+void AooNode::performNetworkIO() {
+    try {
+        while (!quit_.load(std::memory_order_relaxed)) {
+            server_.run(POLL_INTERVAL);
 
-        if (update_.exchange(false, std::memory_order_acquire)){
-            scoped_lock lock(clientMutex_);
-        #if DEBUG_THREADS
-            std::cout << "send messages" << std::endl;
-        #endif
-            client_->send(send, this);
+            if (update_.exchange(false, std::memory_order_acquire)){
+                scoped_lock lock(clientMutex_);
+            #if DEBUG_THREADS
+                std::cout << "send messages" << std::endl;
+            #endif
+                client_->send(send, this);
+            }
         }
+    } catch (const aoo::udp_error& e) {
+        LOG_ERROR("AooNode: network error: " << e.what());
+        // TODO handle error
     }
+
 }
 #else
 void AooNode::sendPackets(){
@@ -234,19 +240,24 @@ void AooNode::sendPackets(){
         client_->send(send, this);
     }
 }
+
+void AooNode::receivePackets() {
+    try {
+        server_.run();
+    } catch (const aoo::udp_error& e) {
+        LOG_ERROR("AooNode: network error: " << e.what());
+        // TODO handle error
+    }
+}
+
 #endif
 
-void AooNode::handlePacket(int e, const aoo::ip_address& addr,
-                           const AooByte *data, AooSize size) {
-    if (e == 0) {
-        scoped_lock lock(clientMutex_);
-    #if DEBUG_THREADS
-        std::cout << "handle message" << std::endl;
-    #endif
-        client_->handleMessage(data, size, addr.address(), addr.length());
-    } else {
-        LOG_ERROR("AooNode: recv() failed: " << aoo::socket_strerror(e));
-    }
+void AooNode::handlePacket(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
+    scoped_lock lock(clientMutex_);
+#if DEBUG_THREADS
+    std::cout << "handle message" << std::endl;
+#endif
+    client_->handleMessage(data, size, addr.address(), addr.length());
 }
 
 void AooNode::handleClientMessage(const char *data, int32_t size,

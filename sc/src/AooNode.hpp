@@ -107,9 +107,10 @@ private:
     void performNetworkIO();
 #else
     void sendPackets();
+
+    void receivePackets();
 #endif
-    void handlePacket(int e, const aoo::ip_address& addr,
-                      const AooByte *data, AooSize size);
+    void handlePacket(const AooByte *data, AooSize size, const aoo::ip_address& addr);
 
     void handleClientMessage(const char *data, int32_t size,
                              const aoo::ip_address& addr, aoo::time_tag time);

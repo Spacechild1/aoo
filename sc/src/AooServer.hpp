@@ -23,13 +23,12 @@ private:
 
     void handleEvent(const AooEvent *event);
 
-    AooId handleAccept(int e, const aoo::ip_address& addr);
+    AooId handleAccept(const aoo::ip_address& addr);
 
-    void handleReceive(int e, AooId client, const aoo::ip_address& addr,
-                       const AooByte *data, AooSize size);
+    void handleReceive(AooId client, int e, const AooByte *data, AooSize size,
+                       const aoo::ip_address& addr);
 
-    void handleUdpReceive(int e, const aoo::ip_address& addr,
-                          const AooByte *data, AooSize size);
+    void handleUdpReceive(const AooByte *data, AooSize size, const aoo::ip_address& addr);
 
     void addClient(AooId client, const aoo::ip_address& addr);
 
