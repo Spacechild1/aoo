@@ -12,13 +12,13 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
     auto sock = socket_udp(port);
     if (sock < 0) {
         auto e = socket_errno();
-        throw std::runtime_error("couldn't create/bind UDP socket: " + socket_strerror(e));
+        throw udp_error(e, socket_strerror(e));
     }
 
     if (socket_address(sock, bind_addr_) < 0) {
         auto e = socket_errno(); // cache error
         socket_close(sock);
-        throw std::runtime_error("couldn't get socket address: " + socket_strerror(e));
+        throw udp_error(e, socket_strerror(e));
     }
 
     if (send_buffer_size_ > 0) {
@@ -38,27 +38,47 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
     threaded_ = threaded;
     if (threaded_) {
         packet_queue_.clear();
-        // TODO lower thread priority
-        thread_ = std::thread(&udp_server::receive, this, -1);
+        // TODO: lower thread priority?
+        thread_ = std::thread([this](){
+            try {
+                this->receive(-1.0);
+            } catch (const udp_error& e) {
+                LOG_DEBUG("udp_server: thread function failed: " << e.what());
+                // TODO: report error to main thread
+            }
+            running_.store(false);
+        });
     }
 }
 
-void udp_server::run(double timeout) {
-    if (threaded_) {
-        while (running_.load()) {
-            packet_queue_.consume_all([&](auto& packet){
-                receive_handler_(0, packet.address,
-                                 packet.data.data(), packet.data.size());
+bool udp_server::run(double timeout) {
+    if (timeout >= 0) {
+        if (threaded_) {
+            // TODO: implement timed wait for semaphore
+            return packet_queue_.try_consume([this](auto& packet){
+                receive_handler_(packet.data.data(), packet.data.size(), packet.address);
             });
-            if (timeout >= 0) {
-                // LATER implement timed wait for semaphore
-                return;
-            } else {
-                event_.wait();
-            }
+        } else {
+            return receive(timeout);
         }
     } else {
-        receive(timeout);
+        if (threaded_) {
+            while (running_.load()) {
+                packet_queue_.consume_all([&](auto& packet){
+                    receive_handler_(packet.data.data(), packet.data.size(), packet.address);
+                });
+                // wait for packets
+                event_.wait();
+            }
+        } else {
+            while (running_.load()) {
+                receive(-1.0);
+            }
+        }
+
+        do_close();
+
+        return true;
     }
 }
 
@@ -111,46 +131,47 @@ int udp_server::send(const aoo::ip_address& addr, const AooByte *data, AooSize s
     return ::sendto(socket_, (const char *)data, size, 0, addr.address(), addr.length());
 }
 
-void udp_server::receive(double timeout) {
-    while (running_.load()) {
-        aoo::ip_address address;
-        auto result = socket_receive(socket_, buffer_.data(), buffer_.size(),
-                                     &address, timeout);
-        if (result > 0) {
-            if (threaded_) {
-                packet_queue_.produce([&](auto& packet){
-                    packet.data.assign(buffer_.data(), buffer_.data() + result);
-                    packet.address = address;
-                });
-                event_.set(); // notify main thread (if blocking)
-            } else {
-                receive_handler_(0, address, buffer_.data(), result);
-            }
-        } else if (result < 0) {
-            int e = socket_errno();
-        #ifdef _WIN32
-            // ignore ICMP Port Unreachable message!
-            if (e == WSAECONNRESET) {
-                continue;
-            }
-        #endif
-            if (e == EINTR){
-                continue;
-            }
-
-            LOG_DEBUG("udp_server: recv() failed: " << socket_strerror(e));
-            receive_handler_(e, address, nullptr, 0);
-
-            // notify main thread (if blocking)
-            if (threaded_) {
-                running_.store(false);
-                event_.set();
-            }
-
-            return;
+bool udp_server::receive(double timeout) {
+    aoo::ip_address address;
+    auto result = socket_receive(socket_, buffer_.data(), buffer_.size(),
+                                 &address, timeout);
+    if (result > 0) {
+        if (threaded_) {
+            packet_queue_.produce([&](auto& packet){
+                packet.data.assign(buffer_.data(), buffer_.data() + result);
+                packet.address = address;
+            });
+            event_.set(); // notify main thread (if blocking)
         } else {
-            // ignore empty packet (used for signalling)
+            receive_handler_(buffer_.data(), result, address);
         }
+        return true;
+    } else if (result < 0) {
+        int e = socket_errno();
+    #ifdef _WIN32
+        // ignore ICMP Port Unreachable message!
+        if (e == WSAECONNRESET) {
+            return true; // continue
+        } else if (e == WSAEWOULDBLOCK) {
+            return false; // timeout
+        }
+    #else
+        if (e == EINTR){
+            return true; // continue
+        } else if (e == EWOULDBLOCK) {
+            return false; // timeout
+        }
+    #endif
+        // notify main thread (if blocking)
+        if (threaded_) {
+            running_.store(false);
+            event_.set();
+        }
+
+        throw udp_error(e, socket_strerror(e));
+    } else {
+        // ignore timeout or empty packet (used for signalling)
+        return true;
     }
 }
 

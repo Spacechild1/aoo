@@ -23,6 +23,21 @@
 
 namespace aoo {
 
+class udp_error : public std::exception {
+public:
+    udp_error(int code, std::string msg)
+        : code_(code), msg_(std::move(msg)) {}
+
+    const char *what() const noexcept override {
+        return msg_.c_str();
+    }
+
+    int code() const { return code_; }
+private:
+    int code_;
+    std::string msg_;
+};
+
 class udp_server
 {
 public:
@@ -33,8 +48,8 @@ public:
 #endif
     static const size_t max_udp_packet_size = 65536;
 
-    using receive_handler = std::function<void(int error, const aoo::ip_address& addr,
-                                               const AooByte *data, AooSize size)>;
+    using receive_handler = std::function<void(const AooByte *data, AooSize size,
+                                               const aoo::ip_address& addr)>;
 
     udp_server() : buffer_(max_udp_packet_size) {}
     ~udp_server();
@@ -55,13 +70,13 @@ public:
     }
 
     void start(int port, receive_handler receive, bool threaded = false);
-    void run(double timeout = -1);
+    bool run(double timeout = -1);
     void stop();
     void notify();
 
     int send(const aoo::ip_address& addr, const AooByte *data, AooSize size);
 private:
-    void receive(double timeout);
+    bool receive(double timeout);
     void do_close();
 
     int socket_ = invalid_socket;
