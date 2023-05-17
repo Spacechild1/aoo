@@ -65,34 +65,46 @@ public:
 
     /** \brief setup the server object
      *
-     * \attention If `flags` is 0, we assume that the server is IPv4-only.
+     * \attention The default value for `flags` is #kAooSocketDualStack.
      */
     virtual AooError AOO_CALL setup(AooUInt16 port, AooSocketFlags flags) = 0;
 
-    /* UDP echo server */
-
-    /** \brief handle UDP message
-     * for querying and relaying
+    /** \brief run the server
+     *
+     * \param nonBlocking
+     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
+     *     if it did something, #kAooErrorWouldBlock if there was nothing
+     *     to do or any other error code if an error occured.
+     *   - #kAooFalse: blocks until until quit() is called or an error occured.
      */
-    virtual AooError AOO_CALL handleUdpMessage(
-            const AooByte *data, AooInt32 size,
-            const void *address, AooAddrSize addrlen,
-            AooSendFunc replyFn, void *user) = 0;
+    virtual AooError AOO_CALL run(AooBool nonBlocking) = 0;
 
-    /* TCP server */
+    /** \brief quit the AOO client from another thread */
+    virtual AooError AOO_CALL quit() = 0;
 
-    /* client management */
+    /* event handling */
 
-    /** \brief add a new client */
-    virtual AooError AOO_CALL addClient(
-            AooServerReplyFunc replyFn, void *user, AooId *id) = 0;
+    /** \brief set event handler function and event handling mode
+     *
+     * \attention Not threadsafe - only call in the beginning!
+     */
+    virtual AooError AOO_CALL setEventHandler(
+        AooEventHandler fn, void *user, AooEventMode mode) = 0;
 
-    /** \brief remove a client */
-    virtual AooError AOO_CALL removeClient(AooId clientId) = 0;
+    /** \brief check for pending events
+     *
+     * \note Threadsafe and RT-safe
+     */
+    virtual AooBool AOO_CALL eventsAvailable() = 0;
 
-    /** \brief handle client message */
-    virtual AooError AOO_CALL handleClientMessage(
-            AooId client, const AooByte *data, AooInt32 size) = 0;
+    /** \brief poll events
+     *
+     * \note Threadsafe and RT-safe, but not reentrant.
+     *
+     * This function will call the registered event handler one or more times.
+     * \attention The event handler must have been registered with #kAooEventModePoll.
+     */
+    virtual AooError AOO_CALL pollEvents() = 0;
 
     /* request handling */
 
@@ -166,36 +178,6 @@ public:
     virtual AooError AOO_CALL groupControl(
             AooId group, AooCtl ctl, AooIntPtr index,
             void *data, AooSize size) = 0;
-
-    /* other methods */
-
-    /** \brief update the Server
-     * should be called regularly; used by the Server
-     * to update internal timers, for example.
-     */
-    virtual AooError AOO_CALL update() = 0;
-
-    /** \brief set event handler function and event handling mode
-     *
-     * \attention Not threadsafe - only call in the beginning!
-     */
-    virtual AooError AOO_CALL setEventHandler(
-            AooEventHandler fn, void *user, AooEventMode mode) = 0;
-
-    /** \brief check for pending events
-     *
-     * \note Threadsafe and RT-safe
-     */
-    virtual AooBool AOO_CALL eventsAvailable() = 0;
-
-    /** \brief poll events
-     *
-     * \note Threadsafe and RT-safe, but not reentrant.
-     *
-     * This function will call the registered event handler one or more times.
-     * \attention The event handler must have been registered with #kAooEventModePoll.
-     */
-    virtual AooError AOO_CALL pollEvents() = 0;
 
     /** \brief control interface
      *

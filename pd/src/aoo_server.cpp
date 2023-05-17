@@ -6,8 +6,7 @@
 
 #include "aoo/aoo_server.hpp"
 
-#include "common/udp_server.hpp"
-#include "common/tcp_server.hpp"
+#include "common/sync.hpp"
 #include "common/utils.hpp"
 
 #include <thread>
@@ -24,10 +23,7 @@ struct t_aoo_server
     t_object x_obj;
 
     AooServer::Ptr x_server;
-    aoo::udp_server x_udpserver;
-    aoo::tcp_server x_tcpserver;
-    std::thread x_udpthread;
-    std::thread x_tcpthread;
+    std::thread x_thread;
     int x_port = 0;
     int x_numclients = 0;
     t_clock *x_clock = nullptr;
@@ -35,117 +31,17 @@ struct t_aoo_server
     t_outlet *x_msgout = nullptr;
 
     void close();
-    AooId handle_accept(const aoo::ip_address& addr);
-    void handle_receive(AooId client, int e, const AooByte *data,
-                        AooSize size, const aoo::ip_address& addr);
-    void handle_udp_receive(const AooByte *data, AooSize size,
-                            const aoo::ip_address& addr);
-    void add_client(AooId id, const aoo::ip_address& addr);
-    void remove_client(AooId id, const aoo::ip_address& addr);
 };
 
 void t_aoo_server::close() {
     if (x_port > 0) {
-        x_udpserver.stop();
-        if (x_udpthread.joinable()) {
-            x_udpthread.join();
-        }
-
-        x_tcpserver.stop();
-        if (x_tcpthread.joinable()) {
-            x_tcpthread.join();
+        x_server->quit();
+        if (x_thread.joinable()) {
+            x_thread.join();
         }
     }
     clock_unset(x_clock);
     x_port = 0;
-}
-
-AooId t_aoo_server::handle_accept(const aoo::ip_address& addr) {
-    // reply function
-    auto replyfn = [](void *x, AooId client,
-            const AooByte *data, AooSize size) -> AooInt32 {
-        return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
-    };
-    AooId client;
-    x_server->addClient(replyfn, &x_tcpserver, &client); // doesn't fail
-
-    sys_lock();
-    add_client(client, addr);
-    sys_unlock();
-
-    return client;
-}
-
-void t_aoo_server::handle_receive(AooId client, int e, const AooByte *data,
-                                  AooSize size, const aoo::ip_address& addr) {
-    if (e == 0 && size > 0) {
-        if (auto err = x_server->handleClientMessage(client, data, size); err != kAooOk) {
-            // remove client!
-            x_server->removeClient(client);
-            x_tcpserver.close(client);
-
-            sys_lock();
-            remove_client(client, addr);
-            sys_unlock();
-        }
-    } else {
-        // remove client!
-        x_server->removeClient(client);
-        // called on network thread - must lock Pd!
-        sys_lock();
-        if (e == 0) {
-            verbose(0, "%s: client %d disconnected",
-                    classname(this), client);
-        } else {
-            pd_error(this, "%s: TCP error in client %d: %s",
-                     classname(this), client, aoo::socket_strerror(e).c_str());
-        }
-        remove_client(client, addr);
-        // TODO handle error?
-        sys_unlock();
-    }
-}
-
-void t_aoo_server::handle_udp_receive(const AooByte *data, AooSize size,
-                                      const aoo::ip_address& addr) {
-    // reply function
-    auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
-            const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
-        aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-        return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
-    };
-    x_server->handleUdpMessage(data, size, addr.address(), addr.length(),
-                               replyfn, &x_udpserver);
-}
-
-void t_aoo_server::add_client(AooId id, const aoo::ip_address& addr) {
-    t_atom msg[3];
-
-    char strid[64];
-    snprintf(strid, sizeof(strid), "0x%X", id);
-    SETSYMBOL(msg, gensym(strid));
-    address_to_atoms(addr, 2, msg + 1);
-
-    outlet_anything(x_msgout, gensym("client_add"), 3, msg);
-
-    x_numclients++;
-
-    outlet_float(x_stateout, x_numclients);
-}
-
-void t_aoo_server::remove_client(AooId id, const aoo::ip_address& addr) {
-    t_atom msg[3];
-
-    char strid[64];
-    snprintf(strid, sizeof(strid), "0x%X", id);
-    SETSYMBOL(msg, gensym(strid));
-    address_to_atoms(addr, 2, msg + 1);
-
-    outlet_anything(x_msgout, gensym("client_remove"), 3, msg);
-
-    x_numclients--;
-
-    outlet_float(x_stateout, x_numclients);
 }
 
 static void aoo_server_handle_event(t_aoo_server *x, const AooEvent *event, int32_t)
@@ -162,11 +58,41 @@ static void aoo_server_handle_event(t_aoo_server *x, const AooEvent *event, int3
         SETSYMBOL(&msg, gensym(id));
 
         if (e.error == kAooOk) {
-            outlet_anything(x->x_msgout, gensym("client_login"), 1, &msg);
+            outlet_anything(x->x_msgout, gensym("client_add"), 1, &msg);
+
+            x->x_numclients++;
+
+            outlet_float(x->x_stateout, x->x_numclients);
         } else {
             pd_error(x, "%s: client %d failed to login: %s",
                      classname(x), e.id, aoo_strerror(e.error));
-            // For now, we expect the client to disconnect. LATER maybe close client.
+        }
+
+        break;
+    }
+    case kAooEventClientLogout:
+    {
+        auto& e = event->clientLogout;
+
+        if (e.errorCode != kAooOk) {
+            pd_error(x, "%s: client error: %s", classname(x), e.errorMessage);
+        }
+
+        // TODO: address
+        t_atom msg;
+        char id[64];
+        snprintf(id, sizeof(id), "0x%X", e.id);
+        SETSYMBOL(&msg, gensym(id));
+
+        outlet_anything(x->x_msgout, gensym("client_remove"), 1, &msg);
+
+        x->x_numclients--;
+
+        if (x->x_numclients >= 0) {
+            outlet_float(x->x_stateout, x->x_numclients);
+        } else {
+            bug("kAooEventClientLogout");
+            x->x_numclients = 0;
         }
 
         break;
@@ -232,9 +158,7 @@ static void aoo_server_tick(t_aoo_server *x)
 }
 
 static void aoo_server_relay(t_aoo_server *x, t_floatarg f) {
-    if (x->x_server) {
-        x->x_server->setServerRelay(f != 0);
-    }
+    x->x_server->setServerRelay(f != 0);
 }
 
 static void aoo_server_port(t_aoo_server *x, t_floatarg f)
@@ -250,57 +174,33 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
     outlet_float(x->x_stateout, 0);
 
     if (port > 0) {
-        try {
-            // setup UDP server
-            // TODO: increase socket receive buffer for relay? Use threaded receive?
-            x->x_udpserver.start(port,
-                [x](auto&&... args) { x->handle_udp_receive(args...); });
-
-            auto flags = aoo::socket_family(x->x_udpserver.socket()) == aoo::ip_address::IPv6 ?
-                             kAooSocketDualStack : kAooSocketIPv4;
-
-            x->x_server->setup(port, flags);
-
-            // setup TCP server
-            x->x_tcpserver.start(port,
-                [x](auto&&... args) { return x->handle_accept(args...); },
-                [x](auto&&... args) { x->handle_receive(args...); });
-
-            verbose(0, "aoo server listening on port %d", port);
-        } catch (const std::exception& e) {
-            pd_error(x, "%s: %s", classname(x), e.what());
+        if (auto err = x->x_server->setup(port, 0); err != kAooOk) {
+            std::string msg;
+            if (err == kAooErrorSocket) {
+                msg = aoo::socket_strerror(aoo::socket_errno());
+            } else {
+                msg = aoo_strerror(err);
+            }
+            pd_error(x, "%s: setup failed: %s", classname(x), msg.c_str());
             return;
         }
-
-        // first set event handler!
-        x->x_server->setEventHandler((AooEventHandler)aoo_server_handle_event,
-                                     x, kAooEventModePoll);
-        // then start network threads
-        x->x_udpthread = std::thread([x, pd=pd_this]() {
+        // start server threads
+        x->x_thread = std::thread([x, pd=pd_this]() {
+            aoo::sync::lower_thread_priority();
         #ifdef PDINSTANCE
             pd_setinstance(pd);
         #endif
-            try {
-                x->x_udpserver.run();
-            } catch (const aoo::udp_error& e) {
-                // called on network thread - must lock Pd!
+            auto err = x->x_server->run(kAooFalse);
+            if (err != kAooOk) {
+                std::string msg;
+                if (err == kAooErrorSocket) {
+                    msg = aoo::socket_strerror(aoo::socket_errno());
+                } else {
+                    msg = aoo_strerror(err);
+                }
                 sys_lock();
-                pd_error(x, "%s: UDP error: %s", classname(x), e.what());
-                // TODO handle error
-                sys_unlock();
-            }
-        });
-        x->x_tcpthread = std::thread([x, pd=pd_this]() {
-        #ifdef PDINSTANCE
-            pd_setinstance(pd);
-        #endif
-            try {
-                x->x_tcpserver.run();
-            } catch (const aoo::tcp_error& e) {
-                // called on network thread - must lock Pd!
-                sys_lock();
-                pd_error(x, "%s: TCP error: %s", classname(x), e.what());
-                // TODO handle error
+                pd_error(x, "%s: server error: %s", classname(x), msg.c_str());
+                // TODO: handle error
                 sys_unlock();
             }
         });
@@ -324,7 +224,11 @@ t_aoo_server::t_aoo_server(int argc, t_atom *argv)
     x_stateout = outlet_new(&x_obj, 0);
     x_msgout = outlet_new(&x_obj, 0);
 
-    x_server = AooServer::create(nullptr);
+    x_server = AooServer::create(nullptr); // does not really fail...
+
+    // first set event handler!
+    x_server->setEventHandler((AooEventHandler)aoo_server_handle_event,
+                              this, kAooEventModePoll);
 
     int port = atom_getfloatarg(0, argc, argv);
     aoo_server_port(this, port);

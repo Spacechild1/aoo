@@ -1,13 +1,13 @@
 #include "aoo/aoo.h"
 #include "aoo/aoo_server.hpp"
 
-#include "common/udp_server.hpp"
-#include "common/tcp_server.hpp"
+#include "common/net_utils.hpp"
 #include "common/sync.hpp"
 
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include <thread>
 
 #ifdef _WIN32
 # include <windows.h>
@@ -44,67 +44,56 @@ void log_function(AooLogLevel level, const AooChar *msg) {
     }
 }
 
-AooServer::Ptr g_aoo_server;
+void AOO_CALL handle_event(void *, const AooEvent *event, AooThreadLevel level) {
+    switch (event->type) {
+    case kAooEventClientLogin:
+    {
+        auto e = event->clientLogin;
+        if (e.error == kAooOk) {
+            std::cout << "New client with ID " << e.id << std::endl;
+        } else {
+            std::cout << "Client " << e.id << " failed to log in" << std::endl;
+        }
+        break;
+    }
+    case kAooEventClientLogout:
+    {
+        auto e = event->clientLogout;
+        if (e.errorCode == kAooOk) {
+            std::cout << "Client " << e.id << " logged out" << std::endl;
+        } else {
+            std::cout << "Client " << e.id << " logged out after error: "
+                      << e.errorMessage << std::endl;
+        }
+        break;
+    }
+    case kAooEventGroupAdd:
+    {
+        std::cout << "Add new group '" << event->groupAdd.name << "'" << std::endl;
+        break;
+    }
+    case kAooEventGroupRemove:
+    {
+        std::cout << "Remove group '" << event->groupRemove.name << "'" << std::endl;
+        break;
+    }
+    default:
+        break;
+    }
+}
 
-int g_error = 0;
+AooServer::Ptr g_server;
+
+AooError g_error_code = 0;
+char g_error_message[256] = {};
 aoo::sync::semaphore g_semaphore;
 
-void stop_server(int error) {
-    g_error = error;
+void stop_server(int error, const char *msg = nullptr) {
+    if (msg) {
+        snprintf(g_error_message, sizeof(g_error_message), "%s", msg);
+    }
+    g_error_code = error;
     g_semaphore.post();
-}
-
-aoo::udp_server g_udp_server;
-
-int udp_send_function(void *, const AooByte *data, AooInt32 size,
-                      const void *address, AooAddrSize addrlen, AooFlag) {
-    aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-    return g_udp_server.send(addr, data, size);
-}
-
-void handle_udp_receive(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
-    g_aoo_server->handleUdpMessage(data, size, addr.address(), addr.length(),
-        udp_send_function, nullptr);
-}
-
-aoo::tcp_server g_tcp_server;
-
-int tcp_send_function(void *, AooId client, const AooByte *data, AooSize size) {
-    return g_tcp_server.send(client, data, size);
-}
-
-AooId handle_tcp_accept(const aoo::ip_address& addr) {
-    // add new client
-    AooId id;
-    g_aoo_server->addClient(tcp_send_function, nullptr, &id);
-    if (g_loglevel >= kAooLogLevelVerbose) {
-        std::cout << "Add new client " << id << std::endl;
-    }
-    return id;
-}
-
-void handle_tcp_receive(AooId client, int e, const AooByte *data, AooSize size,
-                        const aoo::ip_address& addr) {
-    if (e == 0 && size > 0) {
-        // handle client message
-        if (auto err = g_aoo_server->handleClientMessage(client, data, size); err != kAooOk) {
-            // remove misbehaving client
-            g_aoo_server->removeClient(client);
-            g_tcp_server.close(client);
-            if (g_loglevel >= kAooLogLevelWarning)
-                std::cout << "Close client " << client << " after error: " << aoo_strerror(err) << std::endl;
-        }
-    } else {
-        // close client
-        if (e != 0) {
-            if (g_loglevel >= kAooLogLevelWarning)
-                std::cout << "Close client after error: " << aoo::socket_strerror(e) << std::endl;
-        } else {
-            if (g_loglevel >= kAooLogLevelVerbose)
-                std::cout << "Client " << client << " has disconnected" << std::endl;
-        }
-        g_aoo_server->removeClient(client);
-    }
 }
 
 #ifdef _WIN32
@@ -236,85 +225,70 @@ int main(int argc, const char **argv) {
     }
 
     AooError err;
-    g_aoo_server = AooServer::create(&err);
-    if (!g_aoo_server) {
+    g_server = AooServer::create(&err);
+    if (!g_server) {
         std::cout << "Could not create AooServer: "
                   << aoo_strerror(err) << std::endl;
         return EXIT_FAILURE;
     }
 
-    // setup UDP server
-    // TODO: increase socket receive buffer for relay? Use threaded receive?
-    try {
-        g_udp_server.start(port, handle_udp_receive);
-    } catch (const aoo::udp_error& e) {
-        if (g_loglevel >= kAooLogLevelError) {
-            std::cout << "Could not start UDP server: " << e.what() << std::endl;
+    // we only need the event handler for logging
+    if (g_loglevel >= kAooLogLevelVerbose) {
+        g_server->setEventHandler(handle_event, nullptr, kAooEventModeCallback);
+    }
+
+    err = g_server->setup(port, 0);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
         }
+        std::cout << "Could not setup AooServer: " << msg << std::endl;
         return EXIT_FAILURE;
     }
 
-    // setup TCP server
-    try {
-        g_tcp_server.start(port, handle_tcp_accept, handle_tcp_receive);
-    } catch (const aoo::tcp_error& e) {
-        if (g_loglevel >= kAooLogLevelError) {
-            std::cout << "Could not start TCP server: " << e.what() << std::endl;
-        }
-        return EXIT_FAILURE;
-    }
-
-    // setup AooServer
-    auto flags = aoo::socket_family(g_udp_server.socket()) == aoo::ip_address::IPv6 ?
-                     kAooSocketDualStack : kAooSocketIPv4;
-
-    if (auto err = g_aoo_server->setup(port, flags); err != kAooOk) {
-        std::cout << "Could not setup AooServer: " << aoo_strerror(err) << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    g_aoo_server->setServerRelay(relay);
-
-    // finally start network threads
-    auto udp_thread = std::thread([]() {
-        try {
-            g_udp_server.run();
-        } catch (const aoo::udp_error& e) {
-            std::cout << "UDP server failed: " << e.what() << std::endl;
-            stop_server(e.code());
-        }
-    });
-    auto tcp_thread = std::thread([]() {
-        try {
-            g_tcp_server.run();
-        } catch (const aoo::tcp_error& e) {
-            std::cout << "TCP server failed: " << e.what() << std::endl;
-            stop_server(e.code());
-        }
-    });
+    g_server->setServerRelay(relay);
 
     if (g_loglevel >= kAooLogLevelVerbose) {
         std::cout << "Listening on port " << port << std::endl;
     }
 
+    // run server thread
+    // NB: we *could* just block on the run() method, but then there
+    // would be no "safe" way to break from a signal/control handler.
+    auto thread = std::thread([]() {
+        auto err = g_server->run(kAooFalse);
+        if (err != kAooOk) {
+            std::string msg;
+            if (err == kAooErrorSocket) {
+                msg = aoo::socket_strerror(aoo::socket_errno());
+            } else {
+                msg = aoo_strerror(err);
+            }
+            // break from the main thread
+            stop_server(err, msg.c_str());
+        }
+    });
+
     // wait for stop signal
     g_semaphore.wait();
 
-    if (g_error == 0) {
+    if (g_error_code == 0) {
         std::cout << "Program stopped by the user" << std::endl;
     } else {
         std::cout << "Program stopped because of an error: "
-                  << aoo::socket_strerror(g_error) << std::endl;
+                  << g_error_message << std::endl;
     }
 
-    // stop UDP and TCP server and exit
-    g_udp_server.stop();
-    udp_thread.join();
-
-    g_tcp_server.stop();
-    tcp_thread.join();
+    // stop server
+    g_server->quit();
+    if (thread.joinable()) {
+        thread.join();
+    }
 
     aoo_terminate();
 
-    return EXIT_SUCCESS;
+    return g_error_code == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

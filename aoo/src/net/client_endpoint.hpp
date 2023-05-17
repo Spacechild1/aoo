@@ -3,6 +3,8 @@
 #include "aoo/aoo_requests.h"
 #include "aoo/aoo_server.h"
 
+#include "common/tcp_server.hpp"
+
 #include "detail.hpp"
 #include "osc_stream_receiver.hpp"
 
@@ -149,8 +151,8 @@ inline std::ostream& operator<<(std::ostream& os, const group& g) {
 
 class client_endpoint {
 public:
-    client_endpoint(AooId id, AooServerReplyFunc replyfn, void *context)
-        : id_(id), replyfn_(replyfn), context_(context) {}
+    client_endpoint(AooId id, aoo::tcp_server::reply_func fn)
+        : id_(id), replyfn_(fn) {}
 
     ~client_endpoint() {}
 
@@ -203,12 +205,11 @@ public:
 
     void on_close(Server& server);
 
-    void handle_message(Server& server, const AooByte *data, int32_t n);
+    void handle_data(Server& server, const AooByte *data, int32_t n);
 private:
     AooId id_;
+    aoo::tcp_server::reply_func replyfn_;
     std::string version_;
-    AooServerReplyFunc replyfn_;
-    void *context_;
     osc_stream_receiver receiver_;
     ip_address_list public_addresses_;
     struct group_user {

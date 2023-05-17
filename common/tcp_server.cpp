@@ -313,7 +313,8 @@ void tcp_server::accept_client() {
             LOG_ERROR("tcp_server: couldn't set TCP_NODELAY");
         }
     #endif
-        auto id = accept_handler_(addr);
+        auto id = accept_handler_(addr, [this, sock](const AooByte *data, AooSize size)
+                                  { return ::send(sock, (const char *)data, size, 0); });
         if (id == kAooIdInvalid) {
             // user refused to accept client
             socket_close(sock);

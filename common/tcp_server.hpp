@@ -50,8 +50,10 @@ public:
     tcp_server(const tcp_server&) = delete;
     tcp_server& operator=(const tcp_server&) = delete;
 
+    using reply_func = std::function<int(const AooByte *data, AooSize size)>;
+
     // returns client ID
-    using accept_handler = std::function<AooId(const aoo::ip_address& address)>;
+    using accept_handler = std::function<AooId(const aoo::ip_address& address, reply_func)>;
 
     using receive_handler = std::function<void(AooId client, int errorcode, const AooByte *data,
                                                AooSize size, const ip_address& address)>;
