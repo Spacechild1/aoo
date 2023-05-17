@@ -152,7 +152,9 @@ private:
 
     udp_server udp_server_;
     int port_ = 0;
+#if 0
     AooSocketFlags socket_flags_ = 0;
+#endif
     ip_address::ip_type address_family_ = ip_address::Unspec;
     bool use_ipv4_mapped_ = false;
     sync::shared_spinlock addr_lock_; // LATER replace with seqlock?
@@ -185,6 +187,38 @@ public:
     };
 
     using command_ptr = std::unique_ptr<icommand>;
+
+    // pending request
+    struct callback_cmd : icommand
+    {
+        callback_cmd(AooResponseHandler cb, void *user)
+            : cb_(cb), user_(user) {}
+
+        virtual void handle_response(Client& client, const osc::ReceivedMessage& msg) = 0;
+
+        void reply(const AooResponse& response) const {
+            do_reply(kAooErrorNone, response);
+        }
+
+        void reply_error(AooError result, int32_t code = 0, const char *msg = "") const {
+            AooResponseError response;
+            response.type = kAooRequestError;
+            response.errorCode = code;
+            response.errorMessage = msg;
+            do_reply(result, reinterpret_cast<AooResponse&>(response));
+        }
+    protected:
+        virtual void do_reply(AooError result, const AooResponse& response) const = 0;
+
+        void callback(const AooRequest& request, AooError result, const AooResponse& response) const {
+            if (cb_) {
+                cb_(user_, &request, result, &response);
+            }
+        }
+    private:
+        AooResponseHandler cb_;
+        void *user_;
+    };
 
     //----------------------------------------------------------//
 
@@ -341,7 +375,6 @@ private:
     sync::mutex interface_mutex_; // TODO: replace with seqlock?
     int event_socket_ = -1;
     std::atomic<bool> quit_{false};
-    bool server_relay_ = false;
     std::vector<char> sendbuffer_;
     aoo::sync::event send_event_;
     // dependants
@@ -375,37 +408,7 @@ private:
     // commands
     using command_queue = aoo::unbounded_mpsc_queue<command_ptr>;
     command_queue commands_;
-    // pending request
-    struct callback_cmd : icommand
-    {
-        callback_cmd(AooResponseHandler cb, void *user)
-            : cb_(cb), user_(user) {}
-
-        virtual void handle_response(Client& client, const osc::ReceivedMessage& msg) = 0;
-
-        void reply(const AooResponse& response) const {
-            do_reply(kAooErrorNone, response);
-        }
-
-        void reply_error(AooError result, int32_t code = 0, const char *msg = "") const {
-            AooResponseError response;
-            response.type = kAooRequestError;
-            response.errorCode = code;
-            response.errorMessage = msg;
-            do_reply(result, reinterpret_cast<AooResponse&>(response));
-        }
-    protected:
-        virtual void do_reply(AooError result, const AooResponse& response) const = 0;
-
-        void callback(const AooRequest& request, AooError result, const AooResponse& response) const {
-            if (cb_) {
-                cb_(user_, &request, result, &response);
-            }
-        }
-    private:
-        AooResponseHandler cb_;
-        void *user_;
-    };
+    // pending requests
     using callback_cmd_ptr = std::unique_ptr<callback_cmd>;
     using request_map = std::unordered_map<AooId, callback_cmd_ptr>;
     request_map pending_requests_;

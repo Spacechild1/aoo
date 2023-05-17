@@ -252,7 +252,7 @@ int main(int argc, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    g_server->setServerRelay(relay);
+    g_server->setUseInternalRelay(relay);
 
     if (g_loglevel >= kAooLogLevelVerbose) {
         std::cout << "Listening on port " << port << std::endl;

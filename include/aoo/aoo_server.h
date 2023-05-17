@@ -144,16 +144,16 @@ AOO_INLINE AooError AooServer_setRelayHost(
     return AooServer_control(server, kAooCtlSetRelayHost, 0, AOO_ARG(ep));
 }
 
-/** \copydoc AooServer::setPassword() */
-AOO_INLINE AooError AooServer_setServerRelay(AooServer *server, AooBool b)
+/** \copydoc AooServer::setUseInternalRelay() */
+AOO_INLINE AooError AooServer_setUseInternalRelay(AooServer *server, AooBool b)
 {
-    return AooServer_control(server, kAooCtlSetServerRelay, 0, AOO_ARG(b));
+    return AooServer_control(server, kAooCtlSetUseInternalRelay, 0, AOO_ARG(b));
 }
 
 /** \copydoc AooServer::setServerRelay() */
-AOO_INLINE AooError AooServer_getServerRelay(AooServer *server, AooBool* b)
+AOO_INLINE AooError AooServer_getUseInternalRelay(AooServer *server, AooBool* b)
 {
-    return AooServer_control(server, kAooCtlGetServerRelay, 0, AOO_ARG(*b));
+    return AooServer_control(server, kAooCtlGetUseInternalRelay, 0, AOO_ARG(*b));
 }
 
 /** \copydoc AooServer::setGroupAutoCreate() */

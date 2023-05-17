@@ -649,19 +649,19 @@ AooError AOO_CALL aoo::net::Server::control(
         CHECKARG(AooIpEndpoint*);
         auto ep = as<AooIpEndpoint*>(ptr);
         if (ep) {
-            relay_addr_ = ip_host(*ep);
+            global_relay_addr_ = ip_host(*ep);
         } else {
-            relay_addr_ = ip_host{};
+            global_relay_addr_ = ip_host{};
         }
         break;
     }
-    case kAooCtlSetServerRelay:
+    case kAooCtlSetUseInternalRelay:
         CHECKARG(AooBool);
-        allow_relay_.store(as<AooBool>(ptr));
+        internal_relay_.store(as<AooBool>(ptr));
         break;
-    case kAooCtlGetServerRelay:
+    case kAooCtlGetUseInternalRelay:
         CHECKARG(AooBool);
-        as<AooBool>(ptr) = allow_relay_.load();
+        as<AooBool>(ptr) = internal_relay_.load();
         break;
     case kAooCtlSetGroupAutoCreate:
         CHECKARG(AooBool);
@@ -1056,12 +1056,6 @@ void Server::handle_login(client_endpoint& client, const osc::ReceivedMessage& m
 AooError Server::do_login(client_endpoint& client, AooId token,
                           const AooRequestLogin& request,
                           AooResponseLogin& response) {
-    // flags
-    AooFlag flags = 0;
-    if (allow_relay_.load()) {
-        flags |= kAooServerRelay;
-    }
-
     client.activate(request.version);
 
     // send reply
@@ -1071,7 +1065,7 @@ AooError Server::do_login(client_endpoint& client, AooId token,
     msg << osc::BeginMessage(kAooMsgClientLogin)
         << token << kAooErrorNone
         << aoo_getVersionString() << client.id()
-        << (int32_t)flags << metadata_view(response.metadata)
+        << (int32_t)0 << metadata_view(response.metadata)
         << osc::EndMessage;
 
     client.send_message(msg);
@@ -1213,8 +1207,18 @@ AooError Server::do_group_join(client_endpoint &client, AooId token,
     client.on_group_join(*this, *grp, *usr);
 
     // prefer group relay over global relay address; both may be empty!
-    auto relay_addr = grp->relay_addr().valid() ? grp->relay_addr() : relay_addr_;
-
+    net::ip_host relay_addr;
+    if (grp->relay_addr().valid()) {
+        relay_addr = grp->relay_addr();
+    } else {
+        if (global_relay_addr_.valid()) {
+            relay_addr = global_relay_addr_;
+        } else if (internal_relay_.load()) {
+            // internal UDP server
+            relay_addr.name = "";
+            relay_addr.port = port_;
+        }
+    }
     // send reply
     auto extra = grp->metadata().size() + usr->metadata().size() +
             (response.privateMetadata ? response.privateMetadata->size : 0);
@@ -1546,7 +1550,7 @@ void Server::handle_udp_message(const AooByte *data, AooSize size, int onset,
 }
 
 void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& addr) {
-    if (!allow_relay_.load()) {
+    if (!internal_relay_.load()) {
     #if AOO_DEBUG_RELAY
         LOG_DEBUG("AooServer: ignore relay message from " << addr);
     #endif

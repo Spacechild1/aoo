@@ -197,7 +197,7 @@ static void aoo_server_tick(t_aoo_server *x)
 }
 
 static void aoo_server_relay(t_aoo_server *x, t_floatarg f) {
-    x->x_server->setServerRelay(f != 0);
+    x->x_server->setUseInternalRelay(f != 0);
 }
 
 static void aoo_server_port(t_aoo_server *x, t_floatarg f)

@@ -214,16 +214,16 @@ public:
         return control(kAooCtlSetRelayHost, 0, AOO_ARG(ep));
     }
 
-    /** \brief enabled/disable UDP server relay */
-    AooError setServerRelay(AooBool b)
+    /** \brief enabled/disable internal relay */
+    AooError setUseInternalRelay(AooBool b)
     {
-        return control(kAooCtlSetServerRelay, 0, AOO_ARG(b));
+        return control(kAooCtlSetUseInternalRelay, 0, AOO_ARG(b));
     }
 
-    /** \brief check if UDP server relay is enabled */
-    AooError getServerRelay(AooBool& b)
+    /** \brief check if internal relay is enabled */
+    AooError getUseInternalRelay(AooBool& b)
     {
-        return control(kAooCtlGetServerRelay, 0, AOO_ARG(b));
+        return control(kAooCtlGetUseInternalRelay, 0, AOO_ARG(b));
     }
 
     /** \brief enable/disable automatic group creation */

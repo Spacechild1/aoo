@@ -387,10 +387,6 @@ Login response.
 
 2. failure: see [3.1.1 Error response](#2.1.1-error-response)
 
-Possible values for *flags*:
-
-- 0x01: server relay supported
-
 ---
 
 ## `/aoo/server/group/join`

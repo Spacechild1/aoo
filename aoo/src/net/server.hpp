@@ -279,9 +279,9 @@ private:
     void *eventcontext_ = nullptr;
     AooEventMode eventmode_ = kAooEventModeNone;
     // options
-    ip_host relay_addr_;
+    ip_host global_relay_addr_;
     std::string password_;
-    parameter<bool> allow_relay_{AOO_SERVER_RELAY};
+    parameter<bool> internal_relay_{AOO_SERVER_INTERNAL_RELAY};
     parameter<bool> group_auto_create_{AOO_GROUP_AUTO_CREATE};
     AooPingSettings ping_settings_ {
         AOO_SERVER_PING_INTERVAL,

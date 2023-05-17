@@ -98,7 +98,6 @@ typedef struct AooResponseConnect
 {
     AOO_RESPONSE_HEADER
     AooId clientId;
-    AooServerFlags flags;
     const AooChar *version;
     const AooData *metadata;
 } AooResponseConnect;

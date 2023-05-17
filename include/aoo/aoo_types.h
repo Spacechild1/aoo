@@ -288,15 +288,6 @@ AOO_FLAG(AooSocketFlags)
 
 /*------------------------------------------------------------------*/
 
-/** \brief see AooResponseConnect */
-AOO_FLAG(AooServerFlags)
-{
-    /** clients may use the server as relay */
-    kAooServerRelay = 0x01
-};
-
-/*------------------------------------------------------------------*/
-
 /** \brief see AooEventPeer */
 AOO_FLAG(AooPeerFlags)
 {

@@ -69,8 +69,8 @@ enum
 #if AOO_NET
     kAooCtlSetPassword = 1000,
     kAooCtlSetRelayHost,
-    kAooCtlSetServerRelay,
-    kAooCtlGetServerRelay,
+    kAooCtlSetUseInternalRelay,
+    kAooCtlGetUseInternalRelay,
     kAooCtlSetGroupAutoCreate,
     kAooCtlGetGroupAutoCreate,
     kAooCtlSetBinaryClientMsg,
@@ -158,9 +158,9 @@ enum
  #define AOO_INVITE_TIMEOUT 1.0
 #endif
 
-/** \brief enable/disable server relay by default */
-#ifndef AOO_SERVER_RELAY
- #define AOO_SERVER_RELAY 0
+/** \brief enable/disable internal server relay by default */
+#ifndef AOO_SERVER_INTERNAL_RELAY
+ #define AOO_SERVER_INTERNAL_RELAY 0
 #endif
 
 /** \brief enable/disable automatic group creation by default */

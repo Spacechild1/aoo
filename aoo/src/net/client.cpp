@@ -1284,12 +1284,6 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
                     }
                 }
             }
-            // 3) use UDP server as relay
-            if (server_relay_) {
-                auto& host = connection_->host_;
-                auto addrlist = ip_address::resolve(host.name, host.port, family, ipv4mapped);
-                m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
-            }
             memberships_.push_back(std::move(m));
         } else {
             // shouldn't happen...
@@ -1708,7 +1702,7 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
         if (result == kAooErrorNone){
             auto version = (it++)->AsString();
             auto id = (AooId)(it++)->AsInt32();
-            auto flags = (AooFlag)(it++)->AsInt32();
+            (it++)->AsInt32(); // skip flags
             auto metadata = osc_read_metadata(it); // optional
 
             // check version
@@ -1718,8 +1712,6 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
                 close();
                 return;
             }
-
-            server_relay_ = flags & kAooServerRelay;
 
             // connected!
             state_.store(client_state::connected);
@@ -1732,7 +1724,6 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
             AooResponseConnect response;
             AOO_RESPONSE_INIT(&response, Connect, metadata);
             response.clientId = id;
-            response.flags = flags;
             response.version = version;
             response.metadata = metadata ? &metadata.value() : nullptr;
 
