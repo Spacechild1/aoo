@@ -88,12 +88,6 @@ public:
 
     //-----------------------------------------------------------------//
 
-#if 0
-    ip_address::ip_type type() const {
-        return ip_address::ip_type::Unspec; // TODO
-    }
-#endif
-
     client_endpoint * find_client(AooId id);
 
     client_endpoint * find_client(const user& usr) {
@@ -224,6 +218,18 @@ private:
     std::thread udp_thread_;
     aoo::tcp_server tcp_server_;
     std::vector<char> sendbuffer_;
+    // mutex for protecting the client and group list
+    //
+    // NB: shared_recursive_mutex only supports recursive shared
+    // locks if the top-level lock is exclusive! AFAICT, this is
+    // should be ok since all API methods that take a reader lock
+    // are read-only and should not cause any callback invocations.
+    //
+    // (Yes, I know that recursive locks are evil, but it's
+    // the best solution I could come up with that allows
+    // API methods to be called safely both from the outside
+    // and from within event handlers and request handlers.)
+    sync::shared_recursive_mutex mutex_;
     // request handler
     AooRequestHandler request_handler_{nullptr};
     void *request_context_{nullptr};

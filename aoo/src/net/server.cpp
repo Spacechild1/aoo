@@ -110,6 +110,11 @@ AOO_API AooError AOO_CALL AooServer_run(
 
 AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
     try {
+        // the TCP handler methods will lock the mutex to
+        // prevent concurrent access from API methods.
+        // The run() method itself must only be called after
+        // the setup() method, so there is no race condition
+        // regarding the TCP server itself.
         tcp_server_.run(nonBlocking ? 0 : -1);
     }  catch (const aoo::tcp_error& e) {
         LOG_ERROR("AooServer: TCP server failed: " << e.what());
@@ -183,6 +188,7 @@ AOO_API AooError AooServer_handleRequest(
     return server->handleRequest(client, token, request, result, response);
 }
 
+// NB: might be called outside the TCP event loop (asynchronous request handling)
 AooError AOO_CALL aoo::net::Server::handleRequest(
         AooId client, AooId token, const AooRequest *request,
         AooError result, AooResponse *response)
@@ -190,6 +196,8 @@ AooError AOO_CALL aoo::net::Server::handleRequest(
     if (!request) {
         return kAooErrorBadArgument;
     }
+
+    sync::scoped_lock lock(mutex_); // writer lock
 
     auto c = find_client(client);
     if (!c) {
@@ -249,8 +257,11 @@ AOO_API AooError AOO_CALL AooServer_notifyClient(
     return server->notifyClient(client, *data);
 }
 
+// TODO: push actual message on a queue (then we can also use a reader lock)
 AooError AOO_CALL aoo::net::Server::notifyClient(
         AooId client, const AooData &data) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     if (auto c = find_client(client)) {
         c->send_notification(*this, data);
         return kAooOk;
@@ -265,8 +276,11 @@ AOO_API AooError AOO_CALL AooServer_notifyGroup(
     return server->notifyGroup(group, user, *data);
 }
 
+// TODO: push actual message on a queue (then we can also use a reader lock)
 AooError AOO_CALL aoo::net::Server::notifyGroup(
         AooId group, AooId user, const AooData &data) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     if (auto g = find_group(group)) {
         if (user == kAooIdInvalid) {
             // all users
@@ -305,6 +319,8 @@ AOO_API AooError AOO_CALL AooServer_findGroup(
 
 AooError AOO_CALL aoo::net::Server::findGroup(
         const AooChar *name, AooId *id) {
+    sync::scoped_shared_lock lock(mutex_); // reader lock
+
     if (auto grp = find_group(name)) {
         if (id) {
             *id = grp->id();
@@ -324,6 +340,8 @@ AOO_API AooError AOO_CALL AooServer_addGroup(
 AooError AOO_CALL aoo::net::Server::addGroup(
         const AooChar *name, const AooChar *password, const AooData *metadata,
         const AooIpEndpoint *relayAddress, AooFlag flags, AooId *groupId) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     // this might "waste" a group ID, but we don't care.
     auto id = get_next_group_id();
     std::string hashed_pwd = password ? aoo::net::encrypt(password) : "";
@@ -346,6 +364,8 @@ AOO_API AooError AOO_CALL AooServer_removeGroup(
 }
 
 AooError AOO_CALL aoo::net::Server::removeGroup(AooId group) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     if (remove_group(group)) {
         return kAooOk;
     } else {
@@ -361,6 +381,8 @@ AOO_API AooError AOO_CALL AooServer_findUserInGroup(
 
 AooError AOO_CALL aoo::net::Server::findUserInGroup(
         AooId group, const AooChar *userName, AooId *userId) {
+    sync::scoped_shared_lock lock(mutex_); // reader lock
+
     if (auto grp = find_group(group)) {
         if (auto usr = grp->find_user(userName)) {
             if (userId) {
@@ -382,6 +404,8 @@ AOO_API AooError AOO_CALL AooServer_addUserToGroup(
 AooError AOO_CALL aoo::net::Server::addUserToGroup(
         AooId group, const AooChar *userName, const AooChar *userPwd,
         const AooData *metadata, AooFlag flags, AooId *userId) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     if (auto g = find_group(group)) {
         auto id = g->get_next_user_id();
         std::string hashed_pwd = userPwd ? aoo::net::encrypt(userPwd) : "";
@@ -410,6 +434,8 @@ AOO_API AooError AOO_CALL AooServer_removeUserFromGroup(
 
 AooError AOO_CALL aoo::net::Server::removeUserFromGroup(
         AooId group, AooId user) {
+    sync::scoped_lock lock(mutex_); // writer lock
+
     if (auto grp = find_group(group)) {
         if (auto usr = grp->find_user(user)) {
             if (usr->active()) {
@@ -450,6 +476,10 @@ T& as(void *p){
 AooError AOO_CALL aoo::net::Server ::groupControl(
         AooId group, AooCtl ctl, AooIntPtr index,
         void *ptr, AooSize size) {
+    // for simplicity, always take a writer lock.
+    // LATER separate between read and write options
+    sync::scoped_lock lock(mutex_);
+
     auto grp = find_group(group);
     if (!grp) {
         LOG_ERROR("AooServer: could not find group " << group);
@@ -506,6 +536,8 @@ AooError AOO_CALL aoo::net::Server::control(
     switch (ctl) {
     case kAooCtlSetPassword:
     {
+        sync::scoped_lock lock(mutex_); // writer lock
+
         CHECKARG(AooChar *);
         auto pwd = as<AooChar*>(ptr);
         if (pwd) {
@@ -517,6 +549,8 @@ AooError AOO_CALL aoo::net::Server::control(
     }
     case kAooCtlSetRelayHost:
     {
+        sync::scoped_lock lock(mutex_); // writer lock
+
         CHECKARG(AooIpEndpoint*);
         auto ep = as<AooIpEndpoint*>(ptr);
         if (ep) {
@@ -726,6 +760,8 @@ osc::OutboundPacketStream Server::start_message(size_t extra_size) {
 }
 
 AooId Server::accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_func fn) {
+    sync::scoped_lock lock(mutex_); // writer lock; see run() method
+
     auto id = get_next_client_id();
     // TODO: check max. client count
     clients_.emplace(id, client_endpoint(id, fn));
@@ -755,8 +791,11 @@ bool Server::remove_client(AooId id, AooError err, const std::string& msg) {
     return true;
 }
 
+// called from TCP server
 void Server::handle_client_data(AooId id, int err, const AooByte *data,
                                 AooInt32 size, const aoo::ip_address& addr) {
+    sync::scoped_lock lock(mutex_); // writer lock; see run() method
+
     auto client = find_client(id);
     if (!client) {
         LOG_ERROR("AooServer: handle_client_data: can't find client " << id);
