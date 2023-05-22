@@ -10,6 +10,8 @@
 # include "sys/time.h"
 #endif
 
+#include <cassert>
+
 namespace aoo {
 namespace sync {
 
@@ -47,14 +49,17 @@ void global_spinlock_unlock() { g_atomic_spinlock.unlock(); }
 mutex::mutex() {
     InitializeSRWLock((PSRWLOCK)& mutex_);
 }
+
 mutex::~mutex() {}
 
 void mutex::lock() {
     AcquireSRWLockExclusive((PSRWLOCK)&mutex_);
 }
+
 bool mutex::try_lock() {
     return TryAcquireSRWLockExclusive((PSRWLOCK)&mutex_);
 }
+
 void mutex::unlock() {
     ReleaseSRWLockExclusive((PSRWLOCK)&mutex_);
 }
@@ -64,20 +69,54 @@ void mutex::unlock() {
 mutex::mutex() {
     pthread_mutex_init(&mutex_, nullptr);
 }
+
 mutex::~mutex() {
     pthread_mutex_destroy(&mutex_);
 }
+
 void mutex::lock() {
     pthread_mutex_lock(&mutex_);
 }
+
 bool mutex::try_lock() {
     return pthread_mutex_trylock(&mutex_) == 0;
 }
+
 void mutex::unlock() {
     pthread_mutex_unlock(&mutex_);
 }
 
 #endif
+
+void recursive_mutex::lock(void) {
+    auto id = std::this_thread::get_id();
+    if (owner_.load(std::memory_order_relaxed) != id) {
+        mutex::lock();
+        owner_.store(id, std::memory_order_relaxed);
+    }
+    count_++;
+}
+
+bool recursive_mutex::try_lock() {
+    auto id = std::this_thread::get_id();
+    if (owner_.load(std::memory_order_relaxed) != id) {
+        if (mutex::try_lock()) {
+            owner_.store(id, std::memory_order_relaxed);
+        } else {
+            return false;
+        }
+    }
+    count_++;
+    return true;
+}
+
+void recursive_mutex::unlock(void) {
+    assert(count_ > 0);
+    if (--count_ == 0) {
+        owner_.store(std::thread::id{}, std::memory_order_relaxed);
+        mutex::unlock();
+    }
+}
 
 //-------------------- shared_mutex -------------------------//
 
@@ -86,24 +125,31 @@ void mutex::unlock() {
 shared_mutex::shared_mutex() {
     InitializeSRWLock((PSRWLOCK)& rwlock_);
 }
+
 shared_mutex::~shared_mutex() {}
+
 // exclusive
 void shared_mutex::lock() {
     AcquireSRWLockExclusive((PSRWLOCK)&rwlock_);
 }
+
 bool shared_mutex::try_lock() {
     return TryAcquireSRWLockExclusive((PSRWLOCK)&rwlock_);
 }
+
 void shared_mutex::unlock() {
     ReleaseSRWLockExclusive((PSRWLOCK)&rwlock_);
 }
+
 // shared
 void shared_mutex::lock_shared() {
     AcquireSRWLockShared((PSRWLOCK)&rwlock_);
 }
+
 bool shared_mutex::try_lock_shared() {
     return TryAcquireSRWLockShared((PSRWLOCK)&rwlock_);
 }
+
 void shared_mutex::unlock_shared() {
     ReleaseSRWLockShared((PSRWLOCK)&rwlock_);
 }
@@ -113,31 +159,88 @@ void shared_mutex::unlock_shared() {
 shared_mutex::shared_mutex() {
     pthread_rwlock_init(&rwlock_, nullptr);
 }
+
 shared_mutex::~shared_mutex() {
     pthread_rwlock_destroy(&rwlock_);
 }
+
 // exclusive
 void shared_mutex::lock() {
     pthread_rwlock_wrlock(&rwlock_);
 }
+
 bool shared_mutex::try_lock() {
     return pthread_rwlock_trywrlock(&rwlock_) == 0;
 }
 void shared_mutex::unlock() {
     pthread_rwlock_unlock(&rwlock_);
 }
+
 // shared
 void shared_mutex::lock_shared() {
     pthread_rwlock_rdlock(&rwlock_);
 }
+
 bool shared_mutex::try_lock_shared() {
     return pthread_rwlock_tryrdlock(&rwlock_) == 0;
 }
+
 void shared_mutex::unlock_shared() {
     pthread_rwlock_unlock(&rwlock_);
 }
 
 #endif // _WIN32 || AOO_HAVE_PTHREAD_RWLOCK
+
+void shared_recursive_mutex::lock(void) {
+    auto id = std::this_thread::get_id();
+    if (owner_.load(std::memory_order_relaxed) != id) {
+        shared_mutex::lock();
+        owner_.store(id, std::memory_order_relaxed);
+    }
+    count_++;
+}
+
+bool shared_recursive_mutex::try_lock() {
+    auto id = std::this_thread::get_id();
+    if (owner_.load(std::memory_order_relaxed) != id) {
+        if (shared_mutex::try_lock()) {
+            owner_.store(id, std::memory_order_relaxed);
+        } else {
+            return false;
+        }
+    }
+    count_++;
+    return true;
+}
+
+void shared_recursive_mutex::unlock(void) {
+    assert(count_ > 0);
+    assert(owner_.load() == std::this_thread::get_id());
+    if (--count_ == 0) {
+        owner_.store(std::thread::id{}, std::memory_order_relaxed);
+        shared_mutex::unlock();
+    }
+}
+
+void shared_recursive_mutex::lock_shared() {
+    if (owner_ != std::this_thread::get_id()) {
+        shared_mutex::lock_shared();
+    }
+}
+
+bool shared_recursive_mutex::try_lock_shared() {
+    if (owner_ != std::this_thread::get_id()) {
+        return shared_mutex::try_lock_shared();
+    } else {
+        return true;
+    }
+}
+
+void shared_recursive_mutex::unlock_shared() {
+    if (owner_ != std::this_thread::get_id()) {
+        shared_mutex::unlock_shared();
+    }
+}
 
 //-------------------- native_semaphore -----------------------//
 
