@@ -5,7 +5,9 @@
 #include "sync.hpp"
 
 #ifdef _WIN32
-  #include <windows.h>
+# include <windows.h>
+#else
+# include "sys/time.h"
 #endif
 
 namespace aoo {
@@ -183,6 +185,52 @@ void native_semaphore::wait(){
 #endif
 }
 
+bool native_semaphore::try_wait(){
+#if defined(_WIN32)
+    // timeout: WAIT_TIMEOUT
+    return WaitForSingleObject(sem_, 0) == 0;
+#elif defined(__APPLE__)
+    mach_timespec_t ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 0;
+    // timeout: KERN_OPERATION_TIMED_OUT
+    return semaphore_timedwait(sem_, ts) == KERN_SUCCESS;
+#else // posix
+    while (sem_trywait(&sem_) == -1) {
+        if (errno != EINTR) // EAGAIN
+            return false;
+    }
+    return true;
+#endif
+}
+
+bool native_semaphore::wait_for(double seconds){
+#if defined(_WIN32)
+    // timeout: WAIT_TIMEOUT
+    return WaitForSingleObject(sem_, seconds * 1000) == 0;
+#elif defined(__APPLE__)
+    mach_timespec_t ts;
+    ts.tv_sec = seconds;
+    ts.tv_nsec = (seconds - ts.tv_sec) * 1000000000;
+    // timeout: KERN_OPERATION_TIMED_OUT
+    return semaphore_timedwait(sem_, ts) == KERN_SUCCESS;
+#else // posix
+    struct timeval now;
+    gettimeofday(&now, 0);
+    // add fractional part to timeout
+    seconds += now.tv_usec * 0.000001;
+    struct timespec ts;
+    ts.tv_sec = now.tv_sec + (time_t)seconds;
+    ts.tv_nsec = (seconds - (time_t)seconds) * 1000000000;
+    while (sem_timedwait(&sem_, &ts) == -1)
+    {
+        if (errno != EINTR) // ETIMEDOUT
+            return false;
+    }
+    return true;
+#endif
+}
+
 } // detail
 
 #endif // HAVE_SEMAPHORE
@@ -201,10 +249,49 @@ void semaphore::post() {
         sem_.post();
     }
 }
+
 void semaphore::wait() {
     auto old = count_.fetch_sub(1, std::memory_order_acquire);
     if (old <= 0){
         sem_.wait();
+    }
+}
+
+bool semaphore::try_wait() {
+    auto count = count_.load(std::memory_order_relaxed);
+    for (;;) {
+        if (count > 0) {
+            if (count_.compare_exchange_weak(count, count - 1,
+                    std::memory_order_acquire, std::memory_order_relaxed))
+                return true;
+            // try again; count has been updated
+        }
+    }
+    return false;
+}
+
+bool semaphore::wait_for(double seconds) {
+    auto old = count_.fetch_sub(1, std::memory_order_acquire);
+    if (old > 0)
+        return true;
+
+    if (sem_.wait_for(seconds))
+        return true;
+
+    // Thanks to moodycamel!
+    // See https://github.com/cameron314/concurrentqueue/blob/master/lightweightsemaphore.h
+    // "At this point, we've timed out waiting for the semaphore, but the
+    // count is still decremented indicating we may still be waiting on
+    // it. So we have to re-adjust the count, but only if the semaphore
+    // wasn't signaled enough times for us too since then. If it was, we
+    // need to release the semaphore too."
+    for (;;) {
+        old = count_.load(std::memory_order_acquire);
+        if (old >= 0 && sem_.try_wait())
+            return true;
+        if (old < 0 && count_.compare_exchange_strong(old, old + 1,
+                std::memory_order_relaxed, std::memory_order_relaxed))
+            return false;
     }
 }
 
@@ -230,11 +317,52 @@ void semaphore::post() {
 void semaphore::wait() {
     pthread_mutex_lock(&mutex_);
     // wait till count is larger than zero
-    while (count_ <= 0) {
+    while (count_ == 0) {
         pthread_cond_wait(&condition_, &mutex_);
     }
     count_--; // release
     pthread_mutex_unlock(&mutex_);
+}
+
+bool semaphore::try_wait() {
+    pthread_mutex_lock(&mutex_);
+    auto success = count_ > 0;
+    if (success) {
+        count_--;
+    }
+    pthread_mutex_unlock(&mutex_);
+    return success;
+}
+
+bool semaphore::wait_for(double seconds) {
+    pthread_mutex_lock(&mutex_);
+    if (count_ > 0) {
+        count_--;
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+
+    // let's unlock before calling gettimeofday()
+    pthread_mutex_unlock(&mutex_);
+    struct timeval now;
+    gettimeofday(&now, 0);
+    // add fractional part to timeout
+    seconds += now.tv_usec * 0.000001;
+    struct timespec ts;
+    ts.tv_sec = now.tv_sec + (time_t)seconds;
+    ts.tv_nsec = (seconds - (time_t)seconds) * 1000000000;
+
+    pthread_mutex_lock(&mutex_);
+    // wait till count is larger than zero
+    while (count_ == 0) {
+        if (pthread_cond_timedwait(&condition_, &mutex_, &ts) == ETIMEDOUT) {
+            pthread_mutex_unlock(&mutex_);
+            return false;
+        }
+    }
+    count_--; // release
+    pthread_mutex_unlock(&mutex_);
+    return true;
 }
 
 #endif // HAVE_SEMAPHORE
@@ -270,6 +398,38 @@ void event::wait() {
     }
 }
 
+bool event::try_wait() {
+    auto count = count_.load(std::memory_order_relaxed);
+    for (;;) {
+        if (count > 0) {
+            if (count_.compare_exchange_weak(count, count - 1,
+                    std::memory_order_acquire, std::memory_order_relaxed))
+                return true;
+            // try again; count has been updated
+        }
+    }
+    return false;
+}
+
+bool event::wait_for(double seconds) {
+    auto old = count_.fetch_sub(1, std::memory_order_acquire);
+    if (old > 0)
+        return true;
+
+    if (sem_.wait_for(seconds))
+        return true;
+
+    // See semaphore::wait_for()
+    for (;;) {
+        old = count_.load(std::memory_order_acquire);
+        if (old >= 0 && sem_.try_wait())
+            return true;
+        if (old < 0 && count_.compare_exchange_strong(old, old + 1,
+                std::memory_order_relaxed, std::memory_order_relaxed))
+            return false;
+    }
+}
+
 #else
 
 event::event() {
@@ -288,14 +448,57 @@ void event::set() {
     pthread_mutex_unlock(&mutex_);
     pthread_cond_signal(&condition_);
 }
+
 void event::wait() {
     pthread_mutex_lock(&mutex_);
     // wait till event is set
-    while (state_ != true) {
+    while (!state_) {
         pthread_cond_wait(&condition_, &mutex_);
     }
     state_ = false; // unset
     pthread_mutex_unlock(&mutex_);
+}
+
+bool event::try_wait() {
+    pthread_mutex_lock(&mutex_);
+    bool success = state_;
+    if (success) {
+        state_ = false; // unset
+    }
+    pthread_mutex_unlock(&mutex_);
+    return success;
+}
+
+bool event::wait_for(double seconds) {
+    pthread_mutex_lock(&mutex_);
+    if (state_) {
+        state_ = false;
+        pthread_mutex_unlock(&mutex_);
+        return true;
+    }
+
+    // let's unlock before calling gettimeofday()
+    pthread_mutex_unlock(&mutex_);
+    struct timeval now;
+    gettimeofday(&now, 0);
+    // add fractional part to timeout
+    seconds += now.tv_usec * 0.000001;
+    struct timespec ts;
+    ts.tv_sec = now.tv_sec + (time_t)seconds;
+    ts.tv_nsec = (seconds - (time_t)seconds) * 1000000000;
+
+    pthread_mutex_lock(&mutex_);
+    // wait till count is larger than zero
+    while (!state_) {
+        if (pthread_cond_timedwait(&condition_, &mutex_, &ts) == ETIMEDOUT) {
+            pthread_mutex_unlock(&mutex_);
+            return false;
+        }
+    }
+    state_ = false; // unset
+    pthread_mutex_unlock(&mutex_);
+    return true;
+}
 }
 
 #endif // HAVE_SEMAPHORE

@@ -405,6 +405,8 @@ class native_semaphore {
     native_semaphore& operator=(const native_semaphore&) = delete;
     void post();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #if defined(_WIN32)
     void *sem_;
@@ -429,6 +431,8 @@ class semaphore {
     semaphore& operator=(const semaphore&) = delete;
     void post();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #ifdef HAVE_SEMAPHORE
     detail::native_semaphore sem_;
@@ -451,6 +455,8 @@ class event {
     event& operator=(const event&) = delete;
     void set();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #ifdef HAVE_SEMAPHORE
     detail::native_semaphore sem_;
