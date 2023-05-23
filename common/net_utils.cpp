@@ -612,7 +612,7 @@ int socket_udp(uint16_t port)
         bindaddr = ip_address(port, ip_address::IPv6);
         // make dual stack socket by listening to both IPv4 and IPv6 packets
         if (socket_set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false) != 0){
-            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY");
+            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
             fflush(stderr);
             // TODO: fall back to IPv4?
         }
@@ -649,7 +649,7 @@ int socket_tcp(uint16_t port)
         bindaddr = ip_address(port, ip_address::IPv6);
         // make dual stack socket by listening to both IPv4 and IPv6 packets
         if (socket_set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false)) {
-            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY");
+            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
             fflush(stderr);
             // TODO: fall back to IPv4?
         }
@@ -667,12 +667,12 @@ int socket_tcp(uint16_t port)
     }
     // set SO_REUSEADDR
     if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
-        fprintf(stderr, "aoo_client: couldn't set SO_REUSEADDR");
+        fprintf(stderr, "aoo_client: couldn't set SO_REUSEADDR\n");
         fflush(stderr);
     }
     // disable Nagle's algorithm
     if (socket_set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true)) {
-        fprintf(stderr, "aoo_client: couldn't set TCP_NODELAY");
+        fprintf(stderr, "aoo_client: couldn't set TCP_NODELAY\n");
         fflush(stderr);
     }
     // finally bind the socket
@@ -857,26 +857,19 @@ bool socket_signal(int socket)
     }
 }
 
-int socket_set_int_option(int socket, int level, int option, bool value) {
-    int arg = value;
-    return setsockopt(socket, level, option, (const char *)&arg, sizeof(arg));
-}
-
-int socket_get_int_option(int socket, int level, int option, bool* value) {
-    int arg;
-    socklen_t len = sizeof(arg);
-    int err = getsockopt(socket, level, option, (char *)&arg, &len);
-    if (err == 0) {
-        *value = arg;
-    }
-    return err;
-}
-
 int socket_set_int_option(int socket, int level, int option, int value) {
     return setsockopt(socket, level, option, (const char *)&value, sizeof(value));
 }
 
 int socket_get_int_option(int socket, int level, int option, int* value) {
+    // On Windows on there is a horrible bug in getsockopt(): for some boolean options
+    // it would only write a single byte, even though the documentation clearly
+    // states that the type should be DWORD or BOOL (both are 32-bit integers).
+    // (To be fair, 'optlen' will be set to 1, but how will expect this?)
+    // As a consequence, the upper 3 bytes of 'optval' will contain garbage.
+    // A simple workaround is to initialize it with 0; this works because Windows
+    // is always little endian.
+    *value = 0;
     socklen_t len = sizeof(*value);
     return getsockopt(socket, level, option, (char *)value, &len);
 }
