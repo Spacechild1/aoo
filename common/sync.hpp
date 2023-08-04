@@ -6,6 +6,7 @@
 
 #include <inttypes.h>
 #include <atomic>
+#include <thread>
 #include <utility>
 
 #ifndef _WIN32
@@ -321,6 +322,16 @@ private:
 #endif
 };
 
+class recursive_mutex : public mutex {
+public:
+    void lock();
+    bool try_lock();
+    void unlock();
+private:
+    std::atomic<std::thread::id> owner_{std::thread::id{}};
+    int count_ = 0;
+};
+
 //------------------------ shared_mutex -------------------------//
 
 #if defined(_WIN32) || defined(AOO_HAVE_PTHREAD_RWLOCK)
@@ -348,10 +359,30 @@ private:
 };
 
 #else
+
 // fallback
 using shared_mutex = std::shared_mutex;
 
 #endif // _WIN32 || AOO_HAVE_PTHREAD_RWLOCK
+
+// NB: lock_shared() and try_lock_shared() may only be called
+// recursively while holding an exclusive lock!!! Use with care!
+class shared_recursive_mutex : public shared_mutex {
+public:
+    // exclusive
+    void lock();
+    bool try_lock();
+    void unlock();
+    // shared
+    void lock_shared();
+    bool try_lock_shared();
+    void unlock_shared();
+private:
+    std::atomic<std::thread::id> owner_{std::thread::id{}};
+    int count_ = 0;
+};
+
+//----------------------- lock guards ------------------------------//
 
 typedef std::try_to_lock_t try_to_lock_t;
 typedef std::defer_lock_t defer_lock_t;
@@ -405,6 +436,8 @@ class native_semaphore {
     native_semaphore& operator=(const native_semaphore&) = delete;
     void post();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #if defined(_WIN32)
     void *sem_;
@@ -429,6 +462,8 @@ class semaphore {
     semaphore& operator=(const semaphore&) = delete;
     void post();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #ifdef HAVE_SEMAPHORE
     detail::native_semaphore sem_;
@@ -451,6 +486,8 @@ class event {
     event& operator=(const event&) = delete;
     void set();
     void wait();
+    bool try_wait();
+    bool wait_for(double seconds);
  private:
 #ifdef HAVE_SEMAPHORE
     detail::native_semaphore sem_;

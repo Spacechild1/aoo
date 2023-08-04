@@ -53,52 +53,51 @@ namespace sc {
 AooServer::AooServer(World *world, int port, const char *password)
     : world_(world), port_(port)
 {
-    // setup UDP server
-    // TODO: increase socket receive buffer for relay? Use threaded receive?
-    udpserver_.start(port,
-                     [this](auto&&... args) { handleUdpReceive(args...); });
-
-    // setup TCP server
-    tcpserver_.start(port,
-                     [this](auto&&... args) { return handleAccept(args...); },
-                     [this](auto&&... args) { return handleReceive(args...); });
-
-    auto flags = aoo::socket_family(udpserver_.socket()) == aoo::ip_address::IPv6 ?
-                     kAooSocketDualStack : kAooSocketIPv4;
-
-    // success
-    server_ = ::AooServer::create(nullptr);
-    server_->setup(port, flags);
-    if (password) {
-        server_->setPassword(password);
-    }
-
-    LOG_VERBOSE("AooServer: listening on port " << port);
+    server_ = ::AooServer::create(nullptr); // does not really fail
 
     // first set event handler!
     server_->setEventHandler([](void *x, const AooEvent *e, AooThreadLevel) {
         static_cast<sc::AooServer *>(x)->handleEvent(e);
     }, this, kAooEventModeCallback);
-    // then start network threads
-    udpthread_ = std::thread([this](){
-        udpserver_.run(-1);
+
+    if (password) {
+        server_->setPassword(password);
+    }
+
+    // setup server
+    if (auto err = server_->setup(port, 0); err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        throw std::runtime_error(msg);
+    }
+
+    // finally start server thread
+    thread_ = std::thread([this]() {
+        aoo::sync::lower_thread_priority();
+        auto err = server_->run(kAooFalse);
+        if (err != kAooOk) {
+            std::string msg;
+            if (err == kAooErrorSocket) {
+                msg = aoo::socket_strerror(aoo::socket_errno());
+            } else {
+                msg = aoo_strerror(err);
+            }
+            LOG_ERROR("AooServer: server error: " << msg);
+            // TODO: handle error
+        }
     });
-    tcpthread_ = std::thread([this](){
-        tcpserver_.run();
-    });
+
+    LOG_VERBOSE("AooServer: listening on port " << port);
 }
 
-AooServer::~AooServer(){
-    if (server_) {
-        udpserver_.stop();
-        if (udpthread_.joinable()) {
-            udpthread_.join();
-        }
-
-        tcpserver_.stop();
-        if (tcpthread_.joinable()) {
-            tcpthread_.join();
-        }
+AooServer::~AooServer() {
+    server_->quit();
+    if (thread_.joinable()) {
+        thread_.join();
     }
 }
 
@@ -111,7 +110,36 @@ void AooServer::handleEvent(const AooEvent *event){
     case kAooEventClientLogin:
     {
         auto& e = event->clientLogin;
-        msg << "/client/login" << e.id; // TODO metadata
+
+        if (e.error == kAooOk) {
+            // TODO: socket address + metadata
+            char buf[1024];
+            osc::OutboundPacketStream msg(buf, sizeof(buf));
+            msg << osc::BeginMessage("/aoo/server/event") << port_
+                << "/client/add" << e.id
+                << osc::EndMessage;
+
+            ::sendMsgNRT(world_, msg);
+        } else {
+            LOG_WARNING("AooServer: client " << e.id << " failed to login: "
+                        << aoo_strerror(e.error));
+        }
+
+        break;
+    }
+    case kAooEventClientLogout:
+    {
+        auto& e = event->clientLogout;
+
+        // TODO: socket address
+        char buf[1024];
+        osc::OutboundPacketStream msg(buf, sizeof(buf));
+        msg << osc::BeginMessage("/aoo/server/event") << port_
+            << "/client/remove" << e.id << e.errorCode << e.errorMessage
+            << osc::EndMessage;
+
+        ::sendMsgNRT(world_, msg);
+
         break;
     }
     case kAooEventGroupAdd:
@@ -151,81 +179,6 @@ void AooServer::handleEvent(const AooEvent *event){
     }
 
     msg << osc::EndMessage;
-    ::sendMsgNRT(world_, msg);
-}
-
-AooId AooServer::handleAccept(int e, const aoo::ip_address& addr) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, AooId client,
-                const AooByte *data, AooSize size) -> AooInt32 {
-            return static_cast<aoo::tcp_server *>(x)->send(client, data, size);
-        };
-        AooId client;
-        server_->addClient(replyfn, &tcpserver_, &client); // doesn't fail
-        addClient(client, addr);
-        return client;
-    } else {
-        LOG_ERROR("AooServer: accept() failed: " << aoo::socket_strerror(e));
-        // TODO handle error?
-        return kAooIdInvalid;
-    }
-}
-
-void AooServer::handleReceive(int e, AooId client, const aoo::ip_address& addr,
-                              const AooByte *data, AooSize size) {
-    if (e == 0 && size > 0) {
-        if (server_->handleClientMessage(client, data, size) != kAooOk) {
-            // close and remove client!
-            server_->removeClient(client);
-            tcpserver_.close(client);
-            removeClient(client);
-        }
-    } else {
-        // remove client!
-        server_->removeClient(client);
-        if (e == 0) {
-            LOG_VERBOSE("AooServer: client " << client << " disconnected");
-        } else {
-            LOG_ERROR("AooServer: TCP error in client "
-                      << client << ": " << aoo::socket_strerror(e));
-        }
-        removeClient(client);
-    }
-}
-
-void AooServer::handleUdpReceive(int e, const aoo::ip_address& addr,
-                                 const AooByte *data, AooSize size) {
-    if (e == 0) {
-        // reply function
-        auto replyfn = [](void *x, const AooByte *data, AooInt32 size,
-                const void *address, AooAddrSize addrlen, AooFlag) -> AooInt32 {
-            aoo::ip_address addr((const struct sockaddr *)address, addrlen);
-            return static_cast<aoo::udp_server *>(x)->send(addr, data, size);
-        };
-        server_->handleUdpMessage(data, size, addr.address(), addr.length(),
-                                  replyfn, &udpserver_);
-    } else {
-        LOG_ERROR("AooServer: UDP error: " << aoo::socket_strerror(e));
-        // TODO handle error?
-    }
-}
-
-void AooServer::addClient(AooId client, const aoo::ip_address& addr) {
-    char buf[1024];
-    osc::OutboundPacketStream msg(buf, sizeof(buf));
-    msg << osc::BeginMessage("/aoo/server/event") << port_
-        << "/client/add" << client << addr.name() << addr.port()
-        << osc::EndMessage;
-    ::sendMsgNRT(world_, msg);
-}
-
-void AooServer::removeClient(AooId client) {
-    char buf[1024];
-    osc::OutboundPacketStream msg(buf, sizeof(buf));
-    msg << osc::BeginMessage("/aoo/server/event") << port_
-        << "/client/remove" << client
-        << osc::EndMessage;
     ::sendMsgNRT(world_, msg);
 }
 

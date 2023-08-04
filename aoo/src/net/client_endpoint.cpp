@@ -83,7 +83,7 @@ void client_endpoint::send_message(const osc::OutboundPacketStream& msg) const {
     auto size = msg.Size() + 4;
     // we know that the buffer is not really constant
     aoo::to_bytes<int32_t>(msg.Size(), const_cast<char *>(data));
-    if (replyfn_(context_, id_, (AooByte *)data, size) < 0) {
+    if (replyfn_((const AooByte *)data, size) < 0) {
         // TODO handle error
     }
 }
@@ -217,7 +217,7 @@ void client_endpoint::on_close(Server& server) {
     id_ = kAooIdInvalid;
 }
 
-void client_endpoint::handle_message(Server &server, const AooByte *data, int32_t n) {
+void client_endpoint::handle_data(Server &server, const AooByte *data, int32_t n) {
     receiver_.handle_message((const char *)data, n,
             [&](const osc::ReceivedPacket& packet) {
         osc::ReceivedMessage msg(packet);

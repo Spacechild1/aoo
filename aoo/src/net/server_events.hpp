@@ -36,6 +36,26 @@ struct client_login_event : ievent
     aoo::metadata metadata_;
 };
 
+struct client_logout_event : ievent
+{
+    client_logout_event(AooId id, AooError errcode, std::string errmsg)
+        : id_(id), errcode_(errcode), errmsg_(errmsg) {}
+
+    void dispatch(const event_handler& fn) const override {
+        AooEventClientLogout e;
+        AOO_EVENT_INIT(&e, AooEventClientLogout, errorMessage);
+        e.id = id_;
+        e.errorCode = errcode_;
+        e.errorMessage = errmsg_.c_str();
+
+        fn(e);
+    }
+
+    AooId id_;
+    AooError errcode_;
+    std::string errmsg_;
+};
+
 struct group_add_event : ievent
 {
     group_add_event(const group& grp)

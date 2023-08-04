@@ -33,42 +33,31 @@ AOO_API void AOO_CALL AooServer_free(AooServer *server);
 AOO_API AooError AOO_CALL AooServer_setup(
         AooServer *server, AooUInt16 port, AooSocketFlags flags);
 
-/** \copydoc AooServer::update() */
-AOO_API AooError AOO_CALL AooServer_update(AooServer *server);
+/** \copydoc AooServer::run() */
+AOO_API AooError AOO_CALL AooServer_run(
+    AooServer *server, AooBool nonBlocking);
 
-/* UDP echo server */
+/** \copydoc AooServer::quit() */
+AOO_API AooError AOO_CALL AooServer_quit(AooServer *server);
 
-/** \copydoc AooServer::handleUdpMessage() */
-AOO_API AooError AOO_CALL AooServer_handleUdpMessage(
-        AooServer *server,
-        const AooByte *data, AooInt32 size,
-        const void *address, AooAddrSize addrlen,
-        AooSendFunc replyFn, void *user);
+/* event handling */
 
-/* TCP server */
+/** \copydoc AooServer::setEventHandler() */
+AOO_API AooError AOO_CALL AooServer_setEventHandler(
+    AooServer *server, AooEventHandler fn, void *user, AooEventMode mode);
 
-/* client management */
+/** \copydoc AooServer::eventsAvailable() */
+AOO_API AooBool AOO_CALL AooServer_eventsAvailable(AooServer *server);
 
-/** \copydoc AooServer::addClient() */
-AOO_API AooError AOO_CALL AooServer_addClient(
-        AooServer *server,
-        AooServerReplyFunc replyFn, void *user, AooId *id);
+/** \copydoc AooServer::pollEvents() */
+AOO_API AooError AOO_CALL AooServer_pollEvents(AooServer *server);
 
-/** \copydoc AooServer::removeClient() */
-AOO_API AooError AOO_CALL AooServer_removeClient(
-        AooServer *server, AooId clientId);
-
-/** \copydoc AooServer::handleClientMessage() */
-AOO_API AooError AOO_CALL AooServer_handleClientMessage(
-        AooServer *server, AooId client,
-        const AooByte *data, AooInt32 size);
+/* request handling */
 
 /** \copydoc AooServer::setRequestHandler() */
 AOO_API AooError AOO_CALL AooServer_setRequestHandler(
         AooServer *server, AooRequestHandler cb,
         void *user, AooFlag flags);
-
-/* request handling */
 
 /** \copydoc AooServer::handleRequest */
 AOO_API AooError AOO_CALL handleRequest(
@@ -123,18 +112,6 @@ AOO_API AooError AOO_CALL AooServer_removeUserFromGroup(
 AOO_API AooError AOO_CALL AooServer_groupControl(
         AooServer *server, AooId group, AooCtl ctl,
         AooIntPtr index, void *data, AooSize size);
-
-/* other methods */
-
-/** \copydoc AooServer::setEventHandler() */
-AOO_API AooError AOO_CALL AooServer_setEventHandler(
-        AooServer *server, AooEventHandler fn, void *user, AooEventMode mode);
-
-/** \copydoc AooServer::eventsAvailable() */
-AOO_API AooBool AOO_CALL AooServer_eventsAvailable(AooServer *server);
-
-/** \copydoc AooServer::pollEvents() */
-AOO_API AooError AOO_CALL AooServer_pollEvents(AooServer *server);
 
 /** \copydoc AooServer::control() */
 AOO_API AooError AOO_CALL AooServer_control(

@@ -20,6 +20,21 @@
 
 namespace aoo {
 
+class tcp_error : public std::exception {
+public:
+    tcp_error(int code, std::string msg)
+        : code_(code), msg_(std::move(msg)) {}
+
+    const char *what() const noexcept override {
+        return msg_.c_str();
+    }
+
+    int code() const { return code_; }
+private:
+    int code_;
+    std::string msg_;
+};
+
 class tcp_server
 {
 public:
@@ -35,14 +50,16 @@ public:
     tcp_server(const tcp_server&) = delete;
     tcp_server& operator=(const tcp_server&) = delete;
 
-    // returns client ID
-    using accept_handler = std::function<AooId(int errorcode, const aoo::ip_address& address)>;
+    using reply_func = std::function<int(const AooByte *data, AooSize size)>;
 
-    using receive_handler = std::function<void(int errorcode, AooId client, const ip_address& address,
-                                               const AooByte *data, AooSize size)>;
+    // returns client ID
+    using accept_handler = std::function<AooId(const aoo::ip_address& address, reply_func)>;
+
+    using receive_handler = std::function<void(AooId client, int errorcode, const AooByte *data,
+                                               AooSize size, const ip_address& address)>;
 
     void start(int port, accept_handler accept, receive_handler receive);
-    void run();
+    bool run(double timeout = -1.0);
     void stop();
     void notify();
 
@@ -56,12 +73,11 @@ private:
         AooId id;
     };
 
-    void loop();
     void accept_client();
-    void on_accept_error(int code, const ip_address& addr);
+    void handle_accept_error(int code, const ip_address& addr);
     void receive_from_clients();
-    void on_client_error(const client& c, int code) {
-        receive_handler_(code, c.id, c.address, nullptr, 0);
+    void handle_client_error(const client& c, int code) {
+        receive_handler_(c.id, code, nullptr, 0, c.address);
     }
     void close_and_remove_client(int index);
     void do_close();

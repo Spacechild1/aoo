@@ -411,30 +411,6 @@ typedef AooInt32 (AOO_CALL *AooSendFunc)(
 
 /*------------------------------------------------------------------*/
 
-/** \brief server reply function
- *
- * \attention This function must send the entire message!
- * Partial writes are not allowed.
- * \param user user data
- * \param clientId client ID
- * \param data message data
- * \param size message size
- * \param flags send flags
- * \return number of bytes written, or -1 on error
- */
-typedef AooInt32 (AOO_CALL *AooServerReplyFunc)(
-        /** the user data */
-        void *user,
-        /** the client ID */
-        AooId clientId,
-        /** the message content */
-        const AooByte *data,
-        /** the message size in bytes */
-        AooSize size
-);
-
-/*------------------------------------------------------------------*/
-
 /** \brief AOO data types */
 AOO_ENUM(AooDataType)
 {

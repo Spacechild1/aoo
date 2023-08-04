@@ -766,9 +766,14 @@ int socket_receive(int socket, void *buf, int size,
         if (result < 0){
             socket_error_print("poll");
             return -1; // poll failed
-        }
-        if (!(result > 0 && (p.revents & POLLIN))){
-            return 0; // timeout
+        } else if (result == 0) {
+            // timeout
+        #ifdef _WIN32
+            SetLastError(WSAEWOULDBLOCK);
+        #else
+            errno = EWOULDBLOCK;
+        #endif
+            return -1;
         }
     }
     if (addr) {
