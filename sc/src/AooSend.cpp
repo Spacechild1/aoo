@@ -26,14 +26,13 @@ void AooSend::init(int32_t port, AooId id) {
                 if (node){
                     AooSource *source = AooSource_new(cmd->id, nullptr);
                     if (source){
-                        NodeLock lock(*node);
+                        source->setEventHandler(
+                            [](void *user, const AooEvent *event, int32_t){
+                                static_cast<AooSend *>(user)->handleEvent(event);
+                            }, cmd->owner.get(), kAooEventModePoll);
+
                         if (node->client()->addSource(source, cmd->id) == kAooOk){
                             source->setup(cmd->numChannels, cmd->sampleRate, cmd->blockSize, 0);
-
-                            source->setEventHandler(
-                                [](void *user, const AooEvent *event, int32_t){
-                                    static_cast<AooSend *>(user)->handleEvent(event);
-                                }, cmd->owner.get(), kAooEventModePoll);
 
                             source->setBufferSize(DEFBUFSIZE);
 
@@ -76,10 +75,7 @@ void AooSend::onDetach() {
                 auto node = owner.node();
                 if (node){
                     // release node
-                    NodeLock lock(*node);
                     node->client()->removeSource(owner.source());
-                    lock.unlock(); // !
-
                     owner.setNode(nullptr);
                 }
                 // release source

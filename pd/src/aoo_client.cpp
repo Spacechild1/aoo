@@ -258,8 +258,6 @@ void t_aoo_client::send_message(int argc, t_atom *argv, AooId group, AooId user)
 
     AooFlag flags = x_reliable ? kAooMessageReliable : 0;
     x_node->client()->sendMessage(group, user, data, time.value(), flags);
-
-    x_node->notify();
 }
 
 static void aoo_client_broadcast(t_aoo_client *x, t_symbol *s, int argc, t_atom *argv)

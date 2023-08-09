@@ -46,8 +46,6 @@ public:
 
     virtual ~INode() {}
 
-    virtual aoo::ip_address::ip_type type() const = 0;
-
     virtual int port() const = 0;
 
     virtual AooClient * client() = 0;
@@ -58,10 +56,6 @@ public:
 
     virtual void notify() = 0;
 
-    virtual void lock() = 0;
-
-    virtual void unlock() = 0;
-
     virtual bool getSinkArg(sc_msg_iter *args, aoo::ip_address& addr,
                             AooId &id) const = 0;
 
@@ -70,8 +64,6 @@ public:
 
     virtual bool getPeerArg(sc_msg_iter *args, aoo::ip_address& addr) const = 0;
 };
-
-using NodeLock = std::unique_lock<INode>;
 
 /*/////////////////// Commands //////////////////////*/
 

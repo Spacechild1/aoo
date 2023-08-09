@@ -106,8 +106,8 @@ public:
      *        channels must match the number in #AooSource_setup.
      * \param numSamples the number of samples per channel
      * \param t current NTP time; \see aoo_getCurrentNtpTime
-     * \param messageHandler an optional stream message handler function
-     * \param user optional user data that will be passed to the message handler
+     * \param messageHandler (optional) stream message handler function
+     * \param user (optional) user data that will be passed to the message handler
      */
     virtual AooError AOO_CALL process(
             AooSample **data, AooInt32 numSamples, AooNtpTime t,

@@ -24,6 +24,7 @@ struct t_aoo_server
 
     AooServer::Ptr x_server;
     std::thread x_thread;
+    std::thread x_udp_thread;
     int x_port = 0;
     int x_numclients = 0;
     t_clock *x_clock = nullptr;
@@ -31,6 +32,9 @@ struct t_aoo_server
     t_outlet *x_msgout = nullptr;
 
     void close();
+
+    void run();
+    void receive();
 };
 
 void t_aoo_server::close() {
@@ -39,9 +43,44 @@ void t_aoo_server::close() {
         if (x_thread.joinable()) {
             x_thread.join();
         }
+        if (x_udp_thread.joinable()) {
+            x_udp_thread.join();
+        }
     }
     clock_unset(x_clock);
     x_port = 0;
+}
+
+void t_aoo_server::run() {
+    auto err = x_server->run(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        sys_lock();
+        pd_error(this, "%s: server error: %s", classname(this), msg.c_str());
+        // TODO: handle error
+        sys_unlock();
+    }
+}
+
+void t_aoo_server::receive() {
+    auto err = x_server->receiveUDP(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        sys_lock();
+        pd_error(this, "%s: UDP error: %s", classname(this), msg.c_str());
+        // TODO: handle error
+        sys_unlock();
+    }
 }
 
 static void aoo_server_handle_event(t_aoo_server *x, const AooEvent *event, int32_t)
@@ -174,7 +213,10 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
     outlet_float(x->x_stateout, 0);
 
     if (port > 0) {
-        if (auto err = x->x_server->setup(port, 0); err != kAooOk) {
+        AooServerSettings settings;
+        AooServerSettings_init(&settings);
+        settings.portNumber = port;
+        if (auto err = x->x_server->setup(settings); err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
                 msg = aoo::socket_strerror(aoo::socket_errno());
@@ -190,19 +232,14 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
         #ifdef PDINSTANCE
             pd_setinstance(pd);
         #endif
-            auto err = x->x_server->run(kAooFalse);
-            if (err != kAooOk) {
-                std::string msg;
-                if (err == kAooErrorSocket) {
-                    msg = aoo::socket_strerror(aoo::socket_errno());
-                } else {
-                    msg = aoo_strerror(err);
-                }
-                sys_lock();
-                pd_error(x, "%s: server error: %s", classname(x), msg.c_str());
-                // TODO: handle error
-                sys_unlock();
-            }
+            x->run();
+        });
+        x->x_udp_thread = std::thread([x, pd=pd_this]() {
+            aoo::sync::lower_thread_priority();
+#ifdef PDINSTANCE
+            pd_setinstance(pd);
+#endif
+            x->receive();
         });
         // start clock
         clock_delay(x->x_clock, AOO_SERVER_POLL_INTERVAL);

@@ -63,11 +63,11 @@ public:
 
     /*---------------------- methods ---------------------------*/
 
-    /** \brief setup the server object
+    /** \brief setup the server object (before calling run())
      *
-     * \attention The default value for `flags` is #kAooSocketDualStack.
+     * \param settings settings objects; it might be modified to reflect the actual values.
      */
-    virtual AooError AOO_CALL setup(AooUInt16 port, AooSocketFlags flags) = 0;
+    virtual AooError AOO_CALL setup(AooServerSettings& settings) = 0;
 
     /** \brief run the server
      *
@@ -79,6 +79,14 @@ public:
      */
     virtual AooError AOO_CALL run(AooBool nonBlocking) = 0;
 
+    /** \brief receive and handle UDP packets (from internal UDP socket) */
+    virtual AooError AOO_CALL receiveUDP(AooBool nonBlocking) = 0;
+
+    /** \brief handle UDP packet from external UDP socket */
+    virtual AooError AOO_CALL handlePacket(
+            const AooByte *data, AooInt32 size,
+            const void *address, AooAddrSize addrlen) = 0;
+
     /** \brief quit the AOO client from another thread */
     virtual AooError AOO_CALL quit() = 0;
 
@@ -89,7 +97,7 @@ public:
      * \attention Not threadsafe - only call in the beginning!
      */
     virtual AooError AOO_CALL setEventHandler(
-        AooEventHandler fn, void *user, AooEventMode mode) = 0;
+            AooEventHandler fn, void *user, AooEventMode mode) = 0;
 
     /** \brief check for pending events
      *

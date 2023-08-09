@@ -46,36 +46,65 @@ aoo::net::Server::~Server() {
 }
 
 AOO_API AooError AOO_CALL AooServer_setup(
-    AooServer *server, AooUInt16 port, AooSocketFlags flags)
+    AooServer *server, AooServerSettings *settings)
 {
-    return server->setup(port, flags);
-}
-
-AooError AOO_CALL aoo::net::Server::setup(AooUInt16 port, AooSocketFlags flags) {
-    if (port <= 0) {
+    if (settings == nullptr) {
         return kAooErrorBadArgument;
     }
-    if ((flags & kAooSocketIPv4Mapped) &&
-            (!(flags & kAooSocketIPv6) || (flags & kAooSocketIPv4))) {
+    return server->setup(*settings);
+}
+
+AooError AOO_CALL aoo::net::Server::setup(AooServerSettings& settings) {
+    if (settings.portNumber == 0) {
+        return kAooErrorBadArgument;
+    }
+    // NB: socketType will be modified!
+    auto& type = settings.socketType;
+    if ((type & kAooSocketIPv4Mapped) &&
+            (!(type & kAooSocketIPv6) || (type & kAooSocketIPv4))) {
         LOG_ERROR("AooServer: combination of setup flags not allowed");
         return kAooErrorBadArgument;
+    }
+
+    bool external = settings.options & kAooServerExternalUDPSocket;
+    if (external && (type == 0)) {
+        // external UDP socket needs IP flags
+        return kAooErrorBadArgument;
+    } else if (type == 0) {
+        type = kAooSocketDualStack; // default
+    }
+
+    if (external) {
+        if (settings.sendFunc) {
+            udp_sendfn_ = sendfn(settings.sendFunc, settings.userData);
+        } else {
+            return kAooErrorBadArgument;
+        }
+    } else {
+        udp_sendfn_ = sendfn(Server::send, this);
     }
 
     // in case the user did not call quit(), e.g. they simply broke from a polling loop
     stop();
 
-    // TODO: honor flags for UDP and TCP sockets
-    try {
-        // TODO: settings
-        udp_server_.start(port, [this](auto... args) { handle_udp_packet(args...); });
-    } catch (const aoo::udp_error& e) {
-        LOG_ERROR("AooServer: failed to start UDP server: " << e.what());
-        aoo::socket_set_errno(e.code());
-        return kAooErrorSocket;
+    // TODO: honor flags for UDP and TCP sockets! For now just use default.
+    if (!external) {
+        try {
+            // TODO: settings
+            udp_server_.start(settings.portNumber,
+                [this](auto... args) { handle_udp_packet(args...);
+            });
+        } catch (const aoo::udp_error& e) {
+            LOG_ERROR("AooServer: failed to start UDP server: " << e.what());
+            aoo::socket_set_errno(e.code());
+            return kAooErrorSocket;
+        }
+        // update socket flags
+        type = socket_get_flags(udp_server_.socket());
     }
 
     try {
-        tcp_server_.start(port,
+        tcp_server_.start(settings.portNumber,
             [this](auto... args) { return accept_client(args...); },
             [this](auto... args) { handle_client_data(args...); });
     } catch (const aoo::tcp_error& e) {
@@ -84,20 +113,19 @@ AooError AOO_CALL aoo::net::Server::setup(AooUInt16 port, AooSocketFlags flags) 
         return kAooErrorSocket;
     }
 
-    port_ = port;
-    address_family_ = socket_family(udp_server_.socket());
-    // our IPv6 sockets are always dual stack
-    use_ipv4_mapped_ = address_family_ == ip_address::IPv6;
-
-    // finally start UDP receive thread
-    udp_thread_ = std::thread([this]() {
-        try {
-            udp_server_.run();
-        } catch (const aoo::udp_error& e) {
-            // TODO: communicate error to main thread
-            LOG_ERROR("AooServer: UDP server error: " << e.what());
+    if (type & kAooSocketIPv6) {
+        if (type & kAooSocketIPv4) {
+            address_family_ = ip_address::Unspec; // both IPv6 and IPv4
+        } else {
+            address_family_ = ip_address::IPv6;
         }
-    });
+    } else {
+        address_family_ = ip_address::IPv4;
+    }
+
+    use_ipv4_mapped_ = type & kAooSocketIPv4Mapped;
+
+    port_ = settings.portNumber;
 
     return kAooOk;
 }
@@ -155,6 +183,43 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
         aoo::socket_set_errno(e.code());
         return kAooErrorSocket;
     }
+    return kAooOk;
+}
+
+AOO_API AooError AOO_CALL AooServer_receiveUDP(
+    AooServer *server, AooBool nonBlocking)
+{
+    return server->receiveUDP(nonBlocking);
+}
+
+AooError AOO_CALL aoo::net::Server::receiveUDP(AooBool nonBlocking) {
+    try {
+        if (nonBlocking) {
+            return udp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
+        } else {
+            udp_server_.run();
+            return kAooOk;
+        }
+    } catch (const aoo::udp_error& e) {
+        LOG_ERROR("AooServer: UDP server error: " << e.what());
+        socket_set_errno(e.code());
+        return kAooErrorSocket;
+    }
+}
+
+AOO_API AooError AOO_CALL Server_handlePacket(
+    AooServer *server, const AooByte *data, AooInt32 size,
+    const void *address, AooAddrSize addrlen)
+{
+    return server->handlePacket(data, size, address, addrlen);
+}
+
+AooError AOO_CALL aoo::net::Server::handlePacket(
+    const AooByte *data, AooInt32 size,
+    const void *address, AooAddrSize addrlen)
+{
+    aoo::ip_address addr((struct sockaddr *)address, addrlen);
+    handle_udp_packet(data, size, addr);
     return kAooOk;
 }
 
@@ -1528,14 +1593,14 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
             if (src_addr.type() == dst_addr.type()) {
                 // simply replace the header (= rewrite address)
                 binmsg_write_relay(const_cast<AooByte *>(data), size, src_addr);
-                udp_server_.send(dst_addr, data, size);
+                send_udp(dst_addr, data, size);
             } else {
                 // rewrite whole message
                 AooByte buf[AOO_MAX_PACKET_SIZE];
                 auto result = write_relay_message(buf, sizeof(buf), data + onset,
                                                   size - onset, src_addr);
                 if (result > 0) {
-                    udp_server_.send(dst_addr, buf, result + size);
+                    send_udp(dst_addr, buf, result + size);
                 } else {
                     LOG_ERROR("AooServer: can't relay: buffer too small");
                 }
@@ -1569,7 +1634,7 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
         #if AOO_DEBUG_RELAY
             LOG_DEBUG("AooServer: forward OSC relay message from " << addr << " to " << dst);
         #endif
-            udp_server_.send(dst_addr, (const AooByte *)out.Data(), out.Size());
+            send_udp(dst_addr, (const AooByte *)out.Data(), out.Size());
         } catch (const osc::Exception& e){
             LOG_ERROR("AooServer: exception in handle_relay: " << e.what());
         }
@@ -1584,7 +1649,7 @@ void Server::handle_ping(const osc::ReceivedMessage& msg, const ip_address& addr
     reply << osc::BeginMessage(kAooMsgClientPong)
           << osc::EndMessage;
 
-    udp_server_.send(addr, (const AooByte *)reply.Data(), reply.Size());
+    send_udp(addr, (const AooByte *)reply.Data(), reply.Size());
 }
 
 void Server::handle_query(const osc::ReceivedMessage& msg, const ip_address& addr) {
@@ -1595,7 +1660,7 @@ void Server::handle_query(const osc::ReceivedMessage& msg, const ip_address& add
           << addr.unmapped() // return unmapped(!) public IP
           << osc::EndMessage;
 
-    udp_server_.send(addr, (const AooByte *)reply.Data(), reply.Size());
+    send_udp(addr, (const AooByte *)reply.Data(), reply.Size());
 }
 
 AooId Server::get_next_client_id(){
@@ -1627,9 +1692,6 @@ void Server::send_event(event_ptr e) {
 void Server::stop() {
     tcp_server_.stop();
     udp_server_.stop();
-    if (udp_thread_.joinable()) {
-        udp_thread_.join();
-    }
 }
 
 } // net

@@ -32,7 +32,7 @@ AOO_API void AOO_CALL AooClient_free(AooClient *client);
 
 /** \copydoc AooClient::setup() */
 AOO_API AooError AOO_CALL AooClient_setup(
-        AooClient *client,AooUInt16 port, AooSocketFlags flags);
+        AooClient *client, AooClientSettings *settings);
 
 /** \copydoc AooClient::run() */
 AOO_API AooError AOO_CALL AooClient_run(
@@ -40,6 +40,32 @@ AOO_API AooError AOO_CALL AooClient_run(
 
 /** \copydoc AooClient::quit() */
 AOO_API AooError AOO_CALL AooClient_quit(AooClient *client);
+
+/** \copydoc AooClient::send() */
+AOO_API AooError AOO_CALL AooClient_send(
+        AooClient *client, AooBool nonBlocking);
+
+/** \copydoc AooClient::receive() */
+AOO_API AooError AOO_CALL AooClient_receive(
+    AooClient *client, AooBool nonBlocking);
+
+/** \copydoc AooClient::notify() */
+AOO_API AooError AOO_CALL AooClient_notify(AooClient *client);
+
+/** \copydoc AooClient::handlePacket() */
+AOO_API AooError AOO_CALL AooClient_handlePacket(
+        AooClient *client, const AooByte *data, AooInt32 size,
+        const void *address, AooAddrSize addrlen);
+
+/** \copydoc AooClient::setEventHandler() */
+AOO_API AooError AOO_CALL AooClient_setEventHandler(
+        AooClient *client, AooEventHandler fn, void *user, AooEventMode mode);
+
+/** \copydoc AooClient::eventsAvailable() */
+AOO_API AooBool AOO_CALL AooClient_eventsAvailable(AooClient *client);
+
+/** \copydoc AooClient::pollEvents() */
+AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client);
 
 /** \copydoc AooClient::addSource() */
 AOO_API AooError AOO_CALL AooClient_addSource(
@@ -120,25 +146,6 @@ AOO_API AooError AOO_CALL AooClient_getPeerName(
 AOO_API AooError AOO_CALL AooClient_sendMessage(
         AooClient *client, AooId group, AooId user,
         const AooData *msg, AooNtpTime timeStamp, AooMessageFlags flags);
-
-/** \copydoc AooClient::handleMessage() */
-AOO_API AooError AOO_CALL AooClient_handleMessage(
-        AooClient *client, const AooByte *data, AooInt32 size,
-        const void *address, AooAddrSize addrlen);
-
-/** \copydoc AooClient::send() */
-AOO_API AooError AOO_CALL AooClient_send(
-        AooClient *client, AooSendFunc fn, void *user);
-
-/** \copydoc AooClient::setEventHandler() */
-AOO_API AooError AOO_CALL AooClient_setEventHandler(
-        AooClient *client, AooEventHandler fn, void *user, AooEventMode mode);
-
-/** \copydoc AooClient::eventsAvailable() */
-AOO_API AooBool AOO_CALL AooClient_eventsAvailable(AooClient *client);
-
-/** \copydoc AooClient::pollEvents() */
-AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client);
 
 /** \copydoc AooClient::sendRequest() */
 AOO_API AooError AOO_CALL AooClient_sendRequest(

@@ -72,6 +72,11 @@ AooError AOO_CALL aoo::Sink::setup(
         AooInt32 blocksize, AooFlag flags) {
     if (nchannels >= 0 && samplerate > 0 && blocksize > 0)
     {
+        // nchannels_, samplerate_ and blocksize_ are atomic so that
+        // concurrent calls to source_desc::update() will never see teared
+        // values. Apart from that, there should not be any race conditions
+        // since the individual source_descs are protected with a mutex.
+        // However, setup() must not be called concurrently with process()!
         if (nchannels != nchannels_ || samplerate != samplerate_ ||
             blocksize != blocksize_)
         {
@@ -347,7 +352,7 @@ AooError AOO_CALL aoo::Sink::handleMessage(
         const AooByte *data, AooInt32 size,
         const void *address, AooAddrSize addrlen)
 {
-    if (samplerate_ == 0){
+    if (samplerate() == 0){
         return kAooErrorNotInitialized; // not setup yet
     }
 
@@ -456,8 +461,8 @@ AooError AOO_CALL aoo::Sink::process(
         elapsed_time_.store(0);
         // reset DLL
         auto bw = dll_bandwidth_.load();
-        dll_.setup(samplerate_, blocksize_, bw, 0);
-        realsr_.store(samplerate_);
+        dll_.setup(samplerate(), blocksize(), bw, 0);
+        realsr_.store(samplerate());
     } else {
         // advance timer
         // NB: start_time has been updated by the CAS above!
@@ -465,7 +470,7 @@ AooError AOO_CALL aoo::Sink::process(
         elapsed_time_.store(elapsed, std::memory_order_relaxed);
         // update time DLL, but only if nsamples matches blocksize!
         if (dynamic_resampling) {
-            if (nsamples == blocksize_){
+            if (nsamples == blocksize()){
                 dll_.update(elapsed);
             #if AOO_DEBUG_DLL
                 LOG_ALL("AooSource: time elapsed: " << elapsed << ", period: "
@@ -474,7 +479,7 @@ AooError AOO_CALL aoo::Sink::process(
             } else {
                 // reset time DLL with nominal samplerate
                 auto bw = dll_bandwidth_.load();
-                dll_.setup(samplerate_, blocksize_, bw, elapsed);
+                dll_.setup(samplerate(), blocksize(), bw, elapsed);
             }
             realsr_.store(dll_.samplerate());
         }
@@ -482,7 +487,7 @@ AooError AOO_CALL aoo::Sink::process(
 
     // clear outputs
     if (data) {
-        for (int i = 0; i < nchannels_; ++i){
+        for (int i = 0; i < nchannels(); ++i){
             std::fill(data[i], data[i] + nsamples, 0);
         }
     }
@@ -513,7 +518,7 @@ AooError AOO_CALL aoo::Sink::process(
 
     if (didsomething){
     #if AOO_CLIP_OUTPUT
-        for (int i = 0; i < nchannels_; ++i){
+        for (int i = 0; i < nchannels(); ++i){
             auto chn = data[i];
             for (int j = 0; j < nsamples; ++j){
                 if (chn[j] > 1.0){
@@ -768,7 +773,7 @@ void Sink::reset_sources(){
 
 void Sink::handle_xrun(int32_t nsamples) {
     LOG_DEBUG("AooSink: handle xrun (" << nsamples << " samples)");
-    auto nblocks = (double)nsamples / (double)blocksize_;
+    auto nblocks = (double)nsamples / (double)blocksize();
     source_lock lock(sources_);
     for (auto& src : sources_){
         src.add_xrun(nblocks);

@@ -71,6 +71,7 @@ public:
 
     void start(int port, receive_handler receive, bool threaded = false);
     bool run(double timeout = -1);
+    bool running() const { return running_.load(std::memory_order_relaxed); }
     void stop();
     void notify();
 

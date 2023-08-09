@@ -274,6 +274,8 @@ AOO_FLAG(AooSetupFlags)
  */
 AOO_FLAG(AooSocketFlags)
 {
+    /** default settings */
+    kAooSocketDefault = 0x00,
     /** client uses IPv4 addresses */
     kAooSocketIPv4 = 0x01,
     /** client uses IPv6 addresses */
@@ -410,6 +412,82 @@ typedef AooInt32 (AOO_CALL *AooSendFunc)(
         /* TODO do we need this? */
         AooFlag flags
 );
+
+/*------------------------------------------------------------------*/
+
+/** \brief options for AooClientSettings */
+AOO_FLAG(AooClientOptions)
+{
+    /** use external UDP socket */
+    kAooClientExternalUDPSocket = 0x01
+};
+
+/** \brief settings for AooClient::setup() */
+typedef struct AooClientSettings
+{
+    AooSize structSize;
+    /** option flags */
+    AooClientOptions options;
+    /** the listening port of the UDP socket; if set to 0, AooClient will
+     *  pick a free port and update this field accordingly.
+     *  If you use an external UDP socket, you must specify the port. */
+    AooUInt16 portNumber;
+    /** socket type; by default, it will try to create a dual-stack socket.
+     *  If you use an external UDP socket, you must specify the socket type. */
+    AooSocketFlags socketType;
+    /** (optional) UDP send function; only for external UDP socket */
+    AooSendFunc sendFunc;
+    /** (optional) user data for UDP send function */
+    void *userData;
+} AooClientSettings;
+
+/** \brief default initialization for AooClientSettings struct */
+AOO_INLINE void AooClientSettings_init(AooClientSettings *settings)
+{
+    AOO_STRUCT_INIT(settings, AooClientSettings, userData);
+    settings->portNumber = 0;
+    settings->socketType = kAooSocketDefault;
+    settings->options = 0;
+    settings->sendFunc = 0;
+    settings->userData = 0;
+}
+
+/*------------------------------------------------------------------*/
+
+/** \brief options for AooServerSettings */
+AOO_FLAG(AooServerOptions)
+{
+    /** use external UDP socket */
+    kAooServerExternalUDPSocket = 0x01
+};
+
+/** \brief settings for AooClient::setup() */
+typedef struct AooServerSettings
+{
+    AooSize structSize;
+    /** option flags */
+    AooServerOptions options;
+    /** the listening port of the UDP and TCP socket */
+    AooUInt16 portNumber;
+    /** socket type; by default it will try to create a dual-stack socket.
+     *  If you use an external UDP socket, you must specify the socket type. */
+    AooSocketFlags socketType;
+    /** (optional) send function for external UDP socket */
+    AooSendFunc sendFunc;
+    /** (optional) user data for send function */
+    void *userData;
+} AooServerSettings;
+
+/** \brief default initialization for AooServerSettings struct */
+AOO_INLINE void AooServerSettings_init(AooServerSettings *settings)
+{
+    AOO_STRUCT_INIT(settings, AooServerSettings, userData);
+    settings->portNumber = 0;
+    settings->socketType = kAooSocketDefault;
+    settings->options = 0;
+    settings->sendFunc = 0;
+    settings->userData = 0;
+}
 
 /*------------------------------------------------------------------*/
 

@@ -237,7 +237,10 @@ int main(int argc, const char **argv) {
         g_server->setEventHandler(handle_event, nullptr, kAooEventModeCallback);
     }
 
-    err = g_server->setup(port, 0);
+    AooServerSettings server_settings;
+    AooServerSettings_init(&server_settings);
+    server_settings.portNumber = port;
+    err = g_server->setup(server_settings);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
@@ -255,11 +258,25 @@ int main(int argc, const char **argv) {
         std::cout << "Listening on port " << port << std::endl;
     }
 
-    // run server thread
+    // run server threads
     // NB: we *could* just block on the run() method, but then there
     // would be no "safe" way to break from a signal/control handler.
     auto thread = std::thread([]() {
         auto err = g_server->run(kAooFalse);
+        if (err != kAooOk) {
+            std::string msg;
+            if (err == kAooErrorSocket) {
+                msg = aoo::socket_strerror(aoo::socket_errno());
+            } else {
+                msg = aoo_strerror(err);
+            }
+            // break from the main thread
+            stop_server(err, msg.c_str());
+        }
+    });
+
+    auto udp_thread = std::thread([]() {
+        auto err = g_server->receiveUDP(kAooFalse);
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
@@ -282,10 +299,13 @@ int main(int argc, const char **argv) {
                   << g_error_message << std::endl;
     }
 
-    // stop server
+    // stop server and join threads
     g_server->quit();
     if (thread.joinable()) {
         thread.join();
+    }
+    if (udp_thread.joinable()) {
+        udp_thread.join();
     }
 
     aoo_terminate();

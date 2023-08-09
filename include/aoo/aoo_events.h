@@ -95,9 +95,9 @@ AOO_ENUM(AooEventType)
     /** AooClient: our user has been updated by the server
      *  AooServer: a user has updated itself */
     kAooEventUserUpdate,
-    /** AooServer: client logged in successfully or failed */
+    /** AooServer: client logged in successfully or failed to do so */
     kAooEventClientLogin,
-    /** AooServer: client logged in successfully or failed */
+    /** AooServer: client logged out (normally or because of an error) */
     kAooEventClientLogout,
     /** AooServer: client error */
     kAooEventClientError,

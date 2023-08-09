@@ -870,14 +870,7 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
     }
 
     if (blocksize != x->x_blocksize || samplerate != x->x_samplerate){
-        // synchronize with network threads!
-        if (x->x_node){
-            x->x_node->lock();
-        }
         x->x_source->setup(x->x_nchannels, samplerate, blocksize, 0);
-        if (x->x_node){
-            x->x_node->unlock();
-        }
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
     }

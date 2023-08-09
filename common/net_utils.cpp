@@ -947,4 +947,30 @@ int socket_connect(int socket, const ip_address& addr, double timeout)
     return 0;
 }
 
+AooSocketFlags socket_get_flags(int socket) {
+    ip_address addr;
+    if (socket_address(socket, addr) != 0) {
+        return 0;
+    }
+    if (addr.type() == ip_address::ip_type::IPv6) {
+#if AOO_USE_IPv6
+        int ipv6only;
+        if (socket_get_int_option(socket, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6only) != 0) {
+            fprintf(stderr, "socket_get_flags: couldn't get IPV6_V6ONLY\n");
+            fflush(stderr);
+            return 0;
+        }
+        if (ipv6only) {
+            return kAooSocketIPv6;
+        } else {
+            return kAooSocketDualStack;
+        }
+#else
+        return 0; // shouldn't happen
+#endif
+    } else {
+        return kAooSocketIPv4;
+    }
+}
+
 } // aoo

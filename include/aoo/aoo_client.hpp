@@ -63,19 +63,16 @@ public:
 
     /** \brief setup the client object (before calling run())
      *
-     * \param port the listening port of the UDP server
-     * \param flags optional flags.
-     *
-     * \attention If `flags` is 0, we assume that the UDP server is IPv4-only.
+     * \param settings settings objects; it might be modified to reflect the actual values.
      */
-    virtual AooError AOO_CALL setup(AooUInt16 port, AooSocketFlags flags) = 0;
+    virtual AooError AOO_CALL setup(AooClientSettings& settings) = 0;
 
     /** \brief run the internal TCP client
      *
      * \param nonBlocking
      *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
      *     if it did something, #kAooErrorWouldBlock if there was nothing
-     *     to do or any other error code if an error occured.
+     *     to do, or any other error code if an error occured.
      *   - #kAooFalse: blocks until until quit() is called or an error occured.
      */
     virtual AooError AOO_CALL run(AooBool nonBlocking) = 0;
@@ -83,17 +80,92 @@ public:
     /** \brief quit the AOO client from another thread */
     virtual AooError AOO_CALL quit() = 0;
 
+    /** \brief send outgoing messages
+     *
+     * \note Threadsafe; call on the network thread
+     *
+     * \param nonBlocking
+     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
+     *     if it did something, #kAooErrorWouldBlock if there was nothing
+     *     to do, or any other error code if an error occured.
+     *   - #kAooFalse: blocks until until quit() is called or an error occured.
+     */
+    virtual AooError AOO_CALL send(AooBool nonBlocking) = 0;
+
+    /** \brief receive and handle UDP packets (for internal UDP socket)
+     *
+     * \note Threadsafe; call on the network thread
+     *
+     * \param nonBlocking
+     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
+     *     if it did something, #kAooErrorWouldBlock if there was nothing
+     *     to do, or any other error code if an error occured.
+     *   - #kAooFalse: blocks until until quit() is called or an error occured.
+     */
+    virtual AooError AOO_CALL receive(AooBool nonBlocking) = 0;
+
+    /** \brief notify client that there is data to send
+     *
+     * \note Threadsafe; typically called from the audio thread
+     */
+    virtual AooError AOO_CALL notify() = 0;
+
+    /** \brief handle UDP packet from external UDP socket
+     *
+     *  \note By default, `AooClient` uses an internal UDP socket and
+     *  this method is not used.
+     *
+     * \note Threadsafe, but not reentrant; call on the network thread
+     *
+     * \param data the message data
+     * \param size the message size
+     * \param address the remote socket address
+     * \param addrlen the socket address length
+     */
+    virtual AooError AOO_CALL handlePacket(
+        const AooByte *data, AooInt32 size,
+        const void *address, AooAddrSize addrlen) = 0;
+
+    /** \brief set event handler function and event handling mode
+     *
+     * \attention Not threadsafe - only call in the beginning!
+     */
+    virtual AooError AOO_CALL setEventHandler(
+        AooEventHandler fn, void *user, AooEventMode mode) = 0;
+
+    /** \brief check for pending events
+     *
+     * \note Threadsafe and RT-safe
+     */
+    virtual AooBool AOO_CALL eventsAvailable() = 0;
+
+    /** \brief poll events
+     *
+     * \note Threadsafe and RT-safe, but not reentrant.
+     *
+     * This function will call the registered event handler one or more times.
+     * \attention The event handler must have been registered with #kAooEventModePoll.
+     */
+    virtual AooError AOO_CALL pollEvents() = 0;
+
     /** \brief add AOO source
+     *
+     * \note Threadsafe and reentrant.
      *
      * \param source the AOO source
      * \param id the AOO source ID
      */
     virtual AooError AOO_CALL addSource(AooSource *source, AooId id) = 0;
 
-    /** \brief remove AOO source */
+    /** \brief remove AOO source
+     *
+     * \note Threadsafe and reentrant.
+     */
     virtual AooError AOO_CALL removeSource(AooSource *source) = 0;
 
     /** \brief add AOO sink
+     *
+     * \note Threadsafe and reentrant.
      *
      * \param sink the AOO sink
      * \param id the AOO sink ID
@@ -265,51 +337,6 @@ public:
     virtual AooError AOO_CALL sendMessage(
             AooId group, AooId user, const AooData &msg,
             AooNtpTime timeStamp, AooMessageFlags flags) = 0;
-
-    /** \brief handle messages from peers
-     *
-     * \note Threadsafe, but not reentrant; call on the network thread
-     *
-     * \param data the message data
-     * \param size the message size
-     * \param address the remote socket address
-     * \param addrlen the socket address length
-     */
-    virtual AooError AOO_CALL handleMessage(
-            const AooByte *data, AooInt32 size,
-            const void *address, AooAddrSize addrlen) = 0;
-
-    /** \brief send outgoing messages
-     *
-     * \note Threadsafe; call on the network thread
-     *
-     * \param sink the AOO sink
-     * \param fn the send function
-     * \param user the user data (passed to the send function)
-     */
-    virtual AooError AOO_CALL send(AooSendFunc fn, void *user) = 0;
-
-    /** \brief set event handler function and event handling mode
-     *
-     * \attention Not threadsafe - only call in the beginning!
-     */
-    virtual AooError AOO_CALL setEventHandler(
-            AooEventHandler fn, void *user, AooEventMode mode) = 0;
-
-    /** \brief check for pending events
-     *
-     * \note Threadsafe and RT-safe
-     */
-    virtual AooBool AOO_CALL eventsAvailable() = 0;
-
-    /** \brief poll events
-     *
-     * \note Threadsafe and RT-safe, but not reentrant.
-     *
-     * This function will call the registered event handler one or more times.
-     * \attention The event handler must have been registered with #kAooEventModePoll.
-     */
-    virtual AooError AOO_CALL pollEvents() = 0;
 
     /** \brief send a request to the AOO server
      *

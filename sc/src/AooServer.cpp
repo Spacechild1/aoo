@@ -65,7 +65,11 @@ AooServer::AooServer(World *world, int port, const char *password)
     }
 
     // setup server
-    if (auto err = server_->setup(port, 0); err != kAooOk) {
+    AooServerSettings settings;
+    AooServerSettings_init(&settings);
+    settings.portNumber = port;
+    if (auto err = server_->setup(settings);
+            err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
             msg = aoo::socket_strerror(aoo::socket_errno());
@@ -75,20 +79,14 @@ AooServer::AooServer(World *world, int port, const char *password)
         throw std::runtime_error(msg);
     }
 
-    // finally start server thread
+    // finally start server threads
     thread_ = std::thread([this]() {
         aoo::sync::lower_thread_priority();
-        auto err = server_->run(kAooFalse);
-        if (err != kAooOk) {
-            std::string msg;
-            if (err == kAooErrorSocket) {
-                msg = aoo::socket_strerror(aoo::socket_errno());
-            } else {
-                msg = aoo_strerror(err);
-            }
-            LOG_ERROR("AooServer: server error: " << msg);
-            // TODO: handle error
-        }
+        run();
+    });
+    udp_thread_ = std::thread([this]() {
+        aoo::sync::lower_thread_priority();
+        receive();
     });
 
     LOG_VERBOSE("AooServer: listening on port " << port);
@@ -98,6 +96,9 @@ AooServer::~AooServer() {
     server_->quit();
     if (thread_.joinable()) {
         thread_.join();
+    }
+    if (udp_thread_.joinable()) {
+        udp_thread_.join();
     }
 }
 
@@ -180,6 +181,34 @@ void AooServer::handleEvent(const AooEvent *event){
 
     msg << osc::EndMessage;
     ::sendMsgNRT(world_, msg);
+}
+
+void AooServer::run() {
+    auto err = server_->run(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        LOG_ERROR("AooServer: server error: " << msg);
+        // TODO: handle error
+    }
+}
+
+void AooServer::receive() {
+    auto err = server_->receiveUDP(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        LOG_ERROR("AooServer: UDP error: " << msg);
+        // TODO: handle error
+    }
 }
 
 } // sc

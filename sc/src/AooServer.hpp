@@ -16,8 +16,13 @@ private:
     int port_;
     ::AooServer::Ptr server_;
     std::thread thread_;
+    std::thread udp_thread_;
 
     void handleEvent(const AooEvent *event);
+
+    void run();
+
+    void receive();
 };
 
 struct AooServerCmd {

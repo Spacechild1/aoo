@@ -322,17 +322,17 @@ public:
     // getters
     AooId id() const { return id_.load(); }
 
-    int32_t nchannels() const { return nchannels_; }
+    int32_t nchannels() const { return nchannels_.load(std::memory_order_relaxed); }
 
-    int32_t samplerate() const { return samplerate_; }
+    int32_t samplerate() const { return samplerate_.load(std::memory_order_relaxed); }
+
+    int32_t blocksize() const { return blocksize_.load(std::memory_order_relaxed); }
 
     float elapsed_time() const { return elapsed_time_.load(std::memory_order_relaxed); }
 
     AooSampleRate real_samplerate() const { return realsr_.load(); }
 
     bool dynamic_resampling() const { return dynamic_resampling_.load();}
-
-    int32_t blocksize() const { return blocksize_; }
 
     AooSeconds latency() const { return latency_.load(); }
 
@@ -360,9 +360,9 @@ public:
 private:
     // settings
     parameter<AooId> id_;
-    int32_t nchannels_ = 0;
-    int32_t samplerate_ = 0;
-    int32_t blocksize_ = 0;
+    std::atomic<int32_t> nchannels_{0};
+    std::atomic<int32_t> samplerate_{0};
+    std::atomic<int32_t> blocksize_{0};
 #if AOO_NET
     AooClient *client_ = nullptr;
 #endif

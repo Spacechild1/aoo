@@ -22,14 +22,13 @@ void AooReceive::init(int32_t port, AooId id, AooSeconds latency) {
                 if (node){
                     AooSink * sink = AooSink_new(cmd->id, nullptr);
                     if (sink){
-                        NodeLock lock(*node);
+                        sink->setEventHandler(
+                            [](void *user, const AooEvent *event, int32_t){
+                                static_cast<AooReceive *>(user)->handleEvent(event);
+                            }, cmd->owner.get(), kAooEventModePoll);
+
                         if (node->client()->addSink(sink, cmd->id) == kAooOk){
                             sink->setup(cmd->numChannels, cmd->sampleRate, cmd->blockSize, 0);
-
-                            sink->setEventHandler(
-                                [](void *user, const AooEvent *event, int32_t){
-                                    static_cast<AooReceive *>(user)->handleEvent(event);
-                                }, cmd->owner.get(), kAooEventModePoll);
 
                             if (cmd->latency <= 0) {
                                 sink->setBufferSize(DEFAULT_LATENCY);
@@ -72,10 +71,7 @@ void AooReceive::onDetach() {
                 auto node = owner.node();
                 if (node){
                     // release node
-                    NodeLock lock(*node);
                     node->client()->removeSink(owner.sink());
-                    lock.unlock(); // !
-
                     owner.setNode(nullptr);
                 }
                 // release sink

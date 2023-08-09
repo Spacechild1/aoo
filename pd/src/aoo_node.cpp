@@ -6,6 +6,7 @@
 
 #include "common/lockfree.hpp"
 #include "common/sync.hpp"
+#include "common/time.hpp"
 #include "common/utils.hpp"
 #include "common/udp_server.hpp"
 
@@ -61,28 +62,22 @@ struct t_node_proxy
 
 class t_node_imp final : public t_node
 {
-    using unique_lock = aoo::sync::unique_lock<aoo::sync::mutex>;
-    using scoped_lock = aoo::sync::scoped_lock<aoo::sync::mutex>;
-
     t_node_proxy x_proxy; // we can't directly bind t_node_imp because of vtable
     t_symbol *x_bindsym;
     AooClient::Ptr x_client;
     t_pd * x_clientobj = nullptr;
-    aoo::sync::mutex x_clientmutex;
-    std::thread x_clientthread;
     int32_t x_refcount = 0;
-    // UDP server
-    aoo::udp_server x_server;
+    int x_port = 0;
+    aoo::ip_address::ip_type x_type = aoo::ip_address::ip_type::Unspec; // TODO
     // threading
+    std::thread x_clientthread;
 #if NETWORK_THREAD_POLL
     std::thread x_iothread;
-    std::atomic<bool> x_update{false};
+    std::atomic<bool> x_quit{false};
 #else
     std::thread x_sendthread;
     std::thread x_recvthread;
-    aoo::sync::event x_event;
 #endif
-    std::atomic<bool> x_quit{false};
 public:
     // public methods
     t_node_imp(t_symbol *s, int port);
@@ -93,24 +88,10 @@ public:
 
     AooClient * client() override { return x_client.get(); }
 
-    aoo::ip_address::ip_type type() const override { return x_server.type(); }
-
-    int port() const override { return x_server.port(); }
+    int port() const override { return x_port; }
 
     void notify() override {
-    #if NETWORK_THREAD_POLL
-        x_update.store(true);
-    #else
-        x_event.set();
-    #endif
-    }
-
-    void lock() override {
-        x_clientmutex.lock();
-    }
-
-    void unlock() override {
-        x_clientmutex.unlock();
+        x_client->notify();
     }
 
     bool resolve(t_symbol *host, int port, aoo::ip_address& addr) const override;
@@ -123,27 +104,22 @@ public:
 
     int serialize_endpoint(const aoo::ip_address &addr, AooId id,
                            int argc, t_atom *argv) const override;
+
+    bool add_object(t_pd *obj, void *x, AooId id);
 private:
-    friend class t_node;
-
-    static AooInt32 send(void *user, const AooByte *msg, AooInt32 size,
-                         const void *addr, AooAddrSize len, AooFlag flags);
-
-    void handle_packet(const AooByte *data, AooSize size, const aoo::ip_address& addr);
+    void run_client();
 
 #if NETWORK_THREAD_POLL
     void perform_io();
 #else
-    void send_packets();
+    void send();
 
-    void receive_packets();
+    void receive();
 #endif
-
-    bool add_object(t_pd *obj, void *x, AooId id);
 };
 
 bool t_node_imp::resolve(t_symbol *host, int port, aoo::ip_address& addr) const {
-    auto result = aoo::ip_address::resolve(host->s_name, port, type());
+    auto result = aoo::ip_address::resolve(host->s_name, port, x_type);
     if (!result.empty()){
         addr = result.front();
         return true;
@@ -199,7 +175,6 @@ int t_node_imp::serialize_endpoint(const aoo::ip_address &addr, AooId id,
 
 bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
 {
-    scoped_lock lock(x_clientmutex);
     if (pd_class(obj) == aoo_client_class){
         // aoo_client
         if (!x_clientobj){
@@ -207,12 +182,10 @@ bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
             // start thread lazily
             if (!x_clientthread.joinable()){
                 x_clientthread = std::thread([this](){
-                   x_client->run(kAooFalse);
+                    aoo::sync::lower_thread_priority();
+                    run_client();
                 });
             }
-            // set event handler
-            x_client->setEventHandler((AooEventHandler)aoo_client_handle_event,
-                                       obj, kAooEventModePoll);
         } else {
             pd_error(obj, "%s on port %d already exists!",
                      classname(obj), port());
@@ -236,67 +209,101 @@ bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
     return true;
 }
 
+void t_node_imp::run_client() {
+    auto err = x_client->run(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        sys_lock();
+        pd_error(x_clientobj, "%s: TCP error: %s",
+                 (x_clientobj ? "aoo_client" : "aoo"), msg.c_str());
+        // TODO: handle error
+        sys_unlock();
+    }
+}
+
 #if NETWORK_THREAD_POLL
 void t_node_imp::perform_io() {
-    try {
-        while (!x_quit.load(std::memory_order_relaxed)) {
-            x_server.run(POLL_INTERVAL);
-
-            if (x_update.exchange(false, std::memory_order_acquire)) {
-                scoped_lock lock(x_clientmutex);
-            #if DEBUG_THREADS
-                std::cout << "send messages" << std::endl;
-            #endif
-                x_client->send(send, this);
+    auto check_error = [this](auto err) {
+        if (err != kAooOk && err != kAooErrorWouldBlock) {
+            std::string msg;
+            if (err == kAooErrorSocket) {
+                msg = aoo::socket_strerror(aoo::socket_errno());
+            } else {
+                msg = aoo_strerror(err);
             }
+            sys_lock();
+            pd_error(x_clientobj, "%s: UDP error: %s",
+                     (x_clientobj ? "aoo_client" : "aoo"), msg.c_str());
+            // TODO: handle error
+            sys_unlock();
+            return false;
+        } else {
+            return true;
         }
-    } catch (const aoo::udp_error& e) {
-        sys_lock();
-        pd_error(nullptr, "aoo_node: network error: %s\n", e.what());
-        // TODO handle error
-        sys_unlock();
+    };
+
+    while (!x_quit.load(std::memory_order_relaxed)) {
+        auto t1 = aoo::time_tag::now();
+
+        auto err1 = x_client->receive(kAooTrue);
+        if (!check_error(err1)) {
+            break;
+        }
+
+        auto err2 = x_client->send(kAooTrue);
+        if (!check_error(err2)) {
+            break;
+        }
+
+        if (err1 == kAooErrorWouldBlock && err2 == kAooErrorWouldBlock) {
+            // sleep
+            auto t2 = aoo::time_tag::now();
+            auto remaining = aoo::time_tag::duration(t1, t2) - POLL_INTERVAL;
+            auto dur = std::chrono::duration<double>(remaining);
+            std::this_thread::sleep_for(dur);
+        }
     }
 }
 #else
-void t_node_imp::send_packets() {
-    while (!x_quit.load(std::memory_order_relaxed)) {
-        x_event.wait();
-
-        scoped_lock lock(x_clientmutex);
-    #if DEBUG_THREADS
-        std::cout << "send messages" << std::endl;
-    #endif
-        x_client->send(send, this);
+void t_node_imp::send() {
+    auto err = x_client->send(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        sys_lock();
+        pd_error(x_clientobj, "%s: UDP send error: %s",
+                 (x_clientobj ? "aoo_client" : "aoo"), msg.c_str());
+        // TODO: handle error
+        sys_unlock();
     }
 }
 
-void t_node_imp::receive_packets() {
-    try {
-        x_server.run();
-    } catch (const aoo::udp_error& e) {
+void t_node_imp::receive() {
+    auto err = x_client->receive(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
         sys_lock();
-        pd_error(nullptr, "aoo_node: network error: %s\n", e.what());
-        // TODO handle error
+        pd_error(x_clientobj, "%s: UDP receive error: %s",
+                 (x_clientobj ? "aoo_client" : "aoo"), msg.c_str());
+        // TODO: handle error
         sys_unlock();
     }
 }
 #endif
-
-AooInt32 t_node_imp::send(void *user, const AooByte *msg, AooInt32 size,
-                          const void *addr, AooAddrSize len, AooFlag flags)
-{
-    auto x = (t_node_imp *)user;
-    aoo::ip_address dest((sockaddr *)addr, len);
-    return x->x_server.send(dest, msg, size);
-}
-
-void t_node_imp::handle_packet(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
-    scoped_lock lock(x_clientmutex);
-#if DEBUG_THREADS
-    std::cout << "handle message" << std::endl;
-#endif
-    x_client->handleMessage(data, size, addr.address(), addr.length());
-}
 
 t_node * t_node::get(t_pd *obj, int port, void *x, AooId id)
 {
@@ -330,28 +337,31 @@ t_node * t_node::get(t_pd *obj, int port, void *x, AooId id)
 t_node_imp::t_node_imp(t_symbol *s, int port)
     : x_proxy(this), x_bindsym(s)
 {
-    // increase socket buffers
-    const int sendbufsize = 1 << 18; // 256 KB
-    // NB: with a threaded UDP server we wouldn't need large receive buffers...
-#if NETWORK_THREAD_POLL
-    // The receive thread also does the sending (and encoding)! This requires a larger buffer.
-    const int recvbufsize = 1 << 20; // 1 B
-#else
-    const int recvbufsize = 1 << 18; // 256 KB
-#endif
-    // udp_server::start() throws on error!
-    // TODO: should we use threaded=true instead?
-    x_server.set_send_buffer_size(sendbufsize);
-    x_server.set_receive_buffer_size(recvbufsize);
-    x_server.start(port, [this](auto&&... args) { handle_packet(args...); }, false);
-
     LOG_DEBUG("create AooClient on port " << port);
+    auto client = AooClient::create(nullptr);
 
-    auto flags = aoo::socket_family(x_server.socket()) == aoo::ip_address::IPv6 ?
-        kAooSocketDualStack : kAooSocketIPv4;
+    client->setEventHandler([](void *user, const AooEvent *event, AooThreadLevel level) {
+        auto x = static_cast<t_node_imp *>(user);
+        if (x->x_clientobj) {
+            aoo_client_handle_event((t_aoo_client *)x->x_clientobj, event, level);
+        }
+    }, this, kAooEventModePoll);
 
-    x_client = AooClient::create(nullptr);
-    x_client->setup(port, flags);
+    AooClientSettings settings;
+    AooClientSettings_init(&settings);
+    settings.portNumber = port;
+    if (auto err = client->setup(settings); err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        throw std::runtime_error("could not create node: " + msg);
+    }
+
+    // success
+    x_client = std::move(client);
 
     pd_bind(&x_proxy.x_pd, x_bindsym);
 
@@ -373,7 +383,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
         pd_setinstance(pd);
     #endif
         aoo::sync::lower_thread_priority();
-        send_packets();
+        send();
     });
 
     // start receive thread
@@ -383,7 +393,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
         pd_setinstance(pd);
     #endif
         aoo::sync::lower_thread_priority();
-        receive_packets();
+        receive();
     });
 #endif
 
@@ -392,11 +402,9 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
 
 void t_node_imp::release(t_pd *obj, void *x)
 {
-    unique_lock lock(x_clientmutex);
     if (pd_class(obj) == aoo_client_class){
         // client
         x_clientobj = nullptr;
-        x_client->setEventHandler(nullptr, nullptr, kAooEventModeNone);
     } else if (pd_class(obj) == aoo_send_class){
         x_client->removeSource((AooSource *)x);
     } else if (pd_class(obj) == aoo_receive_class){
@@ -405,7 +413,6 @@ void t_node_imp::release(t_pd *obj, void *x)
         bug("t_node_imp::release");
         return;
     }
-    lock.unlock(); // !
 
     if (--x_refcount == 0){
         // last instance
@@ -419,31 +426,31 @@ t_node_imp::~t_node_imp()
 {
     pd_unbind(&x_proxy.x_pd, x_bindsym);
 
-    auto port = x_server.port();
-#if NETWORK_THREAD_POLL
-    LOG_DEBUG("join network thread");
-    // notify I/O thread
-    x_quit.store(true);
-    x_iothread.join();
-    x_server.stop();
-#else
-    LOG_DEBUG("join network threads");
-    // notify send thread
-    x_quit.store(true);
-    x_event.set();
-    // stop UDP server
-    x_server.stop();
-    // join both threads
-    x_sendthread.join();
-    x_recvthread.join();
-#endif
-
+    // notify quit
+    x_client->quit();
+    // join threads
     if (x_clientthread.joinable()){
-        x_client->quit();
         x_clientthread.join();
     }
+#if NETWORK_THREAD_POLL
+    LOG_DEBUG("join network thread");
+    // notify and join I/O thread
+    x_quit.store(true);
+    if (x_iothread.joinable()) {
+        x_iothread.join();
+    }
+#else
+    LOG_DEBUG("join network threads");
+    // join both threads
+    if (x_sendthread.joinable()) {
+        x_sendthread.join();
+    }
+    if (x_recvthread.joinable()) {
+        x_recvthread.join();
+    }
+#endif
 
-    verbose(0, "released aoo node on port %d", port);
+    verbose(0, "released aoo node on port %d", x_port);
 }
 
 void aoo_node_setup(void)

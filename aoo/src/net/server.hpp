@@ -49,14 +49,20 @@ public:
 
     ~Server();
 
-    AooError AOO_CALL setup(AooUInt16 port, AooSocketFlags flags) override;
+    AooError AOO_CALL setup(AooServerSettings& settings) override;
 
     AooError AOO_CALL run(AooBool nonBlocking) override;
+
+    AooError AOO_CALL receiveUDP(AooBool nonBlocking) override;
+
+    AooError AOO_CALL handlePacket(
+            const AooByte *data, AooInt32 size,
+            const void *address, AooAddrSize addrlen) override;
 
     AooError AOO_CALL quit() override;
 
     AooError AOO_CALL setEventHandler(
-        AooEventHandler fn, void *user, AooEventMode mode) override;
+            AooEventHandler fn, void *user, AooEventMode mode) override;
 
     AooBool AOO_CALL eventsAvailable() override;
 
@@ -146,6 +152,10 @@ private:
 
     void handle_query(const osc::ReceivedMessage& msg, const ip_address& addr);
 
+    void send_udp(const ip_address& addr, const AooByte *data, AooSize size) {
+        udp_sendfn_(data, size, addr);
+    }
+
     // TCP
     AooId accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_func fn);
 
@@ -218,6 +228,7 @@ private:
     //----------------------------------------------------------------//
 
     // UDP server
+    sendfn udp_sendfn_;
     int port_ = 0; // unused
     ip_address::ip_type address_family_ = ip_address::Unspec;
     bool use_ipv4_mapped_ = false;
@@ -231,7 +242,6 @@ private:
     AooId next_group_id_{0};
     // networking
     aoo::udp_server udp_server_;
-    std::thread udp_thread_;
     aoo::tcp_server tcp_server_;
     std::vector<char> sendbuffer_;
     aoo::time_tag next_timeout_;
@@ -268,6 +278,13 @@ private:
         AOO_SERVER_PROBE_COUNT
     };
     sync::spinlock settings_lock_;
+
+    static int send(void *user, const AooByte *data, AooInt32 size,
+                    const void *address, AooAddrSize addrlen, AooFlag) {
+        aoo::ip_address addr((const struct sockaddr *)address, addrlen);
+        auto& server = static_cast<Server *>(user)->udp_server_;
+        return server.send(addr, data, size);
+    }
 };
 
 } // net

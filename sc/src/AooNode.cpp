@@ -3,27 +3,21 @@
 // public methods
 
 AooNode::AooNode(World *world, int port) {
-    // increase socket buffers
-    const int sendbufsize = 1 << 18; // 256 KB
-    // NB: with a threaded UDP server we wouldn't need large receive buffers...
-#if NETWORK_THREAD_POLL
-    // The receive thread also does the sending (and encoding)! This requires a larger buffer.
-    const int recvbufsize = 1 << 20; // 1 MB
-#else
-    const int recvbufsize = 1 << 18; // 256 KB
-#endif
-    server_.set_send_buffer_size(sendbufsize);
-    server_.set_receive_buffer_size(recvbufsize);
-    // udp_server::start() throws on error!
-    server_.start(port, [this](auto&&... args) { handlePacket(args...); }, false);
-
     LOG_DEBUG("create AooClient on port " << port);
 
-    auto flags = aoo::socket_family(server_.socket()) == aoo::ip_address::IPv6 ?
-                     kAooSocketDualStack : kAooSocketIPv4;
-
     client_ = AooClient::create(nullptr);
-    client_->setup(port, flags);
+
+    AooClientSettings settings;
+    AooClientSettings_init(&settings);
+    settings.portNumber = port;
+    if (auto err = client_->setup(settings); err != kAooOk) {
+        // TODO: throw error
+    }
+
+    // set event handler *before* starting network threads
+    client_->setEventHandler([](void *user, const AooEvent *event, AooThreadLevel level) {
+        static_cast<AooNode *>(user)->handleEvent(event);
+    }, this, kAooEventModeCallback);
 
 #if NETWORK_THREAD_POLL
     // start network I/O thread
@@ -35,15 +29,15 @@ AooNode::AooNode(World *world, int port) {
 #else
     // start send thread
     LOG_DEBUG("start network send thread");
-    sendthread_ = std::thread([this](){
+    sendThread_ = std::thread([this](){
         aoo::sync::lower_thread_priority();
-        sendPackets();
+        send();
     });
     // start receive thread
     LOG_DEBUG("start network receive thread");
-    recvthread_ = std::thread([this](){
+    receiveThread_ = std::thread([this](){
         aoo::sync::lower_thread_priority();
-        receivePackets();
+        receive();
     });
 #endif
 
@@ -51,32 +45,31 @@ AooNode::AooNode(World *world, int port) {
 }
 
 AooNode::~AooNode() {
-    auto port = server_.port();
+    // notify and quit client thread
+    client_->quit();
+    if (clientThread_.joinable()){
+        clientThread_.join();
+    }
+
 #if NETWORK_THREAD_POLL
     LOG_DEBUG("join network thread");
     // notify I/O thread
     quit_ = true;
-    iothread_.join();
-    server_.stop();
+    if (iothread_.joinable()) {
+        iothread_.join();
+    }
 #else
     LOG_DEBUG("join network threads");
-    // notify send thread
-    quit_ = true;
-    event_.set();
-    // stop UDP server
-    server_.stop();
-    // join both threads
-    sendthread_.join();
-    recvthread_.join();
+    // join threads
+    if (sendThread_.joinable()) {
+        sendThread_.join();
+    }
+    if (receiveThread_.joinable()) {
+        receiveThread_.join();
+    }
 #endif
 
-    // quit client thread
-    if (clientThread_.joinable()){
-        client_->quit();
-        clientThread_.join();
-    }
-
-    LOG_VERBOSE("released node on port " << port);
+    LOG_VERBOSE("released node on port " << port_);
 }
 
 using NodeMap = std::unordered_map<int, std::weak_ptr<AooNode>>;
@@ -116,34 +109,40 @@ INode::ptr INode::get(World *world, int port){
 }
 
 bool AooNode::registerClient(sc::AooClient *c){
-    scoped_lock lock(clientMutex_);
+    aoo::sync::unique_lock<aoo::sync::mutex> lock(clientObjectMutex_);
     if (clientObject_){
         LOG_ERROR("AooClient on port " << port()
                   << " already exists!");
         return false;
     }
+    clientObject_ = c;
+    lock.unlock();
+
     if (!clientThread_.joinable()){
         // lazily create client thread
         clientThread_ = std::thread([this](){
             client_->run(kAooFalse);
         });
     }
-    clientObject_ = c;
-    client_->setEventHandler(
-        [](void *user, const AooEvent *event, AooEventMode) {
-            static_cast<sc::AooClient*>(user)->handleEvent(event);
-        }, c, kAooEventModeCallback);
+
     return true;
 }
 
-void AooNode::unregisterClient(sc::AooClient *c){
-    scoped_lock lock(clientMutex_);
+void AooNode::unregisterClient(sc::AooClient *c) {
     assert(clientObject_ == c);
+    aoo::sync::unique_lock<aoo::sync::mutex> lock(clientObjectMutex_);
     clientObject_ = nullptr;
-    client_->setEventHandler(nullptr, nullptr, kAooEventModeNone);
 }
 
 // private methods
+
+void AooNode::handleEvent(const AooEvent *event) {
+    // forward event to client object, if registered.
+    aoo::sync::unique_lock<aoo::sync::mutex> lock(clientObjectMutex_);
+    if (clientObject_) {
+        clientObject_->handleEvent(event);
+    }
+}
 
 bool AooNode::getEndpointArg(sc_msg_iter *args, aoo::ip_address& addr,
                              int32_t *id, const char *what) const
@@ -172,7 +171,7 @@ bool AooNode::getEndpointArg(sc_msg_iter *args, aoo::ip_address& addr,
         // otherwise try host|port
         auto host = s;
         int port = args->geti();
-        auto result = aoo::ip_address::resolve(host, port, type());
+        auto result = aoo::ip_address::resolve(host, port, type_);
         if (!result.empty()){
             addr = result.front(); // pick the first result
         } else {
@@ -200,14 +199,6 @@ bool AooNode::getEndpointArg(sc_msg_iter *args, aoo::ip_address& addr,
     return true;
 }
 
-AooInt32 AooNode::send(void *user, const AooByte *msg, AooInt32 size,
-                       const void *addr, AooAddrSize addrlen, AooFlag flags)
-{
-    auto x = (AooNode *)user;
-    aoo::ip_address address((const sockaddr *)addr, addrlen);
-    return x->server_.send(address, msg, size);
-}
-
 #if NETWORK_THREAD_POLL
 void AooNode::performNetworkIO() {
     try {
@@ -229,65 +220,32 @@ void AooNode::performNetworkIO() {
 
 }
 #else
-void AooNode::sendPackets(){
-    while (!quit_.load(std::memory_order_relaxed)){
-        event_.wait();
-
-        scoped_lock lock(clientMutex_);
-    #if DEBUG_THREADS
-        std::cout << "send messages" << std::endl;
-    #endif
-        client_->send(send, this);
-    }
-}
-
-void AooNode::receivePackets() {
-    try {
-        server_.run();
-    } catch (const aoo::udp_error& e) {
-        LOG_ERROR("AooNode: network error: " << e.what());
-        // TODO handle error
-    }
-}
-
-#endif
-
-void AooNode::handlePacket(const AooByte *data, AooSize size, const aoo::ip_address& addr) {
-    scoped_lock lock(clientMutex_);
-#if DEBUG_THREADS
-    std::cout << "handle message" << std::endl;
-#endif
-    client_->handleMessage(data, size, addr.address(), addr.length());
-}
-
-void AooNode::handleClientMessage(const char *data, int32_t size,
-                                  const aoo::ip_address& addr, aoo::time_tag time)
-{
-    if (size > 4 && !memcmp("/aoo", data, 4)){
-        // AOO message
-        client_->handleMessage((const AooByte *)data, size,
-                               addr.address(), addr.length());
-    } else if (!strncmp("/sc/msg", data, size)){
-        // OSC message coming from language client
-        if (clientObject_){
-            clientObject_->forwardMessage(data, size, time);
-        }
-    } else {
-        LOG_WARNING("AooNode: unknown OSC message " << data);
-    }
-}
-
-void AooNode::handleClientBundle(const osc::ReceivedBundle &bundle,
-                                 const aoo::ip_address& addr){
-    auto time = bundle.TimeTag();
-    auto it = bundle.ElementsBegin();
-    while (it != bundle.ElementsEnd()){
-        if (it->IsBundle()){
-            osc::ReceivedBundle b(*it);
-            handleClientBundle(b, addr);
+void AooNode::send(){
+    auto err = client_->send(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
         } else {
-            handleClientMessage(it->Contents(), it->Size(), addr, time);
+            msg = aoo_strerror(err);
         }
-        ++it;
+        LOG_ERROR("AooNote: UDP send error: " << msg);
+        // TODO: handle error
     }
 }
+
+void AooNode::receive() {
+    auto err = client_->receive(kAooFalse);
+    if (err != kAooOk) {
+        std::string msg;
+        if (err == kAooErrorSocket) {
+            msg = aoo::socket_strerror(aoo::socket_errno());
+        } else {
+            msg = aoo_strerror(err);
+        }
+        LOG_ERROR("AooNote: UDP receive error: " << msg);
+        // TODO: handle error
+    }
+}
+
+#endif

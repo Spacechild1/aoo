@@ -23,8 +23,6 @@ public:
 
     void leaveGroup(int token, AooId group);
 
-    void forwardMessage(const char *data, int32_t size, aoo::time_tag time);
-
     void handleEvent(const AooEvent* e);
 private:
     World* world_;
@@ -38,9 +36,6 @@ private:
 
     void sendError(const char *cmd, AooId token, AooError error,
                    int code = 0, const char *msg = "");
-
-    void handlePeerMessage(AooId group, AooId user, AooNtpTime time,
-                           const AooData& data);
 
     template<typename T>
     T * createCommand(int port, int token);

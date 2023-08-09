@@ -31,11 +31,20 @@ AOO_API void AOO_CALL AooServer_free(AooServer *server);
 
 /** \copydoc AooServer::setup() */
 AOO_API AooError AOO_CALL AooServer_setup(
-        AooServer *server, AooUInt16 port, AooSocketFlags flags);
+        AooServer *server, AooServerSettings *settings);
 
 /** \copydoc AooServer::run() */
 AOO_API AooError AOO_CALL AooServer_run(
-    AooServer *server, AooBool nonBlocking);
+        AooServer *server, AooBool nonBlocking);
+
+/** \copydoc AooServer::receiveUDP() */
+AOO_API AooError AOO_CALL AooServer_receiveUDP(
+        AooServer *server, AooBool nonBlocking);
+
+/** \copydoc AooServer::handlePacket() */
+AOO_API AooError AOO_CALL AooServer_handlePacket(
+    AooServer *server, const AooByte *data, AooInt32 size,
+    const void *address, AooAddrSize addrlen);
 
 /** \copydoc AooServer::quit() */
 AOO_API AooError AOO_CALL AooServer_quit(AooServer *server);
@@ -44,7 +53,7 @@ AOO_API AooError AOO_CALL AooServer_quit(AooServer *server);
 
 /** \copydoc AooServer::setEventHandler() */
 AOO_API AooError AOO_CALL AooServer_setEventHandler(
-    AooServer *server, AooEventHandler fn, void *user, AooEventMode mode);
+        AooServer *server, AooEventHandler fn, void *user, AooEventMode mode);
 
 /** \copydoc AooServer::eventsAvailable() */
 AOO_API AooBool AOO_CALL AooServer_eventsAvailable(AooServer *server);

@@ -168,7 +168,6 @@ Send a ping.
 | type | description    |
 | ---: | -------------- |
 |  `i` | sink/source ID |
-|  `i` | token          |
 |  `t` | timestamp      |
 
 ---

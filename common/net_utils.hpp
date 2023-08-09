@@ -168,4 +168,6 @@ std::string socket_strerror(int err);
 
 void socket_error_print(const char *label = nullptr);
 
+AooSocketFlags socket_get_flags(int socket);
+
 } // aoo

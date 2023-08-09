@@ -11,6 +11,7 @@
 #include "common/lockfree.hpp"
 #include "common/net_utils.hpp"
 #include "common/time.hpp"
+#include "common/udp_server.hpp"
 #include "common/utils.hpp"
 
 #include "detail.hpp"
@@ -103,7 +104,13 @@ struct message {
 
 class udp_client {
 public:
-    AooError setup(int port, AooSocketFlags flags);
+    AooError setup(Client& client, AooClientSettings& settings);
+
+    AooError receive(bool nonblocking);
+
+    void quit() {
+        udp_server_.stop();
+    }
 
     int port() const { return port_; }
 
@@ -124,6 +131,13 @@ public:
     void start_handshake(const ip_address& remote);
 
     void queue_message(message&& msg);
+
+    static int send(void *user, const AooByte *data, AooInt32 size,
+                    const void *address, AooAddrSize addrlen, AooFlag) {
+        aoo::ip_address addr((const struct sockaddr *)address, addrlen);
+        auto& server = static_cast<udp_client *>(user)->udp_server_;
+        return server.send(addr, data, size);
+    }
 private:
     void send_server_message(const osc::OutboundPacketStream& msg, const sendfn& fn);
 
@@ -136,14 +150,16 @@ private:
     using scoped_lock = sync::scoped_lock<sync::shared_mutex>;
     using scoped_shared_lock = sync::scoped_shared_lock<sync::shared_mutex>;
 
+    udp_server udp_server_;
     int port_ = 0;
+    AooSocketFlags socket_flags_ = 0;
     ip_address::ip_type address_family_ = ip_address::Unspec;
     bool use_ipv4_mapped_ = false;
     std::atomic<bool> start_handshake_{false};
 
     ip_address remote_addr_;
     ip_address public_addr_;
-    sync::shared_mutex mutex_; // LATER replace with sequence lock
+    sync::shared_mutex addr_mutex_; // LATER replace with sequence lock
 
     aoo::time_tag next_ping_time_;
     aoo::time_tag query_deadline_;
@@ -177,11 +193,28 @@ public:
 
     ~Client();
 
-    AooError AOO_CALL setup(AooUInt16 port, AooSocketFlags flags) override;
+    AooError AOO_CALL setup(AooClientSettings& settings) override;
 
     AooError AOO_CALL run(AooBool nonBlocking) override;
 
     AooError AOO_CALL quit() override;
+
+    AooError AOO_CALL send(AooBool nonBlocking) override;
+
+    AooError AOO_CALL receive(AooBool nonBlocking) override;
+
+    AooError AOO_CALL notify() override;
+
+    AooError AOO_CALL handlePacket(
+            const AooByte *data, AooInt32 n,
+            const void *addr, AooAddrSize len) override;
+
+    AooError AOO_CALL setEventHandler(
+            AooEventHandler fn, void *user, AooEventMode mode) override;
+
+    AooBool AOO_CALL eventsAvailable() override;
+
+    AooError AOO_CALL pollEvents() override;
 
     AooError AOO_CALL addSource(AooSource *src, AooId id) override;
 
@@ -227,20 +260,6 @@ public:
     AooError AOO_CALL sendMessage(
             AooId group, AooId user, const AooData& msg,
             AooNtpTime timeStamp, AooFlag flags) override;
-
-
-    AooError AOO_CALL handleMessage(
-            const AooByte *data, AooInt32 n,
-            const void *addr, AooAddrSize len) override;
-
-    AooError AOO_CALL send(AooSendFunc fn, void *user) override;
-
-    AooError AOO_CALL setEventHandler(
-            AooEventHandler fn, void *user, AooEventMode mode) override;
-
-    AooBool AOO_CALL eventsAvailable() override;
-
-    AooError AOO_CALL pollEvents() override;
 
     AooError AOO_CALL sendRequest(
             const AooRequest& request, AooResponseHandler callback,
@@ -313,16 +332,18 @@ public:
     client_state current_state() const { return state_.load(); }
 private:
     // networking
-    int socket_ = -1;
+    int tcp_socket_ = -1;
     udp_client udp_client_;
+    sendfn udp_sendfn_;
     osc_stream_receiver receiver_;
     ip_address_list local_addr_;
     std::vector<std::string> interfaces_;
-    int eventsocket_ = -1;
+    sync::mutex interface_mutex_; // TODO: replace with seqlock?
+    int event_socket_ = -1;
     std::atomic<bool> quit_{false};
     bool server_relay_ = false;
     std::vector<char> sendbuffer_;
-    sync::shared_mutex mutex_;
+    aoo::sync::event send_event_;
     // dependants
     struct source_desc {
         AooSource *source;
@@ -334,6 +355,7 @@ private:
         AooId id;
     };
     aoo::vector<sink_desc> sinks_;
+    sync::shared_mutex source_sink_mutex_;
     // peers
     using peer_list = aoo::rcu_list<peer>;
     using peer_lock = std::unique_lock<peer_list>;

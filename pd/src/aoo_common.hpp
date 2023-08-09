@@ -46,13 +46,7 @@ public:
 
     virtual int port() const = 0;
 
-    virtual aoo::ip_address::ip_type type() const = 0;
-
     virtual void notify() = 0;
-
-    virtual void lock() = 0;
-
-    virtual void unlock() = 0;
 
     virtual bool resolve(t_symbol *host, int port, aoo::ip_address& addr) const = 0;
 
