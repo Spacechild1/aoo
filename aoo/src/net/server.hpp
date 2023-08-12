@@ -245,6 +245,19 @@ private:
     aoo::tcp_server tcp_server_;
     std::vector<char> sendbuffer_;
     aoo::time_tag next_timeout_;
+    // message queue
+    struct message {
+        AooId group;
+        AooId user;
+        AooDataType type;
+        std::vector<AooByte> data;
+    };
+    using message_queue = lockfree::unbounded_mpsc_queue<message>;
+    message_queue message_queue_;
+
+    void push_message(AooId group, AooId user, const AooData& data);
+
+    void dispatch_message(const message& msg);
     // mutex for protecting the client and group list
     //
     // NB: shared_recursive_mutex only supports recursive shared

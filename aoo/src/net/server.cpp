@@ -161,7 +161,12 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
                 }
             }
 
-            // then wait for network events (with timeout)
+            // check and dispatch messages
+            message_queue_.consume_all([this](const auto& msg) {
+                dispatch_message(msg);
+            });
+
+            // finally wait for network events (with timeout)
             // NB: the TCP handler methods will lock the mutex to
             // prevent concurrent access from API methods.
             // The run() method itself must only be called after
@@ -359,13 +364,12 @@ AOO_API AooError AOO_CALL AooServer_notifyClient(
     return server->notifyClient(client, *data);
 }
 
-// TODO: push actual message on a queue (then we can also use a reader lock)
 AooError AOO_CALL aoo::net::Server::notifyClient(
         AooId client, const AooData &data) {
-    sync::scoped_lock lock(mutex_); // writer lock
+    sync::scoped_shared_lock lock(mutex_); // reader lock
 
-    if (auto c = find_client(client)) {
-        c->send_notification(*this, data);
+    if (find_client(client)) {
+        push_message(kAooIdInvalid, client, data);
         return kAooOk;
     } else {
         LOG_ERROR("AooServer: notifyClient: can't find client!");
@@ -378,40 +382,24 @@ AOO_API AooError AOO_CALL AooServer_notifyGroup(
     return server->notifyGroup(group, user, *data);
 }
 
-// TODO: push actual message on a queue (then we can also use a reader lock)
 AooError AOO_CALL aoo::net::Server::notifyGroup(
         AooId group, AooId user, const AooData &data) {
-    sync::scoped_lock lock(mutex_); // writer lock
+    sync::scoped_shared_lock lock(mutex_); // reader lock
 
     if (auto g = find_group(group)) {
-        if (user == kAooIdInvalid) {
-            // all users
-            for (auto& u : g->users()) {
-                if (auto c = find_client(u)) {
-                    c->send_notification(*this, data);
-                    return kAooOk;
-                } else {
-                    LOG_ERROR("AooServer: notifyGroup: can't find client for user " << u);
-                }
-            }
-            return kAooOk;
-        } else {
-            // single user
-            if (auto u = g->find_user(user)) {
-                if (auto c = find_client(*u)) {
-                    c->send_notification(*this, data);
-                    return kAooOk;
-                } else {
-                    LOG_ERROR("AooServer: notifyGroup: can't find client for user " << *u);
-                }
-            } else {
-                LOG_ERROR("AooServer::notifyGroup: can't find user " << user);
-            }
+        if (user != kAooIdInvalid && !g->find_user(user)) {
+            LOG_ERROR("AooServer: notifyGroup: can't find user "
+                      << user << " in group " << group);
+            return kAooErrorNotFound;
         }
+
+        push_message(group, user, data);
+
+        return kAooOk;
     } else {
         LOG_ERROR("AooServer: notifyGroup: can't find group " << group);
+        return kAooErrorNotFound;
     }
-    return kAooErrorNotFound;
 }
 
 AOO_API AooError AOO_CALL AooServer_findGroup(
@@ -1676,6 +1664,72 @@ AooId Server::get_next_group_id(){
     return next_group_id_++;
 }
 
+void Server::push_message(AooId group, AooId user, const AooData& data) {
+    message msg;
+    msg.group = group;
+    msg.user = user;
+    msg.type = data.type;
+    msg.data.assign(data.data, data.data + data.size);
+
+    message_queue_.push(std::move(msg));
+
+    tcp_server_.notify();
+}
+
+void Server::dispatch_message(const message &msg) {
+    if (msg.group == kAooIdInvalid) {
+        // client message
+        if (auto c = find_client(msg.user)) {
+            AooData data;
+            data.type = msg.type;
+            data.data = msg.data.data();
+            data.size = msg.data.size();
+
+            c->send_notification(*this, data);
+        } else {
+            LOG_WARNING("AooServer: cannot send message to client " << msg.user
+                        << " because it does not exist anymore");
+        }
+    } else {
+        // group/user message
+        if (auto g = find_group(msg.group)) {
+            AooData data;
+            data.type = msg.type;
+            data.data = msg.data.data();
+            data.size = msg.data.size();
+
+            if (msg.user == kAooIdInvalid) {
+                // all users
+                for (auto& u : g->users()) {
+                    if (auto c = find_client(u)) {
+                        c->send_notification(*this, data);
+                    } else {
+                        LOG_WARNING("AooServer: cannot send message to user "
+                                    << msg.user << " in group " << msg.group
+                                    << " because it does not exist anymore");
+                    }
+                }
+            } else {
+                // single user
+                if (auto u = g->find_user(msg.user)) {
+                    if (auto c = find_client(*u)) {
+                        c->send_notification(*this, data);
+                    } else {
+                        LOG_ERROR("AooServer: cannot find client for user " << *u);
+                    }
+                } else {
+                    LOG_WARNING("AooServer: cannot send message to user "
+                                << msg.user << " in group " << msg.group
+                                << " because it does not exist anymore");
+                }
+            }
+        } else {
+            LOG_WARNING("AooServer: cannot send message to group " << msg.group
+                        << " because it does not exist anymore");
+        }
+    }
+}
+
 void Server::send_event(event_ptr e) {
     switch (eventmode_){
     case kAooEventModePoll:
@@ -1698,6 +1752,7 @@ void Server::close() {
     // peers can continue if the server goes down for maintainence
     clients_.clear();
     groups_.clear();
+    message_queue_.clear();
 }
 
 } // net
