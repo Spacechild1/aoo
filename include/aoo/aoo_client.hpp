@@ -152,6 +152,8 @@ public:
      *
      * \note Threadsafe and reentrant.
      *
+     * \attention Must not be called from an AooSource/AooSink event handler!
+     *
      * \param source the AOO source
      * \param id the AOO source ID
      */
@@ -160,6 +162,8 @@ public:
     /** \brief remove AOO source
      *
      * \note Threadsafe and reentrant.
+     *
+     * \attention Must not be called from an AooSource/AooSink event handler!
      */
     virtual AooError AOO_CALL removeSource(AooSource *source) = 0;
 
@@ -167,12 +171,19 @@ public:
      *
      * \note Threadsafe and reentrant.
      *
+     * \attention Must not be called from an AooSource/AooSink event handler!
+     *
      * \param sink the AOO sink
      * \param id the AOO sink ID
      */
     virtual AooError AOO_CALL addSink(AooSink *sink, AooId id) = 0;
 
-    /** \brief remove AOO sink */
+    /** \brief remove AOO sink
+     *
+     * \note Threadsafe and reentrant.
+     *
+     * \attention Must not be called from an AooSource/AooSink event handler!
+     */
     virtual AooError AOO_CALL removeSink(AooSink *sink) = 0;
 
     /** \brief connect to AOO server
