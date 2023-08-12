@@ -81,7 +81,7 @@ AOO_INLINE AooError AooSource_getOpusBitrate(
         AooSource *src, const AooEndpoint *sink, opus_int32 *bitrate) {
     return AooSource_codecControl(
                 src, OPUS_GET_BITRATE_REQUEST, (AooIntPtr)sink,
-                bitrate, sizeof(bitrate));
+                bitrate, sizeof(*bitrate));
 }
 
 /** \brief set complexity
@@ -102,7 +102,7 @@ AOO_INLINE AooError AooSource_getOpusComplexity(
         AooSource *src, const AooEndpoint *sink, opus_int32 *complexity) {
     return AooSource_codecControl(
                 src, OPUS_GET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
-                complexity, sizeof(complexity));
+                complexity, sizeof(*complexity));
 }
 
 /** \brief set signal type
@@ -124,7 +124,7 @@ AOO_INLINE AooError AooSource_getOpusSignalType(
         AooSource *src, const AooEndpoint *sink, opus_int32 *signalType) {
     return AooSource_codecControl(
                 src, OPUS_GET_SIGNAL_REQUEST, (AooIntPtr)sink,
-                signalType, sizeof(signalType));
+                signalType, sizeof(*signalType));
 }
 
 /*--------------------------------------------------------------------*/
