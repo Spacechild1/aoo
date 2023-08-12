@@ -99,9 +99,8 @@ bool tcp_server::run(double timeout) {
         }
     }
 
-    if (timeout < 0) {
-        do_close();
-    }
+    // NB: do_close() will also be called in start().
+    do_close();
 
     return true;
 }

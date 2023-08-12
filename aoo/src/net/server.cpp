@@ -38,12 +38,7 @@ AOO_API void AOO_CALL AooServer_free(AooServer *server){
     aoo::destroy(static_cast<aoo::net::Server *>(server));
 }
 
-aoo::net::Server::~Server() {
-    stop();
-    // JC: need to close all the clients sockets without
-    // having them send anything out, so that active communication
-    // between connected peers can continue if the server goes down for maintainence
-}
+aoo::net::Server::~Server() {}
 
 AOO_API AooError AOO_CALL AooServer_setup(
     AooServer *server, AooServerSettings *settings)
@@ -84,8 +79,8 @@ AooError AOO_CALL aoo::net::Server::setup(AooServerSettings& settings) {
         udp_sendfn_ = sendfn(Server::send, this);
     }
 
-    // in case the user did not call quit(), e.g. they simply broke from a polling loop
-    stop();
+    // in case run() has been called in non-blocking mode
+    close();
 
     // TODO: honor flags for UDP and TCP sockets! For now just use default.
     if (!external) {
@@ -178,12 +173,19 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
                 tcp_server_.run(timeout);
             }
         }
+
+        // NB: in non-blocking mode, close() will be called in setup()!
+        if (!nonBlocking) {
+            close();
+        }
+
+        return kAooOk;
     }  catch (const aoo::tcp_error& e) {
         LOG_ERROR("AooServer: TCP server failed: " << e.what());
         aoo::socket_set_errno(e.code());
+
         return kAooErrorSocket;
     }
-    return kAooOk;
 }
 
 AOO_API AooError AOO_CALL AooServer_receiveUDP(
@@ -229,7 +231,8 @@ AOO_API AooError AOO_CALL AooServer_quit(AooServer *server)
 }
 
 AooError AOO_CALL aoo::net::Server::quit() {
-    stop();
+    tcp_server_.stop();
+    udp_server_.stop();
     return kAooOk;
 }
 
@@ -1689,9 +1692,12 @@ void Server::send_event(event_ptr e) {
     }
 }
 
-void Server::stop() {
-    tcp_server_.stop();
-    udp_server_.stop();
+void Server::close() {
+    // JC: need to close all the clients sockets without having them
+    // send anything out, so that active communication between connected
+    // peers can continue if the server goes down for maintainence
+    clients_.clear();
+    groups_.clear();
 }
 
 } // net

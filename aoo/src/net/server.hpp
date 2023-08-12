@@ -223,7 +223,7 @@ private:
 
     void send_event(event_ptr event);
 
-    void stop();
+    void close();
 
     //----------------------------------------------------------------//
 

@@ -80,9 +80,7 @@ AOO_API void AOO_CALL AooClient_free(AooClient *client){
 }
 
 aoo::net::Client::~Client() {
-    if (tcp_socket_>= 0){
-        socket_close(tcp_socket_);
-    }
+    do_close();
 }
 
 AOO_API AooError AOO_CALL AooClient_setup(
@@ -115,6 +113,9 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         err != kAooOk) {
         return err;
     }
+
+    // in case run() has been called in non-blocking mode
+    do_close();
 
     // get private/global network interfaces
     auto get_address = [](int sock, const char *host, int port,
@@ -158,6 +159,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         LOG_VERBOSE("AooClient: could not get private IPv4 address");
         LOG_DEBUG(e.what());
     }
+
+    socket_close(sock);
 
     return kAooOk;
 }
@@ -214,11 +217,18 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                 return didsomething ? kAooOk : kAooErrorWouldBlock;
             }
         }
+
+        // NB: in non-blocking mode, close() will be called in setup()!
+        if (!nonBlocking) {
+            do_close();
+        }
+
+        return kAooOk;
     } catch (const net::error& e) {
+        do_close();
+
         return e.code();
     }
-
-    return kAooOk;
 }
 
 AOO_API AooError AOO_CALL AooClient_quit(AooClient *client){
