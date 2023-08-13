@@ -117,11 +117,36 @@ T& as(void *p){
 
 //------------------------------- encoder --------------------------//
 
-AooError createEncoderState(const AooFormatOpus& f,
-                            OpusMSEncoder *& state, size_t& size){
+struct Encoder : AooCodec {
+    Encoder();
+    ~Encoder();
+
+    OpusMSEncoder *state_ = nullptr;
+    size_t size_ = 0;
+    int numChannels_ = 0;
+};
+
+AooCodec * AOO_CALL Encoder_new() {
+    return aoo::construct<Encoder>();
+}
+
+void Encoder_free(AooCodec *c){
+    aoo::destroy(static_cast<Encoder *>(c));
+}
+
+AooError AOO_CALL Encoder_setup(AooCodec *c, AooFormat *f) {
+    auto enc = static_cast<Encoder *>(c);
+
+    auto fmt = (AooFormatOpus *)f;
+    if (!validate_format(*fmt, true)){
+        return kAooErrorBadArgument;
+    }
+
+    print_format(*fmt);
+
     // setup channel mapping
     // only use decoupled streams (what's the point of coupled streams?)
-    auto nchannels = f.header.numChannels;
+    auto nchannels = fmt->header.numChannels;
     unsigned char mapping[256];
     for (int i = 0; i < nchannels; ++i){
         mapping[i] = i;
@@ -129,58 +154,30 @@ AooError createEncoderState(const AooFormatOpus& f,
     memset(mapping + nchannels, 255, 256 - nchannels);
 
     // create state
-    size = opus_multistream_encoder_get_size(nchannels, 0);
-    state = (OpusMSEncoder *)aoo::allocate(size);
+    auto size = opus_multistream_encoder_get_size(nchannels, 0);
+    auto state = (OpusMSEncoder *)aoo::allocate(size);
     if (!state){
         return kAooErrorOutOfMemory;
     }
+
     auto err = opus_multistream_encoder_init(
-                state, f.header.sampleRate, nchannels,
-                nchannels, 0, mapping, f.applicationType);
+        state, fmt->header.sampleRate, nchannels,
+        nchannels, 0, mapping, fmt->applicationType);
     if (err != OPUS_OK){
         LOG_ERROR("Opus: opus_encoder_create() failed with error code " << err);
         aoo::deallocate(state, size);
         return kAooErrorBadArgument;
     }
+
+    if (enc->state_) {
+        aoo::deallocate(enc->state_, enc->size_);
+    }
+
+    enc->state_ = state;
+    enc->size_ = size;
+    enc->numChannels_ = nchannels;
+
     return kAooOk;
-}
-
-struct Encoder : AooCodec {
-    Encoder(OpusMSEncoder *state, size_t size, const AooFormatOpus& f);
-    ~Encoder(){
-        aoo::deallocate(state_, size_);
-    }
-    OpusMSEncoder *state_;
-    size_t size_;
-    int numChannels_;
-};
-
-AooCodec * Encoder_new(AooFormat *f, AooError *err){
-    auto fmt = (AooFormatOpus *)f;
-    if (!validate_format(*fmt, true)){
-        if (err) {
-            *err = kAooErrorBadArgument;
-        }
-        return nullptr;
-    }
-
-    print_format(*fmt);
-
-    OpusMSEncoder *state;
-    size_t size;
-    auto res = createEncoderState(*fmt, state, size);
-    if (err){
-        *err = res;
-    }
-    if (res == kAooOk){
-        return aoo::construct<Encoder>(state, size, *fmt);
-    } else {
-        return nullptr;
-    }
-}
-
-void Encoder_free(AooCodec *c){
-    aoo::destroy(static_cast<Encoder *>(c));
 }
 
 AooError AOO_CALL Encoder_control(
@@ -297,11 +294,36 @@ AooError Encoder_encode(
 
 //------------------------- decoder -----------------------//
 
-AooError createDecoderState(const AooFormatOpus& f,
-                            OpusMSDecoder *& state, size_t& size){
+struct Decoder : AooCodec {
+    Decoder();
+    ~Decoder();
+
+    OpusMSDecoder *state_ = nullptr;
+    size_t size_ = 0;
+    int numChannels_ = 0;
+};
+
+AooCodec * AOO_CALL Decoder_new() {
+    return aoo::construct<Decoder>();
+}
+
+void Decoder_free(AooCodec *c){
+    aoo::destroy(static_cast<Decoder *>(c));
+}
+
+AooError AOO_CALL Decoder_setup(AooCodec *c, AooFormat *f) {
+    auto dec = static_cast<Decoder *>(c);
+
+    auto fmt = (AooFormatOpus *)f;
+    if (!validate_format(*fmt, true)){
+        return kAooErrorBadArgument;
+    }
+
+    print_format(*fmt);
+
     // setup channel mapping
     // only use decoupled streams (what's the point of coupled streams?)
-    auto nchannels = f.header.numChannels;
+    auto nchannels = fmt->header.numChannels;
     unsigned char mapping[256];
     for (int i = 0; i < nchannels; ++i){
         mapping[i] = i;
@@ -309,58 +331,29 @@ AooError createDecoderState(const AooFormatOpus& f,
     memset(mapping + nchannels, 255, 256 - nchannels);
 
     // create state
-    size = opus_multistream_decoder_get_size(nchannels, 0);
-    state = (OpusMSDecoder *)aoo::allocate(size);
+    auto size = opus_multistream_decoder_get_size(nchannels, 0);
+    auto state = (OpusMSDecoder *)aoo::allocate(size);
     if (!state){
         return kAooErrorOutOfMemory;
     }
     auto err = opus_multistream_decoder_init(
-                state, f.header.sampleRate,
-                nchannels, nchannels, 0, mapping);
+        state, fmt->header.sampleRate,
+        nchannels, nchannels, 0, mapping);
     if (err != OPUS_OK){
         LOG_ERROR("Opus: opus_decoder_create() failed with error code " << err);
         aoo::deallocate(state, size);
         return kAooErrorBadArgument;
     }
+
+    if (dec->state_) {
+        aoo::deallocate(dec->state_, dec->size_);
+    }
+
+    dec->state_ = state;
+    dec->size_ = size;
+    dec->numChannels_ = nchannels;
+
     return kAooOk;
-}
-
-struct Decoder : AooCodec {
-    Decoder(OpusMSDecoder *state, size_t size, const AooFormatOpus& f);
-    ~Decoder(){
-        aoo::deallocate(state_, size_);
-    }
-    OpusMSDecoder *state_;
-    size_t size_;
-    int numChannels_;
-};
-
-AooCodec * Decoder_new(AooFormat *f, AooError *err){
-    auto fmt = (AooFormatOpus *)f;
-    if (!validate_format(*fmt, true)){
-        if (err) {
-            *err = kAooErrorBadArgument;
-        }
-        return nullptr;
-    }
-
-    print_format(*fmt);
-
-    OpusMSDecoder *state;
-    size_t size;
-    auto res = createDecoderState(*fmt, state, size);
-    if (err){
-        *err = res;
-    }
-    if (res == kAooOk){
-        return aoo::construct<Decoder>(state, size, *fmt);
-    } else {
-        return nullptr;
-    }
-}
-
-void Decoder_free(AooCodec *c){
-    aoo::destroy(static_cast<Decoder *>(c));
 }
 
 AooError Decoder_control(AooCodec *c, AooCtl ctl, void *ptr, AooSize size){
@@ -453,15 +446,18 @@ AooError deserialize(
 }
 
 AooCodecInterface g_interface = {
-    sizeof(AooCodecInterface),
+    AOO_CODEC_INTERFACE_SIZE,
+    kAooCodecOpus,
     // encoder
     Encoder_new,
     Encoder_free,
+    Encoder_setup,
     Encoder_control,
     Encoder_encode,
     // decoder
     Decoder_new,
     Decoder_free,
+    Decoder_setup,
     Decoder_control,
     Decoder_decode,
     // helper
@@ -469,18 +465,24 @@ AooCodecInterface g_interface = {
     deserialize
 };
 
-Encoder::Encoder(OpusMSEncoder *state, size_t size, const AooFormatOpus& f) {
+Encoder::Encoder() {
     cls = &g_interface;
-    state_ = state;
-    size_ = size;
-    numChannels_ = f.header.numChannels;
 }
 
-Decoder::Decoder(OpusMSDecoder *state, size_t size, const AooFormatOpus& f) {
+Encoder::~Encoder(){
+    if (state_) {
+        aoo::deallocate(state_, size_);
+    }
+}
+
+Decoder::Decoder() {
     cls = &g_interface;
-    state_ = state;
-    size_ = size;
-    numChannels_ = f.header.numChannels;
+}
+
+Decoder::~Decoder(){
+    if (state_) {
+        aoo::deallocate(state_, size_);
+    }
 }
 
 } // namespace

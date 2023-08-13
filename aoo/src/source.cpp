@@ -1109,27 +1109,24 @@ AooError Source::set_format(AooFormat &f){
         return kAooErrorNotInitialized;
     }
 
-    std::unique_ptr<AooFormat, format_deleter> new_format;
-    std::unique_ptr<AooCodec, encoder_deleter> new_encoder;
+    scoped_lock lock(update_mutex_); // writer lock!
 
-    // create a new encoder - will validate format!
-    AooError err;
-    auto enc = codec->encoderNew(&f, &err);
-    if (!enc){
-        LOG_ERROR("AooSource: couldn't create encoder!");
+    // create new encoder if necessary
+    if (!encoder_ || strcmp(encoder_->cls->name, f.codecName)) {
+        encoder_.reset(codec->encoderNew());
+    }
+
+    // setup encoder - will validate format!
+    if (auto err = AooEncoder_setup(encoder_.get(), &f); err != kAooOk) {
+        encoder_ = nullptr;
+        LOG_ERROR("AooSource: couldn't setup encoder!");
         return err;
     }
-    new_encoder.reset(enc);
 
     // save validated format
     auto fmt = aoo::allocate(f.structSize);
     memcpy(fmt, &f, f.structSize);
-    new_format.reset((AooFormat *)fmt);
-
-    scoped_lock lock(update_mutex_); // writer lock!
-
-    format_ = std::move(new_format);
-    encoder_ = std::move(new_encoder);
+    format_.reset((AooFormat *)fmt);
     format_id_ = get_random_id();
 
     update_audioqueue();

@@ -44,7 +44,7 @@ void AOO_CALL default_logfunc(AooLogLevel level, const char *message);
 
 // populate interface table with default implementations
 static AooCodecHostInterface g_interface = {
-    sizeof(AooCodecHostInterface),
+    AOO_STRUCT_SIZE(AooCodecHostInterface, log),
     aoo_registerCodec,
     default_allocator,
     default_logfunc

@@ -1248,21 +1248,16 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
         return kAooErrorNone;
     }
 
-    std::unique_ptr<AooFormat, format_deleter> new_format;
-    std::unique_ptr<AooCodec, decoder_deleter> new_decoder;
-
-    // ignore redundant /format messages!
-    // NOTE: format_id_ is only used in this method,
-    // so we don't need a lock!
+    // check if format has changed
+    // NOTE: format_id_ is only used in this method, so we don't need a lock!
+    const AooCodecInterface *codec = nullptr;
+    AooFormatStorage fmt;
     bool format_changed = format_id != format_id_;
     format_id_ = format_id;
-
-    AooFormatStorage fmt;
-
     if (format_changed){
         // look up codec
-        auto c = aoo::find_codec(f.codecName);
-        if (!c){
+        codec = aoo::find_codec(f.codecName);
+        if (!codec){
             LOG_ERROR("AooSink: codec '" << f.codecName << "' not supported!");
             return kAooErrorNotImplemented;
         }
@@ -1272,22 +1267,10 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
 
         // try to deserialize format extension
         fmt.header.structSize = sizeof(AooFormatStorage);
-        auto err = c->deserialize(extension, size, &fmt.header, &fmt.header.structSize);
+        auto err = codec->deserialize(extension, size, &fmt.header, &fmt.header.structSize);
         if (err != kAooOk){
             return err;
         }
-
-        // create a new decoder - will validate format!
-        auto dec = c->decoderNew(&fmt.header, &err);
-        if (!dec){
-            return err;
-        }
-        new_decoder.reset(dec);
-
-        // save validated format
-        auto fp = aoo::allocate(fmt.header.structSize);
-        memcpy(fp, &fmt, fmt.header.structSize);
-        new_format.reset((AooFormat *)fp);
     }
 
     // copy metadata
@@ -1309,12 +1292,23 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
     bool first_stream = stream_id_ == kAooIdInvalid;
     stream_id_ = stream;
 
-    // TODO handle 'flags' (future)
-
     if (format_changed){
-        // set new format
-        format_ = std::move(new_format);
-        decoder_ = std::move(new_decoder);
+        // create new decoder if necessary
+        if (!decoder_ || strcmp(decoder_->cls->name, codec->name)) {
+            decoder_.reset(codec->decoderNew());
+        }
+
+        // setup decoder - will validate format!
+        if (auto err = AooDecoder_setup(decoder_.get(), &fmt.header); err != kAooOk) {
+            decoder_ = nullptr;
+            LOG_ERROR("AooSource: couldn't setup decoder!");
+            return err;
+        }
+
+        // save validated format
+        auto fp = aoo::allocate(fmt.header.structSize);
+        memcpy(fp, &fmt, fmt.header.structSize);
+        format_.reset((AooFormat *)fp);
     }
 
     // replace metadata

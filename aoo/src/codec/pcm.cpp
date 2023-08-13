@@ -214,31 +214,30 @@ bool validate_format(AooFormatPcm& f, bool loud = true)
 //------------------- PCM codec -----------------------------//
 
 struct PcmCodec : AooCodec {
-    PcmCodec(const AooFormatPcm& f);
+    PcmCodec();
 
-    int sampleSize_;
+    int sampleSize_ = -1;
 };
 
-AooCodec * AOO_CALL PcmCodec_new(AooFormat *f, AooError *err){
+AooCodec * AOO_CALL PcmCodec_new() {
+    return aoo::construct<PcmCodec>();
+}
+
+void AOO_CALL PcmCodec_free(AooCodec *c) {
+    aoo::destroy(static_cast<PcmCodec *>(c));
+}
+
+AooError AOO_CALL PcmCodec_setup(AooCodec *c, AooFormat *f) {
     auto fmt = (AooFormatPcm *)f;
-    if (!validate_format(*fmt, true)){
-        if (err) {
-            *err = kAooErrorBadArgument;
-        }
-        return nullptr;
+    if (!validate_format(*fmt, true)) {
+        return kAooErrorBadArgument;
     }
 
     print_format(*fmt);
 
-    if (err){
-        *err = kAooOk;
-    }
+    static_cast<PcmCodec *>(c)->sampleSize_ = bytes_per_sample(fmt->bitDepth);
 
-    return aoo::construct<PcmCodec>(*fmt);
-}
-
-void AOO_CALL PcmCodec_free(AooCodec *c){
-    aoo::destroy(static_cast<PcmCodec *>(c));
+    return kAooOk;
 }
 
 AooError AOO_CALL PcmCodec_control(
@@ -406,15 +405,18 @@ AooError AOO_CALL deserialize(
 }
 
 AooCodecInterface g_interface = {
-    sizeof(AooCodecInterface),
+    AOO_CODEC_INTERFACE_SIZE,
+    kAooCodecPcm,
     // encoder
     PcmCodec_new,
     PcmCodec_free,
+    PcmCodec_setup,
     PcmCodec_control,
     PcmCodec_encode,
     // decoder
     PcmCodec_new,
     PcmCodec_free,
+    PcmCodec_setup,
     PcmCodec_control,
     PcmCodec_decode,
     // helper
@@ -422,9 +424,8 @@ AooCodecInterface g_interface = {
     deserialize
 };
 
-PcmCodec::PcmCodec(const AooFormatPcm& f) {
+PcmCodec::PcmCodec() {
     cls = &g_interface;
-    sampleSize_ = bytes_per_sample(f.bitDepth);
 }
 
 } // namespace

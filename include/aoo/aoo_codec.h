@@ -24,19 +24,19 @@ typedef struct AooCodec
     struct AooCodecInterface *cls;
 } AooCodec;
 
-/** \brief codec constructor
- *
- * \param format the desired format; validated and updated on success
- * \param error error code on failure
- * \return AooCodec instance on success, NULL on failure
- */
-typedef AooCodec * (AOO_CALL *AooCodecNewFunc)(
-        AooFormat *format,
-        AooError *error
-);
+/** \brief codec constructor */
+typedef AooCodec * (AOO_CALL *AooCodecNewFunc)(void);
 
 /** \brief codec destructor */
 typedef void (AOO_CALL *AooCodecFreeFunc)(AooCodec *codec);
+
+/** \brief codec setup function */
+typedef AooError (AOO_CALL *AooCodecSetupFunc)(
+        /** the encoder/decoder instance */
+        AooCodec *codec,
+        /** the desired format; validated and updated on success */
+        AooFormat *format
+);
 
 /** \brief encode audio samples to bytes */
 typedef AooError (AOO_CALL *AooCodecEncodeFunc)(
@@ -80,8 +80,7 @@ AOO_ENUM(AooCodecCtl)
 };
 
 /** \brief codec control function */
-typedef AooError (AOO_CALL *AooCodecControlFunc)
-(
+typedef AooError (AOO_CALL *AooCodecControlFunc)(
         /** the encoder/decoder instance */
         AooCodec *codec,
         /** the control constant */
@@ -111,7 +110,7 @@ typedef AooError (AOO_CALL *AooCodecSerializeFunc)(
  * (= everything after the AooFormat header).
  * On success, write the format extension to the given format structure.
  *
- * \note This function should *not* update the `size` member of the `format` argument.
+ * \note This function should *not* update the `structSize` member of the `format` argument.
  */
 typedef AooError (AOO_CALL *AooCodecDeserializeFunc)(
         /** [in] the extension buffer */
@@ -128,14 +127,17 @@ typedef AooError (AOO_CALL *AooCodecDeserializeFunc)(
 typedef struct AooCodecInterface
 {
     AooSize structSize;
+    const AooChar * name;
     /* encoder methods */
     AooCodecNewFunc encoderNew;
     AooCodecFreeFunc encoderFree;
+    AooCodecSetupFunc encoderSetup;
     AooCodecControlFunc encoderControl;
     AooCodecEncodeFunc encoderEncode;
     /* decoder methods */
     AooCodecNewFunc decoderNew;
     AooCodecFreeFunc decoderFree;
+    AooCodecSetupFunc decoderSetup;
     AooCodecControlFunc decoderControl;
     AooCodecDecodeFunc decoderDecode;
     /* free functions */
@@ -143,10 +145,21 @@ typedef struct AooCodecInterface
     AooCodecDeserializeFunc deserialize;
 } AooCodecInterface;
 
+#define AOO_CODEC_INTERFACE_SIZE \
+    AOO_STRUCT_SIZE(AooCodecInterface, deserialize)
+
 /*----------------- helper functions ----------------------*/
 
+/** \brief setup encoder
+ *  \see AooCodecSetupFunc */
+AOO_INLINE AooError AooEncoder_setup(
+    AooCodec *enc, AooFormat *format)
+{
+    return enc->cls->encoderSetup(enc, format);
+}
+
 /** \brief encode audio samples to bytes
- * \see AooCodecEncodeFunc */
+ *  \see AooCodecEncodeFunc */
 AOO_INLINE AooError AooEncoder_encode(
         AooCodec *enc, const AooSample *input, AooInt32 numSamples,
         AooByte *output, AooInt32 *numBytes)
@@ -155,7 +168,7 @@ AOO_INLINE AooError AooEncoder_encode(
 }
 
 /** \brief control encoder instance
- * \see AooCodecControlFunc */
+ *  \see AooCodecControlFunc */
 AOO_INLINE AooError AooEncoder_control(
         AooCodec *enc, AooCodecCtl ctl, void *data, AooSize size)
 {
@@ -168,8 +181,16 @@ AOO_INLINE AooError AooEncoder_reset(AooCodec *enc)
     return enc->cls->encoderControl(enc, kAooCodecCtlReset, NULL, 0);
 }
 
+/** \brief setup decoder
+ *  \see AooCodecSetupFunc */
+AOO_INLINE AooError AooDecoder_setup(
+    AooCodec *dec, AooFormat *format)
+{
+    return dec->cls->decoderSetup(dec, format);
+}
+
 /** \brief decode bytes to audio samples
- * \see AooCodecDecodeFunc */
+ *  \see AooCodecDecodeFunc */
 AOO_INLINE AooError AooDecoder_decode(
         AooCodec *dec, const AooByte *input, AooInt32 numBytes,
         AooSample *output, AooInt32 *numSamples)
@@ -178,7 +199,7 @@ AOO_INLINE AooError AooDecoder_decode(
 }
 
 /** \brief control decoder instance
- * \see AooCodecControlFunc */
+ *  \see AooCodecControlFunc */
 AOO_INLINE AooError AooDecoder_control(
         AooCodec *dec, AooCodecCtl ctl, void *data, AooSize size)
 {

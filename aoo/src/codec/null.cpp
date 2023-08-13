@@ -69,29 +69,26 @@ bool validate_format(AooFormatNull& f, bool loud = true)
 //------------------- PCM codec -----------------------------//
 
 struct NullCodec : AooCodec {
-    NullCodec(const AooFormatNull& f);
+    NullCodec();
 };
 
-AooCodec * AOO_CALL NullCodec_new(AooFormat *f, AooError *err){
+AooCodec * AOO_CALL NullCodec_new() {
+    return aoo::construct<NullCodec>();
+}
+
+void AOO_CALL NullCodec_free(AooCodec *c) {
+    aoo::destroy(static_cast<NullCodec *>(c));
+}
+
+AooError AOO_CALL NullCodec_setup(AooCodec *c, AooFormat *f) {
     auto fmt = (AooFormatNull*)f;
-    if (!validate_format(*fmt, true)){
-        if (err) {
-            *err = kAooErrorBadArgument;
-        }
-        return nullptr;
+    if (!validate_format(*fmt, true)) {
+        return kAooErrorBadArgument;
     }
 
     print_format(*fmt);
 
-    if (err){
-        *err = kAooOk;
-    }
-
-    return aoo::construct<NullCodec>(*fmt);
-}
-
-void AOO_CALL NullCodec_free(AooCodec *c){
-    aoo::destroy(static_cast<NullCodec *>(c));
+    return kAooOk;
 }
 
 AooError AOO_CALL NullCodec_control(
@@ -150,15 +147,18 @@ AooError AOO_CALL deserialize(
 }
 
 AooCodecInterface g_interface = {
-    sizeof(AooCodecInterface),
+    AOO_CODEC_INTERFACE_SIZE,
+    kAooCodecNull,
     // encoder
     NullCodec_new,
     NullCodec_free,
+    NullCodec_setup,
     NullCodec_control,
     NullCodec_encode,
     // decoder
     NullCodec_new,
     NullCodec_free,
+    NullCodec_setup,
     NullCodec_control,
     NullCodec_decode,
     // helper
@@ -166,7 +166,7 @@ AooCodecInterface g_interface = {
     deserialize
 };
 
-NullCodec::NullCodec(const AooFormatNull& f) {
+NullCodec::NullCodec() {
     cls = &g_interface;
 }
 
