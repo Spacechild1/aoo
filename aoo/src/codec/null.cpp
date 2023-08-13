@@ -178,7 +178,7 @@ NullCodec::NullCodec() {
 } // namespace
 
 void aoo_nullLoad(const AooCodecHostInterface *iface) {
-    iface->registerCodec(kAooCodecNull, &g_interface);
+    iface->registerCodec(&g_interface);
     // the dummy codec is always statically linked, so we can simply use the
     // internal log function and allocator
 }

@@ -541,13 +541,13 @@ const AooCodecHostInterface * aoo_getCodecHostInterface(void)
     return &aoo::g_interface;
 }
 
-AooError AOO_CALL aoo_registerCodec(const char *name, const AooCodecInterface *codec){
-    if (aoo::find_codec(name)) {
-        LOG_WARNING("codec " << name << " already registered!");
+AooError AOO_CALL aoo_registerCodec(const AooCodecInterface *codec){
+    if (aoo::find_codec(codec->name)) {
+        LOG_WARNING("codec " << codec->name << " already registered!");
         return kAooErrorAlreadyExists;
     }
-    aoo::g_codec_list.emplace_back(name, codec);
-    LOG_VERBOSE("registered codec '" << name << "'");
+    aoo::g_codec_list.emplace_back(codec->name, codec);
+    LOG_VERBOSE("registered codec '" << codec->name << "'");
     return kAooOk;
 }
 

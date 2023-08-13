@@ -218,7 +218,6 @@ AOO_INLINE AooError AooDecoder_reset(AooCodec *dec)
 
 /** \brief function for registering codecs */
 typedef AooError (AOO_CALL *AooCodecRegisterFunc)(
-        const AooChar *name,
         const AooCodecInterface *cls
 );
 
@@ -235,8 +234,7 @@ typedef struct AooCodecHostInterface
 AOO_API const AooCodecHostInterface * aoo_getCodecHostInterface(void);
 
 /** \brief register an external codec plugin */
-AOO_API AooError AOO_CALL aoo_registerCodec(
-        const AooChar *name, const AooCodecInterface *codec);
+AOO_API AooError AOO_CALL aoo_registerCodec(const AooCodecInterface *codec);
 
 /** \brief type of entry function for codec plugin module
  *
