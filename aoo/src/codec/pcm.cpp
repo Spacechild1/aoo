@@ -245,11 +245,16 @@ AooError AOO_CALL PcmCodec_control(
     switch (ctl){
     case kAooCodecCtlReset:
         // no op
-        return kAooOk;
+        break;
+    case kAooCodecCtlGetLatency:
+        assert(size == sizeof(AooInt32));
+        *reinterpret_cast<AooInt32 *>(ptr) = 0;
+        break;
     default:
         LOG_WARNING("PCM: unsupported codec ctl " << ctl);
         return kAooErrorNotImplemented;
     }
+    return kAooOk;
 }
 
 AooError AOO_CALL PcmCodec_encode(

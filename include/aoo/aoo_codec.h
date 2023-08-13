@@ -76,7 +76,9 @@ typedef AooError (AOO_CALL *AooCodecDecodeFunc)(
 AOO_ENUM(AooCodecCtl)
 {
     /** reset the codec state (`NULL`) */
-    kAooCodecCtlReset = -1000
+    kAooCodecCtlReset = -1000,
+    /** get encoding/decoding latency in samples (AooInt32) */
+    kAooCodecCtlGetLatency
 };
 
 /** \brief codec control function */

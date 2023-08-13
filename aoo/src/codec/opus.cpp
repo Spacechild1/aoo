@@ -124,6 +124,9 @@ struct Encoder : AooCodec {
     OpusMSEncoder *state_ = nullptr;
     size_t size_ = 0;
     int numChannels_ = 0;
+    int sampleRate_ = 0;
+    int applicationType_ = 0;
+
 };
 
 AooCodec * AOO_CALL Encoder_new() {
@@ -153,7 +156,7 @@ AooError AOO_CALL Encoder_setup(AooCodec *c, AooFormat *f) {
     }
     memset(mapping + nchannels, 255, 256 - nchannels);
 
-    // create state
+    // TODO: don't reallocate if size hasn't changed)
     auto size = opus_multistream_encoder_get_size(nchannels, 0);
     auto state = (OpusMSEncoder *)aoo::allocate(size);
     if (!state){
@@ -176,6 +179,8 @@ AooError AOO_CALL Encoder_setup(AooCodec *c, AooFormat *f) {
     enc->state_ = state;
     enc->size_ = size;
     enc->numChannels_ = nchannels;
+    enc->sampleRate_ = fmt->header.sampleRate;
+    enc->applicationType_ = fmt->applicationType;
 
     return kAooOk;
 }
@@ -191,6 +196,14 @@ AooError AOO_CALL Encoder_control(
         if (err != OPUS_OK) {
             return kAooErrorBadArgument;
         }
+        break;
+    }
+    case kAooCodecCtlGetLatency:
+    {
+        CHECKARG(AooInt32);
+        // restricted low-delay: 2.5 ms, audio and VOIP: 6.5 ms
+        auto latency = (e->applicationType_ == OPUS_APPLICATION_RESTRICTED_LOWDELAY) ? 2.5 : 6.5;
+        as<AooInt32>(ptr) = latency * 0.001 * e->sampleRate_ + 0.5;
         break;
     }
     case OPUS_SET_COMPLEXITY_REQUEST:
@@ -301,6 +314,8 @@ struct Decoder : AooCodec {
     OpusMSDecoder *state_ = nullptr;
     size_t size_ = 0;
     int numChannels_ = 0;
+    int sampleRate_ = 0;
+    int applicationType_ = 0;
 };
 
 AooCodec * AOO_CALL Decoder_new() {
@@ -330,7 +345,7 @@ AooError AOO_CALL Decoder_setup(AooCodec *c, AooFormat *f) {
     }
     memset(mapping + nchannels, 255, 256 - nchannels);
 
-    // create state
+    // TODO: don't reallocate if size hasn't changed)
     auto size = opus_multistream_decoder_get_size(nchannels, 0);
     auto state = (OpusMSDecoder *)aoo::allocate(size);
     if (!state){
@@ -352,6 +367,8 @@ AooError AOO_CALL Decoder_setup(AooCodec *c, AooFormat *f) {
     dec->state_ = state;
     dec->size_ = size;
     dec->numChannels_ = nchannels;
+    dec->sampleRate_ = fmt->header.sampleRate;
+    dec->applicationType_ = fmt->applicationType;
 
     return kAooOk;
 }
@@ -368,6 +385,10 @@ AooError Decoder_control(AooCodec *c, AooCtl ctl, void *ptr, AooSize size){
         }
         break;
     }
+    case kAooCodecCtlGetLatency:
+        CHECKARG(AooInt32);
+        as<AooInt32>(ptr) = 0;
+        break;
     default:
         LOG_WARNING("Opus: unsupported codec ctl " << ctl);
         return kAooErrorNotImplemented;
