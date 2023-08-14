@@ -414,6 +414,87 @@ const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
     }
 }
 
+//------------------------ sockaddr -------------------------//
+
+AooError aoo_sockaddrFromIpEndpoint(const AooChar *ipAddress, AooUInt16 port,
+                                    AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen) {
+    aoo::ip_address::ip_type family;
+    if (type & kAooSocketIPv6) {
+        if (type & kAooSocketIPv4) {
+            family = aoo::ip_address::Unspec; // both IPv6 and IPv4
+        } else {
+            family = aoo::ip_address::IPv6;
+        }
+    } else {
+        family = aoo::ip_address::IPv4;
+    }
+    aoo::ip_address addr(ipAddress, port, family);
+    if (!addr.valid()) {
+        return kAooErrorBadFormat;
+    }
+    if (addr.is_ipv4_mapped() && !(type & kAooSocketIPv4Mapped)) {
+        return kAooErrorBadFormat;
+    }
+    auto len = addr.length();
+    if (len > *addrlen) {
+        return kAooErrorInsufficientBuffer;
+    }
+    memcpy(sockaddr, addr.address(), len);
+    *addrlen = len;
+    return kAooOk;
+}
+
+AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
+                                  AooChar *ipAddressBuffer, AooSize *ipAddressSize,
+                                  AooUInt16 *port, AooSocketFlags *type) {
+    aoo::ip_address addr((const struct sockaddr *)sockaddr, addrlen);
+    auto ipstring = addr.name();
+    auto ipsize = strlen(ipstring) + 1;
+    if (ipsize > *ipAddressSize) {
+        return kAooErrorInsufficientBuffer;
+    }
+    memcpy(ipAddressBuffer, ipstring, ipsize);
+    *ipAddressSize = ipsize - 1; // exclude null character!
+    *port = addr.port();
+    if (type) {
+        switch (addr.type()) {
+        case aoo::ip_address::IPv6:
+            *type = addr.is_ipv4_mapped() ? kAooSocketIPv4Mapped : kAooSocketIPv6;
+            break;
+        case aoo::ip_address::IPv4:
+            *type = kAooSocketIPv4;
+            break;
+        default:
+            return kAooErrorBadFormat; // shouldn't really happen...
+        }
+    }
+    return kAooOk;
+}
+
+//--------------------------- socket/system error --------------------------//
+
+AooError aoo_getLastSocketError(AooInt32 *errorCode,
+                                AooChar *errorMessageBuffer, AooSize *errorMessageSize) {
+    auto e = aoo::socket_errno();
+    *errorCode = e;
+    if (errorMessageBuffer) {
+        auto len = aoo::socket_strerror(e, errorMessageBuffer, *errorMessageSize);
+        // NB: null character excluded!
+        if (len > 0 && len < *errorMessageSize) {
+            *errorMessageSize = len;
+        } else {
+            return kAooErrorInsufficientBuffer;
+        }
+    }
+    return kAooOk;
+}
+
+AooError aoo_getLastSystemError(AooInt32 *errorCode,
+                                AooChar *errorMessageBuffer, AooSize *errorMessageSize) {
+    // WSAGetLastError() is just a wrapper around GetLastError()
+    return aoo_getLastSocketError(errorCode, errorMessageBuffer, errorMessageSize);
+}
+
 
 namespace aoo {
 

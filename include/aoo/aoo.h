@@ -133,16 +133,71 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
  * \brief get AooData type from string representation
  *
  * \param str the string
- * \return error the data type on success, kAooDataUnspecified on failure
+ * \return the data type on success, kAooDataUnspecified on failure
  */
 AOO_API AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str);
 
 /**
  * \brief convert AooData type to string representation
+ *
  * \param type the data type
  * \return a C string on success, NULL if the data type is not valid
  */
 AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
+
+/**
+ * \brief make sockaddr from IP endpoint
+ *
+ * Tries to convert the IP address string to one of the specified types
+ * if possible; returns an error otherwise.
+ *
+ * \param ipAddress IP address string
+ * \param port port number
+ * \param type combination of supported IP types
+ * \param[out] sockaddr sockaddr buffer
+ * \param[in,out] addrlen sockaddr buffer size; updated to actual size
+ */
+AOO_API AooError aoo_sockaddrFromIpEndpoint(const AooChar *ipAddress, AooUInt16 port,
+        AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
+
+/**
+ * \brief get IP endpoint from sockaddr
+ *
+ * \param sockaddr sockaddr struct
+ * \param addrlen sockaddr size
+ * \param[out] ipAddressBuffer buffer for IP address string
+ * \param[in,out] ipAddressSize IP address buffer size; updated to actual size (excluding the 0 character)
+ * \param[out] port port Number
+ * \param[out] type (optional) IP type
+ */
+AOO_API AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
+        AooChar *ipAddressBuffer, AooSize *ipAddressSize, AooUInt16 *port, AooSocketFlags *type);
+
+/**
+ * \brief get last socket error
+ *
+ * Typically used to obtain more detailed information about kAooErrorSocket.
+ *
+ * \param[out] errorCode the error code
+ * \param[out] errorMessageBuffer (optional) error message buffer
+ * \param[in,out] errorMessageSize (optional) error message buffer size;
+ *                updated to actual size (excluding the 0 character)
+ */
+AOO_API AooError aoo_getLastSocketError(AooInt32 *errorCode,
+        AooChar *errorMessageBuffer, AooSize *errorMessageSize);
+
+/**
+ * \brief get last system/OS error
+ *
+ * Typically used to obtain more detailed information about kAooErrorSystem.
+ *
+ * \param[out] errorCode the error code
+ * \param[out] errorMessageBuffer (optional) error message buffer
+ * \param[in,out] errorMessageSize (optional) error message buffer size;
+ *                updated to actual size (excluding the 0 character)
+ */
+AOO_API AooError aoo_getLastSystemError(AooInt32 *errorCode,
+        AooChar *errorMessageBuffer, AooSize *errorMessageSize);
 
 /*------------------------------------------------------*/
 

@@ -566,7 +566,7 @@ int socket_strerror(int err, char *buf, int size)
         *ptr-- = '\0';
         len--;
     }
-    // add error number
+    // add error number (will also null-terminate the string)
     len += snprintf(buf + len, size - len, " [%d]", err);
     return len;
 #else
