@@ -208,7 +208,7 @@ bool received_block::update(double time, double interval){
 
 void jitter_buffer::clear(){
     head_ = tail_ = size_ = 0;
-    last_popped_ = last_pushed_ = -1;
+    last_popped_ = last_pushed_ = sentinel;
 }
 
 void jitter_buffer::resize(int32_t n, int32_t maxblocksize){
@@ -286,7 +286,7 @@ received_block* jitter_buffer::push(int32_t seq){
         head_ = 0;
     }
     size_++;
-    assert((last_pushed_ == -1) || ((seq - last_pushed_) == 1));
+    assert((last_pushed_ == sentinel) || ((seq - last_pushed_) == 1));
     last_pushed_ = seq;
     return &data_[old];
 }

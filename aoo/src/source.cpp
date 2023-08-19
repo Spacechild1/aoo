@@ -1304,14 +1304,15 @@ void Source::update_historybuffer(){
     }
 }
 
-// /aoo/sink/<id>/start <src> <version> <stream_id> <flags>
-// <lastformat> <nchannels> <samplerate> <blocksize> <codec> <extension>
+// /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
+// <format_id> <nchannels> <samplerate> <blocksize> <codec> <extension>
 // [<metadata_type> <metadata_content>]
-void send_start_msg(const endpoint& ep, int32_t id, int32_t stream, int32_t lastformat,
-                    const AooFormat& f, const AooByte *extension, AooInt32 size,
+void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
+                    int32_t seq_start, int32_t format_id, const AooFormat& f,
+                    const AooByte *extension, AooInt32 size,
                     const AooData* metadata, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgStart " to " << ep
-              << " (stream = " << stream << ")");
+              << " (stream = " << stream_id << ")");
 
     char buf[AOO_MAX_PACKET_SIZE];
     osc::OutboundPacketStream msg(buf, sizeof(buf));
@@ -1323,7 +1324,8 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream, int32_t last
              kAooMsgDomain kAooMsgSink, ep.id, kAooMsgStart);
 
     msg << osc::BeginMessage(address) << id << aoo_getVersionString()
-        << stream << lastformat << f.numChannels << f.sampleRate << f.blockSize
+        << stream_id << seq_start << format_id
+        << f.numChannels << f.sampleRate << f.blockSize
         << f.codecName << osc::Blob(extension, size);
     if (metadata) {
         msg << metadata->type << osc::Blob(metadata->data, metadata->size);
@@ -1423,6 +1425,9 @@ void Source::send_start(const sendfn& fn){
         return;
     }
 
+    // cache sequence number start
+    auto seq_start = sequence_;
+
     // cache stream format
     auto format_id = format_id_;
 
@@ -1471,7 +1476,8 @@ void Source::send_start(const sendfn& fn){
     updatelock.unlock();
 
     for (auto& s : cached_sinks_){
-        send_start_msg(s.ep, id(), s.stream_id, format_id, f.header, extension, size, md, fn);
+        send_start_msg(s.ep, id(), s.stream_id, seq_start, format_id,
+                       f.header, extension, size, md, fn);
     }
 }
 

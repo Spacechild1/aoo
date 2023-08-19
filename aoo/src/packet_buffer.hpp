@@ -163,6 +163,8 @@ public:
     using iterator = base_iterator<received_block, jitter_buffer>;
     using const_iterator = base_iterator<const received_block, const jitter_buffer>;
 
+    static constexpr int32_t sentinel = INT32_MIN;
+
     void clear();
 
     void resize(int32_t n, int32_t maxblocksize);
@@ -186,8 +188,8 @@ public:
 
     void pop();
 
-    void reset_head() {
-        last_pushed_ = -1;
+    void reset_head(int32_t seq = sentinel) {
+        last_pushed_ = seq;
     }
 
     int32_t last_pushed() const {

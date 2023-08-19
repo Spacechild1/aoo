@@ -803,7 +803,8 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
         return err;
     }
 
-    AooId stream = (it++)->AsInt32();
+    AooId stream_id = (it++)->AsInt32();
+    AooId seq_start = (it++)->AsInt32();
     AooId format_id = (it++)->AsInt32();
 
     // get stream format
@@ -833,7 +834,7 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
     if (!src){
         src = add_source(addr, id);
     }
-    return src->handle_start(*this, stream, format_id, f,
+    return src->handle_start(*this, stream_id, seq_start, format_id, f,
                              (const AooByte *)extension, size,
                              (metadata.data ? &metadata : nullptr));
 }
@@ -1225,17 +1226,19 @@ void source_desc::add_xrun(double nblocks){
     xrunblocks_ += nblocks;
 }
 
-// /aoo/sink/<id>/start <src> <version> <stream_id> <lastformat>
-// <nchannels> <samplerate> <blocksize> <codec> <options> <metadata>
+// /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
+// <format_id> <nchannels> <samplerate> <blocksize> <codec> <options>
+// [<metadata>]
 
-AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format_id,
-                                   const AooFormat& f, const AooByte *extension, int32_t size,
+AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq_start,
+                                   int32_t format_id, const AooFormat& f,
+                                   const AooByte *extension, int32_t size,
                                    const AooData *md) {
-    LOG_DEBUG("AooSink: handle start (" << stream << ")");
+    LOG_DEBUG("AooSink: handle start (" << stream_id << ")");
     auto state = state_.load(std::memory_order_acquire);
     if (state == source_state::invite) {
         // ignore /start messages that don't match the desired stream id
-        if (stream != invite_token_.load()){
+        if (stream_id != invite_token_.load()){
             LOG_DEBUG("AooSink: handle_start: doesn't match invite token");
             return kAooOk;
         }
@@ -1243,7 +1246,7 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
     // ignore redundant /start messages!
     // NOTE: stream_id_ can only change in this thread,
     // so we don't need a lock to safely *read* it!
-    if (stream == stream_id_){
+    if (stream_id == stream_id_){
         LOG_DEBUG("AooSink: handle_start: ignore redundant /start message");
         return kAooErrorNone;
     }
@@ -1290,7 +1293,7 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
     // NOTE: the stream ID must always be in sync with the format,
     // so we have to set it while holding the lock!
     bool first_stream = stream_id_ == kAooIdInvalid;
-    stream_id_ = stream;
+    stream_id_ = stream_id;
 
     if (format_changed){
         // create new decoder if necessary
@@ -1316,6 +1319,9 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream, int32_t format
 
     // always update!
     update(s);
+
+    // set jitter buffer head
+    jitterbuffer_.reset_head(seq_start - 1);
 
     lock.unlock();
 
@@ -1934,8 +1940,8 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             return false;
         }
     #endif
-        if (newest >= 0){
-            auto numblocks = newest >= 0 ? d.sequence - newest : 1;
+        if (newest != jitter_buffer::sentinel){
+            auto numblocks = d.sequence - newest;
 
             // notify for gap
             if (numblocks > 1){

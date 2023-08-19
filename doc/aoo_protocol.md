@@ -29,6 +29,7 @@ Start a new stream.
 |  `i`  | source ID                        |
 |  `s`  | version string                   |
 |  `i`  | stream ID                        |
+|  `i`  | sequence number start            |
 |  `i`  | format ID                        |
 |  `i`  | number of channels               |
 |  `i`  | sample rate                      |
