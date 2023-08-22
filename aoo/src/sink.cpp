@@ -1114,8 +1114,8 @@ void source_desc::update(const Sink& s){
     // resize audio ring buffer
     if (format_ && format_->blockSize > 0 && format_->sampleRate > 0){
         assert(decoder_ != nullptr);
-        auto convert = (double)format_->sampleRate / (double)format_->blockSize;
         // calculate latency
+        auto convert = (double)format_->sampleRate / (double)format_->blockSize;
         auto latency = s.latency();
         int32_t latency_blocks = std::ceil(latency * convert);
         // minimum buffer size depends on resampling and reblocking!
@@ -1123,7 +1123,10 @@ void source_desc::update(const Sink& s){
         auto reblock = (double)s.blocksize() / (double)format_->blockSize;
         auto min_latency_blocks = std::ceil(reblock / resample);
         latency_blocks_ = std::max<int32_t>(latency_blocks, min_latency_blocks);
-        latency_samples_ = (double)latency_blocks_ * (double)format_->blockSize * resample + 0.5;
+        // latency samples are not quantized!
+        auto min_latency_samples = min_latency_blocks / convert * (double)s.samplerate() + 0.5;
+        latency_samples_ = latency * (double)s.samplerate() + 0.5;
+        latency_samples_ = std::max<int32_t>(latency_samples_, min_latency_samples);
         // calculate jitter buffer size
         auto buffersize = s.buffersize();
         if (buffersize <= 0) {
@@ -1133,11 +1136,10 @@ void source_desc::update(const Sink& s){
                         << " ms) smaller than latency (" << (latency * 1000) << " ms)");
             buffersize = latency;
         }
-        auto jitter_buffersize = std::max<int32_t>(latency_blocks_,
-                                                   std::ceil(buffersize * convert));
+        auto jitter_buffersize = std::max<int32_t>(latency_blocks_, std::ceil(buffersize * convert));
         LOG_DEBUG("AooSink: latency (ms): " << (latency * 1000)
-                  << ", num blocks: " << latency_blocks_
-                  << ", min. blocks: " << min_latency_blocks
+                  << ", latency blocks: " << latency_blocks_ << ", min. blocks: " << min_latency_blocks
+                  << ", latency samples: " << latency_samples_ << ", min. samples: " << min_latency_samples
                   << ", jitter buffersize: " << (buffersize * 1000)
                   << ", num blocks: " << jitter_buffersize);
 
