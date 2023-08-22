@@ -24,20 +24,23 @@ Start a new stream.
 
 ### Arguments:
 
-| type  | description                      |
-| ----: | -------------------------------- |
-|  `i`  | source ID                        |
-|  `s`  | version string                   |
-|  `i`  | stream ID                        |
-|  `i`  | sequence number start            |
-|  `i`  | format ID                        |
-|  `i`  | number of channels               |
-|  `i`  | sample rate                      |
-|  `i`  | block size                       |
-|  `s`  | codec name                       |
-|  `b`  | codec extension                  |
-| [`i`] | [metadata type](#4.2-data-types) |
-| [`b`] | metadata content                 |
+| type  | description                         |
+| ----: | ----------------------------------- |
+|  `i`  | source ID                           |
+|  `s`  | version string                      |
+|  `i`  | stream ID                           |
+|  `i`  | sequence number start               |
+|  `i`  | format ID                           |
+|  `i`  | number of channels                  |
+|  `i`  | sample rate                         |
+|  `i`  | block size                          |
+|  `s`  | codec name                          |
+|  `b`  | codec extension                     |
+|  `t`  | start time (NTP)                    |
+|  `i`  | reblock/resample latency (samples)  |
+|  `i`  | codec delay (samples)               |
+| [`i`] | [metadata type](#4.2-data-types)    |
+| [`b`] | metadata content                    |
 
 ---
 

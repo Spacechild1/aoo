@@ -159,7 +159,8 @@ public:
 
     AooError handle_start(const Sink& s, int32_t stream_id, int32_t seq_start,
                           int32_t format_id, const AooFormat& f,
-                          const AooByte *extension, int32_t size,
+                          const AooByte *ext_data, int32_t ext_size,
+                          aoo::time_tag tt, int32_t latency, int32_t codec_delay,
                           const AooData *md);
 
     AooError handle_stop(const Sink& s, int32_t stream);
@@ -175,7 +176,7 @@ public:
     void send(const Sink& s, const sendfn& fn);
 
     bool process(const Sink& s, AooSample **buffer, int32_t nsamples,
-                 AooStreamMessageHandler handler, void *user);
+                 time_tag tt, AooStreamMessageHandler handler, void *user);
 
     void invite(const Sink& s, AooId token, AooData *metadata);
 
@@ -222,11 +223,19 @@ private:
 
     int16_t channel_ = 0; // recent channel onset
     stream_state stream_state_ = stream_state::inactive;
+    std::atomic<bool> binary_{false};
     bool did_update_{false};
     bool underrun_{false};
     bool stopped_{false};
-    std::atomic<bool> binary_{false};
     double xrunblocks_ = 0;
+    aoo::time_tag stream_tt1_;
+    aoo::time_tag stream_tt2_;
+    int32_t latency1_ = 0;
+    int32_t latency2_ = 0;
+    int32_t codec_delay1_ = 0;
+    int32_t codec_delay2_ = 0;
+    double network_latency_ = 0;
+    int64_t stream_offset_ = 0;
 
     std::atomic<source_state> state_{source_state::idle};
     rt_metadata_ptr metadata_;
@@ -255,8 +264,8 @@ private:
     // stream messages
     stream_message_header *stream_messages_ = nullptr;
     double stream_samples_ = 0;
-    uint64_t process_samples_ = 0;
-    void reset_stream_messages();
+    int64_t process_samples_ = 0;
+    void reset_stream();
     // requests
     aoo::unbounded_mpsc_queue<request> request_queue_;
     void push_request(const request& r){

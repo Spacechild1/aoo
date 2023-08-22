@@ -261,6 +261,8 @@ class Source final : public AooSource, rt_memory_pool_client {
     using scoped_shared_lock = sync::scoped_shared_lock<sync::shared_mutex>;
     using scoped_spinlock = sync::scoped_lock<sync::spinlock>;
 
+    static constexpr int32_t invalid_stream = kAooIdInvalid;
+
     // settings
     parameter<AooId> id_;
     int32_t nchannels_ = 0;
@@ -272,11 +274,12 @@ class Source final : public AooSource, rt_memory_pool_client {
     // audio encoder
     std::unique_ptr<AooFormat, format_deleter> format_;
     std::unique_ptr<AooCodec, encoder_deleter> encoder_;
-    AooId format_id_ {kAooIdInvalid};
+    AooId format_id_ = kAooIdInvalid;
     // state
     uint64_t process_samples_ = 0;
     double stream_samples_ = 0;
-    int32_t sequence_ = 0;
+    aoo::time_tag stream_tt_;
+    int32_t sequence_ = invalid_stream;
     std::atomic<float> xrunblocks_{0};
     std::atomic<float> last_ping_time_{0};
     std::atomic<bool> needstart_{false};
@@ -303,6 +306,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     aoo::vector<AooByte> sendbuffer_;
     dynamic_resampler resampler_;
     struct block_data {
+        static constexpr size_t header_size = 8;
         double sr;
         AooSample data[1];
     };
@@ -355,7 +359,7 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     bool need_resampling() const;
 
-    void make_new_stream(bool notify);
+    void make_new_stream(aoo::time_tag tt, bool notify);
 
     void add_xrun(double nblocks);
 

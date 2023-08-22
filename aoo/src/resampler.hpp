@@ -22,6 +22,7 @@ public:
     int32_t size() const { return balance_; }
     int32_t capacity() const { return buffer_.size(); }
     double ratio() const { return ideal_ratio_; }
+    int32_t latency() const { return 0; }
 private:
     aoo::vector<AooSample> buffer_;
     int32_t nchannels_ = 0;

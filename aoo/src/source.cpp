@@ -9,8 +9,10 @@
 #include <cmath>
 #include <array>
 
-// avoid processing if there are no sinks
-#define IDLE_IF_NO_SINKS 1
+// avoid processing if there are no sinks.
+// Currently, this is turned off because it messes up the timing
+// for stream timestamps and stream messages.
+#define IDLE_IF_NO_SINKS 0
 
 namespace aoo {
 
@@ -437,9 +439,13 @@ AooError AOO_CALL aoo::Source::setup(
                 }
 
                 update_historybuffer();
+
+                sequence_ = invalid_stream;
             }
 
-            make_new_stream(state_.load() == stream_state::run);
+            // if playing, restart
+            auto expected = stream_state::run;
+            state_.compare_exchange_strong(expected, stream_state::start);
         }
 
         reset_timer(); // always reset!
@@ -532,12 +538,11 @@ AOO_API AooError AOO_CALL AooSource_send(
     return src->send(fn, user);
 }
 
-// This method reads audio samples from the ringbuffer,
-// encodes them and sends them to all sinks.
 AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
-#if 0
-    // this breaks the /stop message!
-    if (state_.load() != stream_state::run){
+#if 1
+    // NB: we must also check for requests, otherwise this would
+    // break the /stop message.
+    if (state_.load() == stream_state::idle && requests_.empty()){
         return kAooOk; // nothing to do
     }
 #endif
@@ -643,7 +648,7 @@ AooError AOO_CALL aoo::Source::process(
             return kAooErrorIdle; // ?
         }
 
-        make_new_stream(true);
+        make_new_stream(t, true);
 
         // check if we have been stopped in the meantime
         auto expected = stream_state::start;
@@ -1137,16 +1142,10 @@ AooError Source::set_format(AooFormat &f){
 
     update_historybuffer();
 
-    // we need to start a new stream while holding the lock.
-    // it might be tempting to just (atomically) set 'state_'
-    // to 'stream_start::start', but then the send() method
-    // could answer a /start request by an existing stream with
-    // the wrong format, before process() starts the new stream.
-    //
-    // NB: there's a slight race condition because 'xrunblocks_'
-    // might be incremented right afterwards, but I'm not
-    // sure if this could cause any real problems...
-    make_new_stream(state_.load() == stream_state::run);
+    // restart stream if playing, but invalidate current stream!
+    auto expected = stream_state::run;
+    state_.compare_exchange_strong(expected, stream_state::start);
+    sequence_ = invalid_stream;
 
     return kAooOk;
 }
@@ -1199,7 +1198,8 @@ void Source::send_event(event_ptr e, AooThreadLevel level){
 
 // must be real-time safe because it might be called in process()!
 // always called with update lock!
-void Source::make_new_stream(bool notify){
+void Source::make_new_stream(aoo::time_tag tt, bool notify){
+    stream_tt_ = tt;
     sequence_ = 0;
     xrunblocks_.store(0.0); // !
     reset_timer(); // the stream might have been idle!
@@ -1221,7 +1221,8 @@ void Source::make_new_stream(bool notify){
 
     message_queue_.clear();
     message_prio_queue_.clear();
-    process_samples_ = stream_samples_ = 0;
+    process_samples_ = 0;
+    stream_samples_ = 0;
 
     // reset encoder to avoid garbage from previous stream
     if (encoder_) {
@@ -1272,7 +1273,7 @@ void Source::update_audioqueue(){
 
         // resize audio buffer
         auto nsamples = format_->blockSize * format_->numChannels;
-        auto nbytes = sizeof(block_data::sr) + nsamples * sizeof(AooSample);
+        auto nbytes = block_data::header_size + nsamples * sizeof(AooSample);
         // align to 8 bytes
         nbytes = (nbytes + 7) & ~7;
         audioqueue_.resize(nbytes, nbuffers);
@@ -1306,10 +1307,11 @@ void Source::update_historybuffer(){
 
 // /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
 // <format_id> <nchannels> <samplerate> <blocksize> <codec> <extension>
-// [<metadata_type> <metadata_content>]
+// <tt> <latency> <codec_delay> [<metadata_type> <metadata_content>]
 void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
                     int32_t seq_start, int32_t format_id, const AooFormat& f,
                     const AooByte *extension, AooInt32 size,
+                    aoo::time_tag tt, int32_t latency, int32_t codec_delay,
                     const AooData* metadata, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgStart " to " << ep
               << " (stream = " << stream_id << ")");
@@ -1326,7 +1328,8 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
     msg << osc::BeginMessage(address) << id << aoo_getVersionString()
         << stream_id << seq_start << format_id
         << f.numChannels << f.sampleRate << f.blockSize
-        << f.codecName << osc::Blob(extension, size);
+        << f.codecName << osc::Blob(extension, size)
+        << osc::TimeTag(tt) << latency << codec_delay;
     if (metadata) {
         msg << metadata->type << osc::Blob(metadata->data, metadata->size);
     }
@@ -1415,15 +1418,47 @@ void Source::dispatch_requests(const sendfn& fn){
 }
 
 void Source::send_start(const sendfn& fn){
-    if (!needstart_.exchange(false, std::memory_order_acquire)){
+#if 0
+    if (!needstart_.exchange(false, std::memory_order_acquire)) {
         return;
     }
 
     shared_lock updatelock(update_mutex_); // reader lock!
 
-    if (!encoder_){
+    if (!encoder_ || sequence_ == invalid_stream){
         return;
     }
+#else
+    if (!needstart_.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+    shared_lock updatelock(update_mutex_); // reader lock!
+
+    // only send /start message once we have data to send
+    if (audioqueue_.read_available() == 0) {
+        return;
+    }
+
+    if (!encoder_ || sequence_ == invalid_stream){
+        return;
+    }
+
+    // now we can finally send
+    if (!needstart_.exchange(false, std::memory_order_acquire)) {
+        return;
+    }
+#endif
+
+    // calculate stream start time.
+    auto tt = stream_tt_ + aoo::time_tag::from_seconds(stream_samples_ / (double)format_->sampleRate);
+    // calculate reblocking/resampling latency
+    auto ratio = resampler_.ratio();
+    auto reblock = std::max<double>(0.0, (double)format_->blockSize - (double)blocksize_ * ratio);
+    auto latency = static_cast<int32_t>(reblock + resampler_.latency() * ratio);
+    // get codec delay
+    AooInt32 codec_delay = 0;
+    AooEncoder_control(encoder_.get(), kAooCodecCtlGetLatency, AOO_ARG(codec_delay));
 
     // cache sequence number start
     auto seq_start = sequence_;
@@ -1455,7 +1490,7 @@ void Source::send_start(const sendfn& fn){
             flat_metadata_copy(*metadata_, *md);
         }
     }
-
+#if IDLE_IF_NO_SINKS
     // cache sinks that need to send a /start message
     if (cached_sinks_.empty()) {
         // if there were no (active) sinks, we need to reset the encoder to
@@ -1464,6 +1499,7 @@ void Source::send_start(const sendfn& fn){
         AooEncoder_reset(encoder_.get());
         LOG_DEBUG("AooSource: sinks previously empty/inactive - reset encoder");
     }
+#endif
     cached_sinks_.clear();
     sink_lock lock(sinks_);
     for (auto& s : sinks_){
@@ -1476,8 +1512,8 @@ void Source::send_start(const sendfn& fn){
     updatelock.unlock();
 
     for (auto& s : cached_sinks_){
-        send_start_msg(s.ep, id(), s.stream_id, seq_start, format_id,
-                       f.header, extension, size, md, fn);
+        send_start_msg(s.ep, id(), s.stream_id, seq_start, format_id, f.header,
+                       extension, size, tt, latency, codec_delay, md, fn);
     }
 }
 
@@ -1672,7 +1708,7 @@ void Source::send_xruns(const sendfn &fn) {
         while (stream_blocks--){
             // check the encoder and make snapshost of stream_id
             // in every iteration because we release the lock
-            if (!encoder_){
+            if (!encoder_ || sequence_ == invalid_stream){
                 return;
             }
             // send empty block
@@ -1711,6 +1747,8 @@ void Source::send_xruns(const sendfn &fn) {
     }
 }
 
+// This method reads audio samples from the ringbuffer,
+// encodes them and sends them to all sinks.
 void Source::send_data(const sendfn& fn){
     // *first* handle xruns
     send_xruns(fn);
@@ -1719,7 +1757,7 @@ void Source::send_data(const sendfn& fn){
     shared_lock updatelock(update_mutex_); // reader lock
     while (audioqueue_.read_available()) {
         // NB: recheck one every iteration because we temporarily release the lock!
-        if (!encoder_) {
+        if (!encoder_ || sequence_ == invalid_stream) {
             return;
         }
 
