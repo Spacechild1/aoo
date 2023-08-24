@@ -7,6 +7,35 @@
 #include <algorithm>
 #include <cmath>
 
+// use packet-loss-conceilment for buffering.
+// while it reduces audible artifacts, it has the disadvantage that
+// buffering is effectively quantized to the format blocksize,
+// which might cause higher latency.
+// TODO: make this an official compile time option, or even a runtime option.
+#ifndef BUFFER_PLC
+# define BUFFER_PLC 1
+#endif
+
+// Wait until the jitter buffer has a certain number of blocks.
+#define BUFFER_BLOCKS 0
+// Wait for a certain amount of time.
+// NB: with low latencies this has a tendency to get stuck in a cycle
+// of overrun and underruns...
+#define BUFFER_SAMPLES 1
+// Wait for a certain amount of time OR until the jitter buffer has a certain
+// number of blocks.
+#define BUFFER_BLOCKS_OR_SAMPLES 2
+// Wait for a certain amount of time AND until the jitter buffer has a certain
+// number of blocks or number of samples.
+// NB: with low latencies this has a tendency to get stuck in a cycle
+// of overrun and underruns...
+#define BUFFER_BLOCKS_AND_SAMPLES 3
+
+// TODO: make this an official compile time option, or even a runtime option?
+#ifndef BUFFER_METHOD
+# define BUFFER_METHOD BUFFER_BLOCKS_AND_SAMPLES
+#endif
+
 namespace aoo {
 
 // OSC data message
@@ -1987,6 +2016,11 @@ void source_desc::handle_underrun(const Sink& s){
 
     reset_stream();
 
+#if !BUFFER_PLC
+    // reset decoder when not using PLC!
+    AooDecoder_reset(decoder_.get());
+#endif
+
     auto e1 = make_event<source_event>(kAooEventBufferUnderrun, ep);
     eventbuffer_.push_back(std::move(e1));
 
@@ -2123,21 +2157,6 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
     return true;
 }
 
-// if 1, just write silence (instead of packet loss concealment);
-// this has the advantage that buffering is not quantized to the format
-// blocksize and thus can happen at a finer granularity.
-#define BUFFER_SILENT 1
-
-#define BUFFER_BLOCKS 0
-#define BUFFER_SAMPLES 1
-#define BUFFER_BLOCKS_OR_SAMPLES 2
-#define BUFFER_BLOCKS_AND_SAMPLES 3
-
-// TODO: make this a compile time option, or even a runtime option?
-#ifndef BUFFER_METHOD
-# define BUFFER_METHOD BUFFER_BLOCKS_AND_SAMPLES
-#endif
-
 // try to decode a block, write audio data into resampler, push any
 // stream messages into the priority queue and advances the stream time.
 // This method also handles buffering.
@@ -2155,22 +2174,12 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         // which has the smaller granularity)
         auto elapsed = std::min<int32_t>(process_samples_, stream_samples_ + 0.5);
     #if BUFFER_METHOD == BUFFER_BLOCKS
-        // Wait until the jitter buffer has a certain number of blocks.
         if (jitterbuffer_.size() < latency_blocks_) {
     #elif BUFFER_METHOD == BUFFER_SAMPLES
-        // Wait for a certain amount of time.
-        // NB: with low latencies this has a tendency to get stuck in a cycle
-        // of overrun and underruns...
         if (elapsed < latency_samples_) {
     #elif BUFFER_METHOD == BUFFER_BLOCKS_OR_SAMPLES
-        // Wait for a certain amount of time OR until the jitter buffer has a certain
-        // number of blocks.
         if ((elapsed < latency_samples_) && (jitterbuffer_.size() < latency_blocks_)) {
     #elif BUFFER_METHOD == BUFFER_BLOCKS_AND_SAMPLES
-        // Wait for a certain amount of time AND until the jitter buffer has a certain
-        // number of blocks or number of samples.
-        // NB: with low latencies this has a tendency to get stuck in a cycle
-        // of overrun and underruns...
         if ((elapsed < latency_samples_) || (jitterbuffer_.size() < latency_blocks_)) {
     #else
         #error "unknown buffer method"
@@ -2190,14 +2199,7 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             resampler_.update(format_->sampleRate, s.samplerate());
 
             double resample = (double)s.samplerate() / (double)format_->sampleRate;
-        #if BUFFER_SILENT
-            // use process blocksize!
-            int32_t nsamples = (double)s.blocksize() * (double)format_->numChannels / resample + 0.5;
-            auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
-            std::fill(buffer, buffer + nsamples, 0);
-            // advance stream time! (use nominal sample rate)
-            stream_samples_ += s.blocksize();
-        #else
+        #if BUFFER_PLC
             // use format blocksize
             auto nsamples = format_->blockSize * format_->numChannels;
             auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
@@ -2210,6 +2212,13 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             }
             // advance stream time! use nominal sample rate.
             stream_samples_ += (double)format_->blockSize * resample;
+        #else
+            // use process blocksize!
+            int32_t nsamples = (double)s.blocksize() * (double)format_->numChannels / resample + 0.5;
+            auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
+            std::fill(buffer, buffer + nsamples, 0);
+            // advance stream time! (use nominal sample rate)
+            stream_samples_ += s.blocksize();
         #endif
 
             if (resampler_.write(buffer, nsamples)) {
