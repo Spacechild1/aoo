@@ -609,11 +609,11 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
     auto time = process_samples_ + message.sampleOffset;
     message_queue_.push(time, message.type, (char *)message.data, message.size);
 #if AOO_DEBUG_STREAM_MESSAGE
-    LOG_ALL("AooSource: add stream message "
-            << "(type: " << aoo_dataTypeToString(message.type)
-            << ", size: " << message.size
-            << ", offset: " << message.sampleOffset
-            << ", time: " << time<< ")");
+    LOG_DEBUG("AooSource: add stream message "
+              << "(type: " << aoo_dataTypeToString(message.type)
+              << ", size: " << message.size
+              << ", offset: " << message.sampleOffset
+              << ", time: " << time<< ")");
 #endif
     return kAooErrorNone;
 }
@@ -691,8 +691,8 @@ AooError AOO_CALL aoo::Source::process(
             if (nsamples == blocksize_){
                 dll_.update(elapsed);
             #if AOO_DEBUG_DLL
-                LOG_ALL("AooSource: time elapsed: " << elapsed << ", period: "
-                        << dll_.period() << ", samplerate: " << dll_.samplerate());
+                LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
+                          << dll_.period() << ", samplerate: " << dll_.samplerate());
             #endif
             } else {
                 // reset time DLL with nominal samplerate
@@ -1816,10 +1816,10 @@ void Source::send_data(const sendfn& fn){
         #endif
             message_prio_queue_.emplace(msg.time, msg.type, msg.data, msg.size);
         #if AOO_DEBUG_STREAM_MESSAGE
-            LOG_ALL("AooSource: schedule stream message "
-                    << "(type: " << aoo_dataTypeToString(msg.type)
-                    << ", size: " << msg.size
-                    << ", time: " << msg.time << ")");
+            LOG_DEBUG("AooSource: schedule stream message "
+                      << "(type: " << aoo_dataTypeToString(msg.type)
+                      << ", size: " << msg.size
+                      << ", time: " << msg.time << ")");
         #endif
         });
         // dispatch scheduled stream messages
@@ -1846,10 +1846,10 @@ void Source::send_data(const sendfn& fn){
                     sendbuffer_.resize(sendbuffer_.size() + 4 - remainder);
                 }
             #if AOO_DEBUG_STREAM_MESSAGE
-                LOG_ALL("AooSource: send stream message "
-                        << "(type: " << aoo_dataTypeToString(msg.type)
-                        << ", size: " << msg.size
-                        << ", offset: " << offset << ")");
+                LOG_DEBUG("AooSource: send stream message "
+                          << "(type: " << aoo_dataTypeToString(msg.type)
+                          << ", size: " << msg.size
+                          << ", offset: " << offset << ")");
             #endif
                 msg_count++;
                 message_prio_queue_.pop();

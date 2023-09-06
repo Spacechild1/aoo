@@ -525,14 +525,14 @@ void * AOO_CALL default_allocator(void *ptr, AooSize oldsize, AooSize newsize) {
         assert(ptr == nullptr && oldsize == 0);
     #if AOO_DEBUG_MEMORY
         auto total = total_memory.fetch_add(newsize, std::memory_order_relaxed) + (ptrdiff_t)newsize;
-        LOG_ALL("allocate " << newsize << " bytes (total: " << total << ")");
+        LOG_DEBUG("allocate " << newsize << " bytes (total: " << total << ")");
     #endif
         return operator new(newsize);
     } else if (oldsize > 0) {
         // free memory
     #if AOO_DEBUG_MEMORY
         auto total = total_memory.fetch_sub(oldsize, std::memory_order_relaxed) - (ptrdiff_t)oldsize;
-        LOG_ALL("deallocate " << oldsize << " bytes (total: " << total << ")");
+        LOG_DEBUG("deallocate " << oldsize << " bytes (total: " << total << ")");
     #endif
         operator delete(ptr);
     } else {

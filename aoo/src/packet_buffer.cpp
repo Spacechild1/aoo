@@ -181,12 +181,12 @@ void received_block::add_frame(int32_t which, const AooByte *data, int32_t n){
     assert(numframes_ > 0 && which >= 0 && which < numframes_);
     if (which == numframes_ - 1){
     #if AOO_DEBUG_JITTER_BUFFER
-        LOG_ALL("jitter buffer: copy last frame with " << n << " bytes");
+        LOG_DEBUG("jitter buffer: copy last frame with " << n << " bytes");
     #endif
         std::copy(data, data + n, buffer_.end() - n);
     } else {
     #if AOO_DEBUG_JITTER_BUFFER
-        LOG_ALL("jitter buffer: copy frame " << which << " with " << n << " bytes");
+        LOG_DEBUG("jitter buffer: copy frame " << which << " with " << n << " bytes");
     #endif
         std::copy(data, data + n, buffer_.data() + (which * n));
     }
@@ -200,7 +200,7 @@ bool received_block::update(double time, double interval){
     timestamp_ = time;
     numtries_++;
 #if AOO_DEBUG_JITTER_BUFFER
-    LOG_ALL("jitter buffer: request block " << sequence);
+    LOG_DEBUG("jitter buffer: request block " << sequence);
 #endif
     return true;
 }

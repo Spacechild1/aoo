@@ -107,11 +107,11 @@ void t_dejitter::update()
             adjusted_delta = aoo::time_tag::duration(osctime, last_adjusted);
         }
         auto error = std::abs(adjusted_delta - period);
-        LOG_ALL("dejitter: real delta: " << (delta * 1000.0)
-                << " ms, adjusted delta: " << (adjusted_delta * 1000.0)
-                << " ms, error: " << (error * 1000.0) << " ms");
-        LOG_ALL("dejitter: real time: " << osctime
-                << ", adjusted time: " << d_osctime_adjusted);
+        LOG_DEBUG("dejitter: real delta: " << (delta * 1000.0)
+                  << " ms, adjusted delta: " << (adjusted_delta * 1000.0)
+                  << " ms, error: " << (error * 1000.0) << " ms");
+        LOG_DEBUG("dejitter: real time: " << osctime
+                  << ", adjusted time: " << d_osctime_adjusted);
     #endif
     }
     d_last_osctime = osctime;

@@ -502,7 +502,7 @@ AooError AOO_CALL aoo::Sink::process(
             if (nsamples == blocksize()){
                 dll_.update(elapsed);
             #if AOO_DEBUG_DLL
-                LOG_ALL("AooSource: time elapsed: " << elapsed << ", period: "
+                LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
                         << dll_.period() << ", samplerate: " << dll_.samplerate());
             #endif
             } else {
@@ -1757,8 +1757,8 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     check_missing_blocks(s);
 
 #if AOO_DEBUG_JITTER_BUFFER
-    LOG_ALL(jitterbuffer_);
-    LOG_ALL("oldest: " << jitterbuffer_.last_popped()
+    LOG_DEBUG(jitterbuffer_);
+    LOG_DEBUG("oldest: " << jitterbuffer_.last_popped()
             << ", newest: " << jitterbuffer_.last_pushed());
     get_buffer_fill_ratio();
 #endif
@@ -1768,10 +1768,10 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     assert(outsize > 0);
     auto buf = (AooSample *)alloca(outsize * sizeof(AooSample));
 #if AOO_DEBUG_STREAM_MESSAGE
-    LOG_ALL("AooSink: process samples: " << process_samples_
-            << ", stream samples: " << stream_samples_
-            << ", diff: " << (stream_samples_ - (double)process_samples_)
-            << ", resampler size: " << resampler_.size());
+    LOG_DEBUG("AooSink: process samples: " << process_samples_
+              << ", stream samples: " << stream_samples_
+              << ", diff: " << (stream_samples_ - (double)process_samples_)
+              << ", resampler size: " << resampler_.size());
 #endif
     // try to read samples from resampler
     for (;;) {
@@ -1905,10 +1905,10 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                     ep.id = this->ep.id;
 
                 #if AOO_DEBUG_STREAM_MESSAGE
-                    LOG_ALL("AooSink: dispatch stream message "
-                            << "(type: " << aoo_dataTypeToString(msg.type)
-                            << ", size: " << msg.size
-                            << ", offset: " << msg.sampleOffset << ")");
+                    LOG_DEBUG("AooSink: dispatch stream message "
+                              << "(type: " << aoo_dataTypeToString(msg.type)
+                              << ", size: " << msg.size
+                              << ", offset: " << msg.sampleOffset << ")");
                 #endif
 
                     // NB: the stream message handler is called with the mutex locked!
@@ -2253,8 +2253,8 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         sr = b.samplerate;
         channel = b.channel;
     #if AOO_DEBUG_JITTER_BUFFER
-        LOG_ALL("jitter buffer: write samples for block ("
-                << b.sequence << ")");
+        LOG_DEBUG("jitter buffer: write samples for block ("
+                  << b.sequence << ")");
     #endif
     } else {
         // we need audio, so we have to drop a block
@@ -2345,10 +2345,10 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             msg->header.type = type;
             msg->header.size = size;
         #if AOO_DEBUG_STREAM_MESSAGE
-            LOG_ALL("AooSink: schedule stream message "
-                    << "(type: " << aoo_dataTypeToString(type)
-                    << ", size: " << size << ", offset: " << offset
-                    << ", time: " << (int64_t)time << ")");
+            LOG_DEBUG("AooSink: schedule stream message "
+                      << "(type: " << aoo_dataTypeToString(type)
+                      << ", size: " << size << ", offset: " << offset
+                      << ", time: " << (int64_t)time << ")");
         #endif
             memcpy(msg->data, msgptr, size);
             // insert in list (keep sorted!)

@@ -228,14 +228,14 @@ inline memory_list::block * memory_list::block::alloc(size_t size){
     b->header.next = nullptr;
     b->header.size = size;
 #if DEBUG_MEMORY_LIST
-    LOG_ALL("allocate memory block (" << size << " bytes)");
+    LOG_DEBUG("allocate memory block (" << size << " bytes)");
 #endif
     return b;
 }
 
 inline void memory_list::block::free(memory_list::block *b){
 #if DEBUG_MEMORY_LIST
-    LOG_ALL("deallocate memory block (" << b->header.size << " bytes)");
+    LOG_DEBUG("deallocate memory block (" << b->header.size << " bytes)");
 #endif
     auto fullsize = sizeof(block::header) + b->header.size;
     aoo::deallocate(b, fullsize);
@@ -260,7 +260,7 @@ inline void* memory_list::allocate(size_t size) {
             if (list_.compare_exchange_weak(head, next, std::memory_order_acq_rel)){
                 if (head->header.size >= size){
                 #if DEBUG_MEMORY_LIST
-                    LOG_ALL("reuse memory block (" << head->header.size << " bytes)");
+                    LOG_DEBUG("reuse memory block (" << head->header.size << " bytes)");
                 #endif
                     return head->data;
                 } else {
@@ -284,7 +284,7 @@ inline void memory_list::deallocate(void* ptr) {
     // (if the CAS fails, 'next' is updated to the current head)
     while (!list_.compare_exchange_weak(b->header.next, b, std::memory_order_acq_rel)) ;
 #if DEBUG_MEMORY_LIST
-    LOG_ALL("return memory block (" << b->header.size << " bytes)");
+    LOG_DEBUG("return memory block (" << b->header.size << " bytes)");
 #endif
 }
 
