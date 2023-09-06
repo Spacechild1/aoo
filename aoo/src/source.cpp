@@ -598,6 +598,9 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
 #if 1
     // avoid piling up stream messages
     if (state_.load(std::memory_order_relaxed) == stream_state::idle) {
+        LOG_DEBUG("AooSource: ignore stream message (type: "
+                  << aoo_dataTypeToString(message.type) << ", size: " << message.size
+                  << ", offset: " << message.sampleOffset << ") while idle");
         return kAooErrorIdle;
     }
 #endif
@@ -606,7 +609,15 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
         return kAooErrorIdle;
     }
 #endif
-    auto time = process_samples_ + message.sampleOffset;
+    uint64_t time;
+    if (state_.load(std::memory_order_relaxed) == stream_state::start) {
+        // This is the first block after startStream(), so we know that
+        // we start from zero. NB: the stream will only be reset in the
+        // process() function, so we must not use process_samples_!
+        time = message.sampleOffset;
+    } else {
+        time = process_samples_ + message.sampleOffset;
+    }
     message_queue_.push(time, message.type, (char *)message.data, message.size);
 #if AOO_DEBUG_STREAM_MESSAGE
     LOG_DEBUG("AooSource: add stream message "
@@ -1227,7 +1238,14 @@ void Source::make_new_stream(aoo::time_tag tt, bool notify){
 
     history_.clear(); // !
 
+    // NB: don't clear message_queue_ because it would break
+    // addStreamMessage() in the first process block...
+    // In practice, this shouldn't be an issue because messages
+    // are almost immediately transferred to message_prio_queue_
+    // on the network thread.
+#if 0
     message_queue_.clear();
+#endif
     message_prio_queue_.clear();
     process_samples_ = 0;
     stream_samples_ = 0;

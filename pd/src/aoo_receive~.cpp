@@ -510,8 +510,11 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
 
         break; // !
     }
+    case kAooEventStreamTime:
+        break; // ignore
     default:
-        verbose(0, "%s: unknown event type (%d)", classname(x), event->type);
+        logpost(x, PD_VERBOSE, "%s: unknown event type (%d)",
+                classname(x), event->type);
         break;
     }
 }

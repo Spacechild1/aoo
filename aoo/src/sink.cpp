@@ -1767,7 +1767,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     auto outsize = nsamples * nchannels;
     assert(outsize > 0);
     auto buf = (AooSample *)alloca(outsize * sizeof(AooSample));
-#if AOO_DEBUG_STREAM_MESSAGE
+#if AOO_DEBUG_STREAM_MESSAGE && 0
     LOG_DEBUG("AooSink: process samples: " << process_samples_
               << ", stream samples: " << stream_samples_
               << ", diff: " << (stream_samples_ - (double)process_samples_)
@@ -1884,8 +1884,10 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                     auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
                     auto e = make_event<stream_time_event>(ep, tt, offset);
                     eventbuffer_.push_back(std::move(e));
+                #if AOO_DEBUG_STREAM_MESSAGE
                     LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
                               << ", offset: " << offset << ")");
+                #endif
                 } else {
                     // this may happen with xruns
                     LOG_VERBOSE("AooSink: skip stream time event (offset: " << offset << ")");
@@ -2309,8 +2311,10 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         msg->header.type = kAooDataStreamTime;
         msg->header.size = sizeof(AooNtpTime);
         msg->tt = b.tt;
+    #if AOO_DEBUG_STREAM_MESSAGE
         LOG_DEBUG("AooSink: schedule stream time message (tt: " << aoo::time_tag(b.tt)
                   << ", time: " << (int64_t)time << ")");
+    #endif
         // insert in list (keep sorted!)
         if (stream_messages_) {
             auto it = stream_messages_;

@@ -540,7 +540,8 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
         break; // !
     }
     default:
-        verbose(0, "%s: unknown event type (%d)", classname(x), event->type);
+        logpost(x, PD_VERBOSE, "%s: unknown event type (%d)",
+                classname(x), event->type);
         break;
     }
 }
@@ -832,7 +833,10 @@ static void aoo_send_list(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
     }
     msg.data = buffer;
 
-    x->x_source->addStreamMessage(msg);
+    if (auto err = x->x_source->addStreamMessage(msg); err != kAooOk) {
+        pd_error(x, "%s: could not add stream message: %s",
+                 classname(x), aoo_strerror(err));
+    }
 }
 
 static t_int * aoo_send_perform(t_int *w)
