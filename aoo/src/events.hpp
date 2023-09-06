@@ -175,8 +175,9 @@ struct format_change_event : endpoint_event<AooEventFormatChange> {
 struct stream_start_event : endpoint_event<AooEventStreamStart> {
     RT_CLASS(stream_start_event)
 
-    stream_start_event(const aoo::endpoint& ep, const AooData *md)
+    stream_start_event(const aoo::endpoint& ep, aoo::time_tag tt, const AooData *md)
         : endpoint_event(BASE_EVENT(AooEventStreamStart, metadata), ep) {
+        this->tt = tt;
         this->metadata = md; // metadata is moved!
     }
 

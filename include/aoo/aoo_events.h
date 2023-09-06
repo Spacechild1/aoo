@@ -192,6 +192,7 @@ typedef struct AooEventStreamStart
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
+    AooNtpTime tt;
     const AooData * metadata;
 } AooEventStreamStart;
 

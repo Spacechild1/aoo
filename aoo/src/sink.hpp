@@ -235,14 +235,12 @@ private:
     bool underrun_{false};
     bool stopped_{false};
     double xrunblocks_ = 0;
-    aoo::time_tag stream_tt1_;
-    aoo::time_tag stream_tt2_;
+    int64_t stream_offset_ = 0;
+    aoo::time_tag stream_tt_;
     int32_t latency1_ = 0;
     int32_t latency2_ = 0;
     int32_t codec_delay1_ = 0;
     int32_t codec_delay2_ = 0;
-    double network_latency_ = 0;
-    int64_t stream_offset_ = 0;
 
     std::atomic<source_state> state_{source_state::idle};
     rt_metadata_ptr metadata_;

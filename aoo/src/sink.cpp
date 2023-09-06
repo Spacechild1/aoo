@@ -1370,8 +1370,7 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
 
     // cache reblock/resample latency and codec delay
     auto resample = (double)s.samplerate() / (double)format_->sampleRate;
-    stream_tt1_ = tt;
-    stream_tt2_.clear(); // !
+    stream_tt_ = tt;
     latency1_ = latency * resample;
     codec_delay1_ = codec_delay * resample;
     latency2_ = std::max<int32_t>(0, s.blocksize() - format_->blockSize * resample)
@@ -1379,9 +1378,8 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     AooInt32 arg = 0;
     AooDecoder_control(decoder_.get(), kAooCodecCtlGetLatency, AOO_ARG(arg));
     codec_delay2_ = arg * resample;
-    network_latency_ = 0;
 
-    LOG_DEBUG("AooSink: stream start time: " << stream_tt1_ << ", latency: "
+    LOG_DEBUG("AooSink: stream start time: " << stream_tt_ << ", latency: "
               << latency1_ << ", codec delay: " << codec_delay1_);
 
     lock.unlock();
@@ -1682,7 +1680,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
             #endif
 
                 // *move* metadata into event
-                auto e1 = make_event<stream_start_event>(ep, metadata_.release());
+                auto e1 = make_event<stream_start_event>(ep, stream_tt_, metadata_.release());
                 eventbuffer_.push_back(std::move(e1));
 
                 if (stream_state_ != stream_state::buffering) {
@@ -1851,56 +1849,20 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
             eventbuffer_.push_back(std::move(e));
 
             // calculate and report latencies
-            auto convert = 1. / (double)s.samplerate();
-
-            // offset logical stream time by sample offset
-            bool first = stream_tt2_.is_empty();
-            if (first) {
-                stream_tt2_ = tt + time_tag::from_seconds(offset * convert);
-            }
-
+            auto samples_to_ms = 1000. / (double)s.samplerate();
             // the latencies and codec delays are already resampled, see handle_start()
             auto source_latency = latency1_ + codec_delay1_;
-            auto source_latency_sec = source_latency * convert;
             auto sink_latency = latency2_ + codec_delay2_;
-            auto sink_latency_sec = sink_latency * convert;
-
             // the stream offset already includes the codec delays, see try_decode_block()
             auto buffer_latency = stream_offset_ - codec_delay1_ - codec_delay2_;
-            auto buffer_latency_sec = buffer_latency * convert;
-
-            double total_latency_sec;
-            int32_t total_latency;
-            double network_latency_sec;
-            int32_t network_latency;
-
-            if (first) {
-                // calculate and cache network latency
-                total_latency_sec = aoo::time_tag::duration(stream_tt1_, stream_tt2_);
-                total_latency = static_cast<int32_t>(total_latency_sec / convert);
-
-                network_latency = total_latency - source_latency - sink_latency - buffer_latency;
-                network_latency_ = network_latency_sec = network_latency * convert;
-            } else {
-                // use cached network latency
-                network_latency_sec = network_latency_;
-                network_latency = network_latency_sec / convert;
-                // recalculate total latency
-                total_latency = source_latency + sink_latency + buffer_latency + network_latency;
-                total_latency_sec = total_latency * convert;
-            }
 
         #if 1
-            LOG_DEBUG("AooSink: total latency: " << total_latency_sec * 1000.0 << " ms, "
-                      << total_latency << " samples");
-            LOG_DEBUG("\tsource latency: " << source_latency_sec * 1000.0 << " ms, "
+            LOG_DEBUG("\tsource latency: " << (source_latency * samples_to_ms) << " ms, "
                       << source_latency << " samples");
-            LOG_DEBUG("\tsink latency: " << sink_latency_sec * 1000.0 << " ms, "
+            LOG_DEBUG("\tsink latency: " << (sink_latency * samples_to_ms) << " ms, "
                       << sink_latency << " samples");
-            LOG_DEBUG("\tbuffer latency: " << buffer_latency_sec * 1000.0 << " ms, "
+            LOG_DEBUG("\tbuffer latency: " << (buffer_latency * samples_to_ms) << " ms, "
                       << buffer_latency << " samples");
-            LOG_DEBUG("\tnetwork latency: " << network_latency_sec * 1000.0 << " ms, "
-                      << network_latency << " samples");
         #endif
 
             stream_offset_ = 0;
