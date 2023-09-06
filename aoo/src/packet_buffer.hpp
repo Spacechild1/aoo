@@ -9,6 +9,7 @@ namespace aoo {
 struct data_packet {
     int32_t sequence;
     int32_t channel;
+    aoo::time_tag tt;
     double samplerate;
     int32_t totalsize;
     int32_t msgsize;
@@ -106,6 +107,7 @@ public:
     // data
     int32_t sequence = -1;
     int32_t channel = 0;
+    uint64_t tt = 0;
     double samplerate = 0;
     int32_t message_size = 0;
     uint32_t flags = 0;

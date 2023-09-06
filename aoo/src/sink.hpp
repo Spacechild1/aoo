@@ -114,12 +114,19 @@ struct stream_message_header {
     stream_message_header *next;
     double time;
     AooDataType type;
-    AooSize size;
+    AooUInt32 size;
 };
 
 struct flat_stream_message {
     stream_message_header header;
     char data[1];
+};
+
+constexpr AooDataType kAooDataStreamTime = -1;
+
+struct stream_time_message {
+    stream_message_header header;
+    AooNtpTime tt;
 };
 
 class Sink;

@@ -64,6 +64,8 @@ enum
     kAooCtlGetBufferFillRatio,
     kAooCtlSetBinaryDataMsg,
     kAooCtlGetBinaryDataMsg,
+    kAooCtlSetStreamTimeSendInterval,
+    kAooCtlGetStreamTimeSendInterval,
 #if AOO_NET
     kAooCtlSetPassword = 1000,
     kAooCtlSetRelayHost,
@@ -99,6 +101,11 @@ enum
 /** \brief use binary data message format by default */
 #ifndef AOO_BINARY_DATA_MSG
  #define AOO_BINARY_DATA_MSG 1
+#endif
+
+/** \brief stream time send interval in seconds (0 = disabled) */
+#ifndef AOO_STREAM_TIME_SEND_INTERVAL
+#define AOO_STREAM_TIME_SEND_INTERVAL 1.0
 #endif
 
 /** \brief enable/disable dynamic resampling by default */

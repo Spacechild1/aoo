@@ -917,8 +917,8 @@ AooError Sink::handle_decline_message(const osc::ReceivedMessage& msg,
     }
 }
 
-// /aoo/sink/<id>/data <src> <stream_id> <seq> <sr> <channel_onset>
-// <totalsize> <msgsize> <nframes> <frame> <data>
+// /aoo/sink/<id>/data <src> <stream_id> <seq> <tt> <sr>
+// <channel_onset> <totalsize> <msgsize> <nframes> <frame> <data>
 
 AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
                                    const ip_address& addr)
@@ -930,6 +930,7 @@ AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
     net_packet d;
     d.stream_id = (it++)->AsInt32();
     d.sequence = (it++)->AsInt32();
+    d.tt = (it++)->AsTimeTag();
     d.samplerate = (it++)->AsDouble();
     d.channel = (it++)->AsInt32();
     d.totalsize = (it++)->AsInt32();
@@ -948,7 +949,8 @@ AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
 
 // binary data message:
 // stream_id (int32), seq (int32), channel (uint8), flags (uint8), size (uint16)
-// [total (int32), nframes (int16), frame (int16)], [msgsize (int32)], [sr (float64)], data...
+// [total (int32), nframes (int16), frame (int16)], [msgsize (int32)], [sr (float64)],
+// [tt (uint64)], data...
 
 AooError Sink::handle_data_message(const AooByte *msg, int32_t n,
                                    AooId id, const ip_address& addr)
@@ -994,6 +996,11 @@ AooError Sink::handle_data_message(const AooByte *msg, int32_t n,
         d.samplerate = aoo::read_bytes<double>(it);
     } else {
         d.samplerate = 0;
+    }
+    if (d.flags & kAooBinMsgDataTimeStamp) {
+        d.tt = aoo::read_bytes<uint64_t>(it);
+    } else {
+        d.tt = 0;
     }
     d.data = it;
 
@@ -1443,7 +1450,7 @@ AooError source_desc::handle_decline(const Sink& s, int32_t token) {
     return kAooOk;
 }
 
-// /aoo/sink/<id>/data <src> <stream_id> <seq> <sr> <channel_onset>
+// /aoo/sink/<id>/data <src> <stream_id> <seq> <tt> <sr> <channel_onset>
 // <totalsize> <msgsize> <numpackets> <packetnum> <data>
 
 AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
@@ -1905,35 +1912,50 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     while (stream_messages_) {
         auto it = stream_messages_;
         if (it->time < deadline) {
-            AooStreamMessage msg;
             int32_t offset = it->time - process_samples_ + 0.5;
             if (offset >= nsamples) {
                 break;
             }
-            if (offset >= 0) {
-                msg.sampleOffset = offset;
-                msg.type = it->type;
-                msg.size = it->size;
-                msg.data = (const AooByte *)reinterpret_cast<flat_stream_message *>(it)->data;
-
-                AooEndpoint ep;
-                ep.address = this->ep.address.address();
-                ep.addrlen = this->ep.address.length();
-                ep.id = this->ep.id;
-
-            #if AOO_DEBUG_STREAM_MESSAGE
-                LOG_ALL("AooSink: dispatch stream message "
-                        << "(type: " << aoo_dataTypeToString(msg.type)
-                        << ", size: " << msg.size
-                        << ", offset: " << msg.sampleOffset << ")");
-            #endif
-
-                // NB: the stream message handler is called with the mutex locked!
-                // See the documentation of AooStreamMessageHandler.
-                handler(user, &msg, &ep);
+            if (it->type == kAooDataStreamTime) {
+                // a) stream time event
+                if (offset >= 0) {
+                    auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
+                    auto e = make_event<stream_time_event>(ep, tt, offset);
+                    eventbuffer_.push_back(std::move(e));
+                    LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
+                              << ", offset: " << offset << ")");
+                } else {
+                    // this may happen with xruns
+                    LOG_VERBOSE("AooSink: skip stream time event (offset: " << offset << ")");
+                }
             } else {
-                // this may happen with xruns
-                LOG_VERBOSE("AooSink: skip stream message (offset: " << offset << ")");
+                // b) stream message
+                if (offset >= 0) {
+                    AooStreamMessage msg;
+                    msg.sampleOffset = offset;
+                    msg.type = it->type;
+                    msg.size = it->size;
+                    msg.data = (const AooByte *)reinterpret_cast<flat_stream_message *>(it)->data;
+
+                    AooEndpoint ep;
+                    ep.address = this->ep.address.address();
+                    ep.addrlen = this->ep.address.length();
+                    ep.id = this->ep.id;
+
+                #if AOO_DEBUG_STREAM_MESSAGE
+                    LOG_ALL("AooSink: dispatch stream message "
+                            << "(type: " << aoo_dataTypeToString(msg.type)
+                            << ", size: " << msg.size
+                            << ", offset: " << msg.sampleOffset << ")");
+                #endif
+
+                    // NB: the stream message handler is called with the mutex locked!
+                    // See the documentation of AooStreamMessageHandler.
+                    handler(user, &msg, &ep);
+                } else {
+                    // this may happen with xruns
+                    LOG_VERBOSE("AooSink: skip stream message (offset: " << offset << ")");
+                }
             }
 
             auto next = it->next;
@@ -2009,7 +2031,10 @@ void source_desc::handle_underrun(const Sink& s){
     #endif
     }
 
+#if 1
+    // TODO: maybe not necessary with BUFFER_PLC?
     resampler_.reset(); // !
+#endif
 
     last_ping_time_.store(-1e007); // force ping
     last_stop_time_ = 0; // reset stop request timer
@@ -2161,8 +2186,6 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
 // stream messages into the priority queue and advances the stream time.
 // This method also handles buffering.
 bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
-
-
     // first handle buffering.
     if (stream_state_ == stream_state::buffering) {
         // if stopped during buffering, just fake a buffer underrun.
@@ -2258,8 +2281,13 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             stats.xrun++;
         }
         size = b.size();
-        data = size > 0 ? b.data() : nullptr;
-        msgsize = b.message_size;
+        if (size > 0) {
+            data = b.data();
+            msgsize = b.message_size;
+        } else {
+            data = nullptr;
+            msgsize = 0;
+        }
         sr = b.samplerate;
         channel = b.channel;
     #if AOO_DEBUG_JITTER_BUFFER
@@ -2306,9 +2334,34 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         return false;
     }
 
-    // push messages
     double resample = (double)s.samplerate() / sr;
 
+    // schedule stream time message  (if present)
+    if (b.tt > 0) {
+        // NB: offset time by codec delay(s)!
+        auto time = stream_samples_ + codec_delay1_ + codec_delay2_;
+        auto alloc_size = sizeof(stream_message_header) + sizeof(AooNtpTime);
+        auto msg = (stream_time_message *)aoo::rt_allocate(alloc_size);
+        msg->header.next = nullptr;
+        msg->header.time = time;
+        msg->header.type = kAooDataStreamTime;
+        msg->header.size = sizeof(AooNtpTime);
+        msg->tt = b.tt;
+        LOG_DEBUG("AooSink: schedule stream time message (tt: " << aoo::time_tag(b.tt)
+                  << ", time: " << (int64_t)time << ")");
+        // insert in list (keep sorted!)
+        if (stream_messages_) {
+            auto it = stream_messages_;
+            while (it->next && time >= it->time) {
+                it = it->next;
+            }
+            it->next = &msg->header;
+        } else {
+            stream_messages_ = &msg->header;
+        }
+    }
+
+    // schedule stream messages
     if (msgsize > 0) {
         int32_t num_messages = aoo::from_bytes<int32_t>(data);
         auto msgptr = data + 4;
@@ -2322,23 +2375,24 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
                 LOG_ERROR("AooSink: stream message with bad size argument");
                 break;
             }
+            auto time = stream_samples_ + offset * resample;
             auto alloc_size = sizeof(stream_message_header) + size;
             auto msg = (flat_stream_message *)aoo::rt_allocate(alloc_size);
             msg->header.next = nullptr;
-            msg->header.time = stream_samples_ + offset * resample;
+            msg->header.time = time;
             msg->header.type = type;
             msg->header.size = size;
         #if AOO_DEBUG_STREAM_MESSAGE
             LOG_ALL("AooSink: schedule stream message "
                     << "(type: " << aoo_dataTypeToString(type)
                     << ", size: " << size << ", offset: " << offset
-                    << ", time: " << (int64_t)msg->header.time << ")");
+                    << ", time: " << (int64_t)time << ")");
         #endif
             memcpy(msg->data, msgptr, size);
+            // insert in list (keep sorted!)
             if (stream_messages_) {
-                // append to list; LATER cache list tail
                 auto it = stream_messages_;
-                while (it->next) {
+                while (it->next && time >= it->time) {
                     it = it->next;
                 }
                 it->next = &msg->header;

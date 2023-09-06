@@ -94,6 +94,7 @@ Send stream data.
 |  `i` | source ID              |
 |  `i` | stream ID              |
 |  `i` | sequence number        |
+|  `t` | time stamp             |
 |  `d` | real sample rate       |
 |  `i` | channel onset          |
 |  `i` | total data size        |

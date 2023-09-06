@@ -150,6 +150,7 @@ void received_block::init(const data_packet& d)
         numtries_ = 0;
     }
     sequence = d.sequence;
+    tt = d.tt;
     samplerate = d.samplerate;
     message_size = d.msgsize;
     flags = d.flags;

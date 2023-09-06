@@ -205,6 +205,16 @@ struct stream_state_event : endpoint_event<AooEventStreamState> {
     }
 };
 
+struct stream_time_event : endpoint_event<AooEventStreamTime> {
+    RT_CLASS(stream_time_event)
+
+    stream_time_event(const aoo::endpoint& ep, AooNtpTime tt, int32_t offset)
+        : endpoint_event(BASE_EVENT(AooEventStreamTime, sampleOffset), ep) {
+        this->tt = tt;
+        this->sampleOffset = offset;
+    }
+};
+
 struct block_event : endpoint_event<AooEventBlock> {
     RT_CLASS(block_event)
 

@@ -46,6 +46,8 @@ AOO_ENUM(AooEventType)
     kAooEventStreamStop,
     /** AooSink: stream changed state */
     kAooEventStreamState,
+    /** AooSink: stream time stamp */
+    kAooEventStreamTime,
     /** AooSink: source format changed */
     kAooEventFormatChange,
     /** AooSink: invitation has been declined */
@@ -241,6 +243,15 @@ typedef struct AooEventStreamState
     AooStreamState state;
     AooInt32 sampleOffset;
 } AooEventStreamState;
+
+/** \brief stream time event */
+typedef struct AooEventStreamTime
+{
+    AOO_EVENT_HEADER
+    AooEndpoint endpoint;
+    AooNtpTime tt;
+    AooInt32 sampleOffset;
+} AooEventStreamTime;
 
 /** \brief generic stream diagnostic event */
 typedef struct AooEventBlock
@@ -499,6 +510,7 @@ union AooEvent
     AooEventStreamStart streamStart;
     AooEventStreamStop streamStop;
     AooEventStreamState streamState;
+    AooEventStreamTime streamTime;
     AooEventFormatChange formatChange;
     AooEventInviteDecline inviteDecline;
     AooEventInviteTimeout inviteTimeout;

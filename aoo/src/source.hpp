@@ -339,6 +339,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     parameter<int32_t> redundancy_{ AOO_SEND_REDUNDANCY };
     parameter<float> ping_interval_{ AOO_PING_INTERVAL };
     parameter<float> dll_bandwidth_{ AOO_DLL_BANDWIDTH };
+    parameter<float> tt_interval_{ AOO_STREAM_TIME_SEND_INTERVAL };
     parameter<bool> dynamic_resampling_{ AOO_DYNAMIC_RESAMPLING };
     parameter<bool> binary_{ AOO_BINARY_DATA_MSG };
 
@@ -361,7 +362,7 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     void make_new_stream(aoo::time_tag tt, bool notify);
 
-    void add_xrun(double nblocks);
+    void add_xrun(int32_t nsamples);
 
     void handle_xrun(int32_t nsamples);
 

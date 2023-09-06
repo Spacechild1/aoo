@@ -400,6 +400,23 @@ public:
         return control(kAooCtlGetBinaryDataMsg, 0, AOO_ARG(b));
     }
 
+    /** \brief Stream time send interval (in seconds)
+     *
+     * The source may periodically send timestamps for more accurate
+     * stream time measurement. Set to 0 to disable.
+     *
+     * \note This is only relevant in conjuction with dynamic resampling;
+     * otherwise the stream time can be inferred from the sequence number.
+     */
+    AooError setStreamTimeSendInterval(AooSeconds s) {
+        return control(kAooCtlSetStreamTimeSendInterval, 0, AOO_ARG(s));
+    }
+
+    /** \brief Get stream time send interval (in seconds) */
+    AooError getStreamTimeSendInterval(AooSeconds& s) {
+        return control(kAooCtlGetStreamTimeSendInterval, 0, AOO_ARG(s));
+    }
+
     /** \brief Set the sink channel onset
      *
      * Set channel onset of the given sink where the source signal should be received.

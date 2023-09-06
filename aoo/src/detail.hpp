@@ -219,7 +219,9 @@ inline AooData osc_read_metadata(osc::ReceivedMessageArgumentIterator& it) {
             return AooData { type, nullptr, 0 };
         }
     } catch (const osc::MissingArgumentException&) {
+    #if 0
         LOG_DEBUG("metadata argument not provided");
+    #endif
         return AooData { kAooDataUnspecified, nullptr, 0 };
     }
 }
