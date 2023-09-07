@@ -77,7 +77,7 @@ public:
             ping = true;
         }
 
-        auto wait = std::max(0.0, aoo::time_tag::duration(now, next_ping_));
+        auto wait = std::max<double>(0.0, aoo::time_tag::duration(now, next_ping_));
         return { state_, ping, wait };
     }
 private:
