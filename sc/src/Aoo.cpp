@@ -13,10 +13,6 @@
 
 static InterfaceTable *ft;
 
-namespace rt {
-    InterfaceTable* interfaceTable;
-}
-
 // TODO: honor Server verbosity
 static void AOO_CALL SCLog(AooLogLevel level, const char *msg) {
     if (level == kAooLogLevelError) {
@@ -458,7 +454,6 @@ void AooServerLoad(InterfaceTable *);
 PluginLoad(Aoo) {
     // InterfaceTable *inTable implicitly given as argument to the load function
     ft = inTable; // store pointer to InterfaceTable
-    rt::interfaceTable = inTable; // for "rt_shared_ptr.h"
 
     AooSettings settings;
     AooSettings_init(&settings);
