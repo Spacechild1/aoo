@@ -13,8 +13,10 @@
 #include <inttypes.h>
 
 #define DEFAULT_LATENCY 25
-// offset for "fake" stream messages
-#define STREAM_MESSAGE_OFFSET 64
+
+// "fake" stream message types
+const int kAooDataStreamTime = -2; // AooEventStreamTime
+const int kAooDataStreamState = -1; // AooEventStreamState
 
 /*///////////////////// aoo_receive~ ////////////////////*/
 
@@ -343,6 +345,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
     case kAooEventStreamStart:
     case kAooEventStreamStop:
     case kAooEventStreamState:
+    case kAooEventStreamTime:
     case kAooEventBlockDrop:
     case kAooEventBlockResend:
     case kAooEventBlockXRun:
@@ -469,15 +472,33 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             if (offset > 0) {
                 // HACK: schedule as fake stream message
                 AooStreamMessage msg;
-                msg.type = STREAM_MESSAGE_OFFSET + state;
+                msg.type = kAooDataStreamState;
                 msg.sampleOffset = offset;
-                // pass 1 byte of dummy data
-                msg.size = 1;
-                msg.data = (AooByte *)event;
+                msg.size = sizeof(state);
+                msg.data = (AooByte *)&state;
                 aoo_receive_handle_stream_message(x, &msg, &ep);
             } else {
                 SETSYMBOL(msg + 3, gensym("state"));
                 SETFLOAT(msg + 4, state);
+                outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+            }
+            break;
+        }
+        case kAooEventStreamTime:
+        {
+            auto tt = event->streamTime.tt;
+            auto offset = event->streamTime.sampleOffset;
+            if (offset > 0) {
+                // HACK: schedule as fake stream message
+                AooStreamMessage msg;
+                msg.type = kAooDataStreamState;
+                msg.sampleOffset = offset;
+                msg.size = sizeof(tt);
+                msg.data = (AooByte *)&tt;
+                aoo_receive_handle_stream_message(x, &msg, &ep);
+            } else {
+                SETSYMBOL(msg + 3, gensym("time"));
+                SETFLOAT(msg + 4, get_elapsed_ms(tt));
                 outlet_anything(x->x_msgout, gensym("event"), 5, msg);
             }
             break;
@@ -510,8 +531,6 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
 
         break; // !
     }
-    case kAooEventStreamTime:
-        break; // ignore
     default:
         logpost(x, PD_VERBOSE, "%s: unknown event type (%d)",
                 classname(x), event->type);
@@ -553,11 +572,21 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
         bug("dispatch_stream_message: serialize_endpoint");
         return;
     }
-    if (msg.type >= STREAM_MESSAGE_OFFSET) {
+    if (msg.type == kAooDataStreamState) {
         // fake stream message
-        assert(size == 5); // see aoo_receive_handle_event()
+        AooStreamState state;
+        assert(size == sizeof(state)); // see aoo_receive_handle_event()
+        memcpy(&state, msg.data, sizeof(state));
         SETSYMBOL(vec + 3, gensym("state"));
-        SETFLOAT(vec + 4, msg.type - STREAM_MESSAGE_OFFSET);
+        SETFLOAT(vec + 4, state);
+
+        outlet_anything(x_msgout, gensym("event"), size, vec);
+    } else if (msg.type == kAooDataStreamTime) {
+        AooNtpTime tt;
+        assert(size == sizeof(tt)); // see aoo_receive_handle_event()
+        memcpy(&tt, msg.data, sizeof(tt));
+        SETSYMBOL(vec + 3, gensym("time"));
+        SETFLOAT(vec + 4, get_elapsed_ms(tt));
 
         outlet_anything(x_msgout, gensym("event"), size, vec);
     } else {

@@ -160,6 +160,12 @@ uint64_t get_osctime(){
     return osctime;
 }
 
+static AooNtpTime g_start_time;
+
+double get_elapsed_ms(AooNtpTime tt) {
+    return aoo::time_tag::duration(g_start_time, tt);
+}
+
 void aoo_send_tilde_setup(void);
 void aoo_receive_tilde_setup(void);
 void aoo_node_setup(void);
@@ -180,6 +186,8 @@ extern "C" EXPORT void aoo_setup(void)
     }
 
     post("");
+
+    g_start_time = aoo::time_tag::now();
 
     aoo_dejitter_setup();
     aoo_node_setup();

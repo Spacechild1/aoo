@@ -152,6 +152,11 @@ void AooReceive::handleEvent(const AooEvent *event){
         sendMsgRT(msg);
         break;
     }
+    case kAooEventStreamTime:
+    {
+        // TODO
+        break;
+    }
     case kAooEventBlockDrop:
     {
         beginEvent(msg, "/block/dropped", event->blockDrop.endpoint);

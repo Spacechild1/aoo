@@ -24,6 +24,8 @@
 
 uint64_t get_osctime();
 
+double get_elapsed_ms(AooNtpTime tt);
+
 struct t_dejitter;
 
 t_dejitter *dejitter_get();
