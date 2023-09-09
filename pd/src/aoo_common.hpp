@@ -20,6 +20,17 @@
 
 #define DEJITTER_DEBUG 0 // debug dejitter algorithm
 
+// compatibility with older versions of "m_pd.h"
+#if PD_MINOR_VERSION < 52
+typedef enum {
+    PD_CRITICAL = 0,
+    PD_ERROR,
+    PD_NORMAL,
+    PD_DEBUG,
+    PD_VERBOSE
+} t_loglevel;
+#endif
+
 /*///////////////////////////// OSC time ///////////////////////////////*/
 
 uint64_t get_osctime();

@@ -290,7 +290,9 @@ std::pair<bool, std::string> check_ntp_server()
 
 #else
 
-bool check_ntp_server(std::string &msg) { return true; }
+std::pair<bool, std::string> check_ntp_server() {
+    return std::make_pair(true, "");
+}
 
 #endif
 
