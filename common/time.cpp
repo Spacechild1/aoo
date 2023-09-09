@@ -208,17 +208,17 @@ static bool service_running(const char *service)
     return running;
 }
 
-bool check_ntp_server(std::string& msg)
+std::pair<bool, std::string> check_ntp_server()
 {
     char buf[256];
     HKEY w32time = nullptr;
     HKEY timeProviders = nullptr;
     bool result = false;
+    std::string msg;
 
     try {
         if (!service_running("W32Time")){
-            msg = "Windows time server is not running!";
-            return false;
+            return std::make_pair(false, "Windows time server is not running!");
         }
 
         w32time = reg_openkey(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\services\\W32Time");
@@ -285,7 +285,7 @@ bool check_ntp_server(std::string& msg)
         RegCloseKey(timeProviders);
     }
 
-    return result;
+    return std::make_pair(result, std::move(msg));
 }
 
 #else

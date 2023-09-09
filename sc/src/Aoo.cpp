@@ -469,8 +469,7 @@ PluginLoad(Aoo) {
     Print("AOO (audio over OSC) %s\n", aoo_getVersionString());
     Print("  (c) 2020 Christof Ressi, Winfried Ritsch, et al.\n");
 
-    std::string msg;
-    if (aoo::check_ntp_server(msg)){
+    if (auto [ok, msg] = aoo::check_ntp_server(); ok){
         Print("%s\n", msg.c_str());
     } else {
         Print("ERROR: %s\n", msg.c_str());

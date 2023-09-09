@@ -97,6 +97,6 @@ private:
 
 //----------------- NTP server -----------------------//
 
-bool check_ntp_server(std::string& msg);
+std::pair<bool, std::string> check_ntp_server();
 
 } // aoo

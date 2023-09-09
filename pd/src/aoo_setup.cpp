@@ -173,8 +173,7 @@ extern "C" EXPORT void aoo_setup(void)
 
     aoo_initialize(NULL);
 
-    std::string msg;
-    if (aoo::check_ntp_server(msg)){
+    if (auto [ok, msg] = aoo::check_ntp_server(); ok){
         post("%s", msg.c_str());
     } else {
         pd_error(0, "%s", msg.c_str());
