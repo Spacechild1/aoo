@@ -118,15 +118,20 @@ private:
 
 class received_message {
 public:
-    received_message(int32_t seq = kAooIdInvalid) : sequence_(seq) {
+    received_message(int32_t seq = kAooIdInvalid)
+        : sequence_(seq) {
         // so that complete() will return false
         frames_.set();
     }
-    void init(int32_t seq, int32_t nframes, int32_t size) {
+    void init(int32_t seq, AooDataType type, time_tag tt,
+              int32_t nframes, int32_t size) {
         sequence_ = seq;
-        init(nframes, size);
+        init(type, tt, nframes, size);
     }
-    void init(int32_t nframes, int32_t size) {
+    void init(AooDataType type, time_tag tt,
+              int32_t nframes, int32_t size) {
+        type_ = type;
+        tt_ = tt;
         buffer_.resize(size);
         nframes_ = nframes;
         frames_.reset();
@@ -138,10 +143,6 @@ public:
     }
     bool initialized() const {
         return nframes_ > 0;
-    }
-    void set_info(AooDataType type, time_tag tt) {
-        type_ = type;
-        tt_ = tt;
     }
     // methods
     AooDataType type() const { return type_; }

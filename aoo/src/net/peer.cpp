@@ -456,7 +456,6 @@ void peer::send_packet_bin(const message_packet& p, const sendfn& fn) const {
         aoo::write_bytes<int32_t>(p.nframes, ptr);
         aoo::write_bytes<int32_t>(p.frame, ptr);
     }
-    // only send type and timetag with first frame
     if (flags & kAooBinMsgMessageTimestamp) {
         aoo::write_bytes<uint64_t>(p.tt, ptr);
     }
@@ -760,12 +759,8 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
                       << ", frame: " << p.frame << ") from " << *this);
         #endif
             auto& msg = receive_buffer_.push(received_message(p.sequence));
-            msg.init(p.nframes, p.totalsize);
+            msg.init(p.type, p.tt, p.nframes, p.totalsize);
             msg.add_frame(p.frame, p.data, p.size);
-            if (p.frame == 0) {
-                assert(p.type != kAooDataUnspecified);
-                msg.set_info(p.type, p.tt);
-            }
         } else {
             // add to existing message
         #if AOO_DEBUG_CLIENT_MESSAGE
@@ -774,14 +769,10 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
         #endif
             if (auto msg = receive_buffer_.find(p.sequence)) {
                 if (!msg->initialized()) {
-                    msg->init(p.nframes, p.totalsize);
+                    msg->init(p.type, p.tt, p.nframes, p.totalsize);
                 }
                 if (!msg->has_frame(p.frame)) {
                     msg->add_frame(p.frame, p.data, p.size);
-                    if (p.frame == 0) {
-                        assert(p.type != kAooDataUnspecified);
-                        msg->set_info(p.type, p.tt);
-                    }
                 } else {
                 #if AOO_DEBUG_CLIENT_MESSAGE
                     LOG_DEBUG("AooClient: ignore duplicate message (seq: " << p.sequence
@@ -818,13 +809,9 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
                 LOG_DEBUG("AooClient: new multi-frame message from " << *this);
             #endif
                 // start new message (any incomplete previous message is discarded!)
-                current_msg_.init(p.sequence, p.nframes, p.totalsize);
+                current_msg_.init(p.sequence, p.type, p.tt, p.nframes, p.totalsize);
             }
             current_msg_.add_frame(p.frame, p.data, p.size);
-            if (p.frame == 0) {
-                assert(p.type != kAooDataUnspecified);
-                current_msg_.set_info(p.type, p.tt);
-            }
             if (current_msg_.complete()) {
                 AooData d { current_msg_.type(), current_msg_.data(), (AooSize)current_msg_.size() };
                 auto e = std::make_unique<peer_message_event>(
