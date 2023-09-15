@@ -240,14 +240,16 @@ void t_aoo_client::send_message(int argc, t_atom *argv, AooId group, AooId user)
     }
     argv++; argc--;
 
-    // schedule OSC message as bundle (not needed for OSC bundles!)
     aoo::time_tag time;
     if (x_offset >= 0) {
         // make timetag relative to current OSC time
         aoo::time_tag now = x_dejitter ? dejitter_osctime(x_dejitter) : get_osctime();
         time = now + aoo::time_tag::from_seconds(x_offset * 0.001);
     } else {
+        // use empty timetag to save space
+#if 0
         time = aoo::time_tag::immediate();
+#endif
     }
 
     auto buf = (AooByte *)alloca(argc);

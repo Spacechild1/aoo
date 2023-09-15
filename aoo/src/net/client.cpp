@@ -1261,8 +1261,8 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
                 m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
             }
             // 2) server group relay
-            if (relay.port > 0) {
-                auto addrlist = ip_address::resolve(cmd.relay_.name, cmd.relay_.port,
+            if (relay) {
+                auto addrlist = ip_address::resolve(relay->hostName, relay->port,
                                                     family, ipv4mapped);
                 m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
             }
@@ -1286,10 +1286,10 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
         response.groupFlags = group_flags;
         response.userId = user_id;
         response.userFlags = user_flags;
-        response.groupMetadata = group_md.size ? &group_md : nullptr;
-        response.userMetadata = user_md.size ? &user_md : nullptr;
-        response.privateMetadata = private_md.size ? &private_md : nullptr;
-        response.relayAddress = relay.port > 0 ? &relay : nullptr;
+        response.groupMetadata = group_md ? &group_md.value() : nullptr;
+        response.userMetadata = user_md ? &user_md.value() : nullptr;
+        response.privateMetadata = private_md ? &private_md.value() : nullptr;
+        response.relayAddress = relay ? &relay.value() : nullptr;
 
         cmd.reply((AooResponse&)response);
         LOG_VERBOSE("AooClient: successfully joined group " << cmd.group_name_);
@@ -1716,7 +1716,7 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
             response.clientId = id;
             response.flags = flags;
             response.version = version;
-            response.metadata = metadata.data ? &metadata : nullptr;
+            response.metadata = metadata ? &metadata.value() : nullptr;
 
             connection_->reply((AooResponse&)response);
         } else {
@@ -1732,12 +1732,15 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
 
 void Client::handle_server_notification(const osc::ReceivedMessage& msg) {
     auto it = msg.ArgumentsBegin();
-    auto message = osc_read_metadata(it);
+    auto data = osc_read_metadata(it);
+    if (!data) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
-    auto e = std::make_unique<notification_event>(message);
+    auto e = std::make_unique<notification_event>(*data);
     send_event(std::move(e));
 
-    LOG_DEBUG("AooClient: received server notification (" << message.type << ")");
+    LOG_DEBUG("AooClient: received server notification (" << data->type << ")");
 }
 
 void Client::handle_group_eject(const osc::ReceivedMessage& msg) {
@@ -1775,8 +1778,11 @@ void Client::handle_group_changed(const osc::ReceivedMessage& msg) {
     auto group = (it++)->AsInt32();
     auto user = (it++)->AsInt32();
     auto md = osc_read_metadata(it);
+    if (!md) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
-    auto e = std::make_unique<group_update_event>(group, user, md);
+    auto e = std::make_unique<group_update_event>(group, user, *md);
     send_event(std::move(e));
 
     LOG_VERBOSE("AooClient: group " << group << " has been updated");
@@ -1787,8 +1793,11 @@ void Client::handle_user_changed(const osc::ReceivedMessage& msg) {
     auto group = (it++)->AsInt32();
     auto user = (it++)->AsInt32();
     auto md = osc_read_metadata(it);
+    if (!md) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
-    auto e = std::make_unique<user_update_event>(group, user, md);
+    auto e = std::make_unique<user_update_event>(group, user, *md);
     send_event(std::move(e));
 
     LOG_VERBOSE("AooClient: user " << user << " has been updated");
@@ -1859,13 +1868,14 @@ void Client::handle_peer_add(const osc::ReceivedMessage& msg){
     auto family = udp_client_.address_family();
     auto use_ipv4_mapped = udp_client_.use_ipv4_mapped();
     ip_address_list user_relay;
-    if (relay.port > 0) {
-        user_relay = aoo::ip_address::resolve(relay.hostName, relay.port, family, use_ipv4_mapped);
+    if (relay) {
+        user_relay = aoo::ip_address::resolve(relay->hostName, relay->port,
+                                              family, use_ipv4_mapped);
         // add to group relay list
         auto& list = membership->relay_list;
         list.insert(list.end(), user_relay.begin(), user_relay.end());
     }
-    auto md = metadata.size > 0 ? &metadata : nullptr;
+    auto md = metadata ? &metadata.value() : nullptr;
 
     auto peer = peers_.emplace_front(group_name, group_id, user_name, user_id,
                                      version, flags, md, family, use_ipv4_mapped,
@@ -1938,11 +1948,14 @@ void Client::handle_peer_changed(const osc::ReceivedMessage& msg) {
     auto group = (it++)->AsInt32();
     auto user = (it++)->AsInt32();
     auto md = osc_read_metadata(it);
+    if (!md) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
     peer_lock lock(peers_);
     for (auto& peer : peers_) {
         if (peer.match(group, user)) {
-            auto e = std::make_unique<peer_update_event>(group, user, md);
+            auto e = std::make_unique<peer_update_event>(group, user, *md);
             send_event(std::move(e));
 
             LOG_VERBOSE("AooClient: peer " << peer << " has been updated");

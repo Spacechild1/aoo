@@ -727,7 +727,12 @@ public:
                 AooResponseCustom response;
                 AOO_RESPONSE_INIT(&response, Custom, flags);
                 response.flags = (AooFlag)(it++)->AsInt32();
-                response.data = osc_read_metadata(it);
+                auto data = osc_read_metadata(it);
+                if (data) {
+                    response.data = *data;
+                } else {
+                    throw osc::MalformedMessageException("missing data");
+                }
 
                 reply((AooResponse&)response);
             } else {

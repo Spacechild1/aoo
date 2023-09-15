@@ -39,8 +39,8 @@ Start a new stream.
 |  `t`  | start time (NTP)                    |
 |  `i`  | reblock/resample latency (samples)  |
 |  `i`  | codec delay (samples)               |
-| [`i`] | [metadata type](#4.2-data-types)    |
-| [`b`] | metadata content                    |
+| (`i`) | [metadata type](#4.2-data-types)    |
+| (`b`) | metadata content                    |
 
 ---
 
@@ -89,19 +89,19 @@ Send stream data.
 
 ### Arguments:
 
-| type | description            |
-| ---: | ---------------------- |
-|  `i` | source ID              |
-|  `i` | stream ID              |
-|  `i` | sequence number        |
-|  `t` | time stamp             |
-|  `d` | real sample rate       |
-|  `i` | channel onset          |
-|  `i` | total data size        |
-|  `i` | message data size      |
-|  `i` | total number of frames |
-|  `i` | frame index            |
-|  `b` | data content           |
+| type  | description            |
+| ----: | ---------------------- |
+|  `i`  | source ID              |
+|  `i`  | stream ID              |
+|  `i`  | sequence number        |
+| (`t`) | time stamp             |
+| (`d`) | real sample rate       |
+|  `i`  | channel onset          |
+|  `i`  | total data size        |
+| (`i`) | message data size      |
+| (`i`) | total number of frames |
+| (`i`) | frame index            |
+| (`b`) | data content           |
 
 ---
 
@@ -133,8 +133,8 @@ Invite a source.
 | ----: | -------------------------------- |
 |  `i`  | sink ID                          |
 |  `i`  | stream ID                        |
-| [`i`] | [metadata type](#4.2-data-types) |
-| [`b`] | metadata content                 |
+| (`i`) | [metadata type](#4.2-data-types) |
+| (`b`) | metadata content                 |
 
 ---
 
@@ -206,13 +206,13 @@ Send a ping to a peer.
 
 ### Arguments:
 
-| type | description      |
-| ---: | ---------------- |
-|  `i` | group ID         |
-|  `i` | user ID (sender) |
-|  `t` | timestamp        |
+| type  | description      |
+| ----: | ---------------- |
+|  `i`  | group ID         |
+|  `i`  | user ID (sender) |
+| (`t`) | timestamp        |
 
-Note: *timestamp* is empty (0) in handshake pings.
+Note: *timestamp* is `nil` in handshake pings.
 
 ---
 
@@ -222,14 +222,14 @@ Reply to ping message.
 
 ### Arguments:
 
-| type | description          |
-| ---: | -------------------- |
-|  `i` | group ID             |
-|  `i` | user ID (sender)     |
-|  `t` | timestamp 1 (remote) |
-|  `t` | timestamp 2 (local)  |
+| type  | description          |
+| ----: | -------------------- |
+|  `i`  | group ID             |
+|  `i`  | user ID (sender)     |
+| (`t`) | timestamp 1 (remote) |
+| (`t`) | timestamp 2 (local)  |
 
-Note: Both *timestamps* are empty (0) in handshake pongs.
+Note: *timestamp 1* and *timestamp 2* are `nil` in handshake pongs.
 
 ---
 
@@ -239,18 +239,18 @@ Send a message to a peer.
 
 ### Arguments:
 
-| type | description                      |
-| ---: | -------------------------------- |
-|  `i` | group ID                         |
-|  `i` | peer ID (sender)                 |
-|  `i` | flags                            |
-|  `i` | sequence number                  |
-|  `i` | total message size               |
-|  `i` | number of frames                 |
-|  `i` | frame index                      |
-|  `t` | timetag                          |
-|  `i` | [message type](#4.2-data-types)  |
-|  `b` | message content                  |
+| type  | description                      |
+| ----: | -------------------------------- |
+|  `i`  | group ID                         |
+|  `i`  | peer ID (sender)                 |
+|  `i`  | flags                            |
+|  `i`  | sequence number                  |
+|  `i`  | total message size               |
+| (`i`) | number of frames                 |
+| (`i`) | frame index                      |
+| (`t`) | timetag                          |
+|  `i`  | [message type](#4.2-data-types)  |
+|  `b`  | message content                  |
 
 Possible values for *flags*:
 
@@ -360,8 +360,8 @@ Login to server.
 | [`s`] | IP address 2                     |
 | [`i`] | port 2                           |
 |  ...  | ...                              |
-| [`i`] | [metadata type](#4.2-data-types) |
-| [`b`] | metadata content                 |
+| (`i`) | [metadata type](#4.2-data-types) |
+| (`b`) | metadata content                 |
 
 ---
 
@@ -380,8 +380,8 @@ Login response.
     |  `s`  | version string                   |
     |  `i`  | client ID                        |
     |  `i`  | flags                            |
-    | [`i`] | [metadata type](#4.2-data-types) |
-    | [`b`] | metadata content                 |
+    | (`i`) | [metadata type](#4.2-data-types) |
+    | (`b`) | metadata content                 |
 
 2. failure: see [3.1.1 Error response](#2.1.1-error-response)
 
@@ -404,12 +404,12 @@ Join a group on the server.
 |  `s`  | group password (encrypted)             |
 |  `s`  | user name                              |
 |  `s`  | user password (encrypted)              |
-| [`i`] | group [metadata type](#4.2-data-types) |
-| [`b`] | group metadata content                 |
-| [`i`] | user [metadata type](#4.2-data-types)  |
-| [`b`] | user metadata content                  |
-| [`s`] | relay hostname                         |
-| [`i`] | relay port                             |
+| (`i`) | group [metadata type](#4.2-data-types) |
+| (`b`) | group metadata content                 |
+| (`i`) | user [metadata type](#4.2-data-types)  |
+| (`b`) | user metadata content                  |
+| (`s`) | relay hostname                         |
+| (`i`) | relay port                             |
 
 ---
 
@@ -429,14 +429,14 @@ Group join response.
     |  `i`  | group flags                              |
     |  `i`  | user ID                                  |
     |  `i`  | user flags                               |
-    | [`i`] | group [metadata type](#4.2-data-types)   |
-    | [`b`] | group metadata content                   |
-    | [`i`] | user [metadata type](#4.2-data-types)    |
-    | [`b`] | user metadata content                    |
-    | [`i`] | private [metadata type](#4.2-data-types) |
-    | [`b`] | private metadata content                 |
-    | [`s`] | group relay hostname                     |
-    | [`i`] | group relay port                         |
+    | (`i`) | group [metadata type](#4.2-data-types)   |
+    | (`b`) | group metadata content                   |
+    | (`i`) | user [metadata type](#4.2-data-types)    |
+    | (`b`) | user metadata content                    |
+    | (`i`) | private [metadata type](#4.2-data-types) |
+    | (`b`) | private metadata content                 |
+    | (`s`) | group relay hostname                     |
+    | (`i`) | group relay port                         |
 
 2. failure: see [3.1.1 Error response](#2.1.1-error-response)
 
@@ -616,10 +616,10 @@ A peer has joined the group.
 | [`s`] | IP address 2                     |
 | [`i`] | port 2                           |
 |  ...  | ...                              |
-| [`i`] | [metadata type](#4.2-data-types) |
-| [`b`] | metadata content                 |
-| [`s`] | relay hostname                   |
-| [`i`] | relay port                       |
+| (`i`) | [metadata type](#4.2-data-types) |
+| (`b`) | metadata content                 |
+| (`s`) | relay hostname                   |
+| (`i`) | relay port                       |
 
 ---
 

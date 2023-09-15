@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <type_traits>
+#include <optional>
 
 namespace aoo {
 
@@ -177,6 +178,10 @@ struct metadata {
     AooDataType type() const { return type_; }
     const AooByte *data() const { return data_.data(); }
     AooSize size() const { return data_.size(); }
+
+    bool valid() const {
+        return type_ != kAooDataUnspecified;
+    }
 private:
     AooDataType type_ = kAooDataUnspecified;
     std::vector<AooByte> data_;
@@ -199,16 +204,19 @@ struct metadata_view {
 };
 
 inline osc::OutboundPacketStream& operator<<(osc::OutboundPacketStream& msg, const metadata_view& md) {
-    if (md.size > 0) {
+    if (md.type != kAooDataUnspecified) {
         msg << md.type << osc::Blob(md.data, md.size);
     } else {
-        msg << kAooDataUnspecified << osc::Blob(nullptr, 0);
+        msg << osc::Nil << osc::Nil;
     }
     return msg;
 }
 
-inline AooData osc_read_metadata(osc::ReceivedMessageArgumentIterator& it) {
-    try {
+inline std::optional<AooData> osc_read_metadata(osc::ReceivedMessageArgumentIterator& it) {
+    if (it->IsNil()) {
+        it++; it++;
+        return std::nullopt;
+    } else {
         auto type = (it++)->AsInt32();
         const void *blobdata;
         osc::osc_bundle_element_size_t blobsize;
@@ -216,13 +224,9 @@ inline AooData osc_read_metadata(osc::ReceivedMessageArgumentIterator& it) {
         if (blobsize > 0) {
             return AooData { type, (const AooByte *)blobdata, (AooSize)blobsize };
         } else {
-            return AooData { type, nullptr, 0 };
+            // TODO: are there legitimate use cases for empty metdata?
+            throw osc::MalformedMessageException("metadata with empty content");
         }
-    } catch (const osc::MissingArgumentException&) {
-    #if 0
-        LOG_DEBUG("metadata argument not provided");
-    #endif
-        return AooData { kAooDataUnspecified, nullptr, 0 };
     }
 }
 

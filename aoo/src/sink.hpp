@@ -168,7 +168,7 @@ public:
                           int32_t format_id, const AooFormat& f,
                           const AooByte *ext_data, int32_t ext_size,
                           aoo::time_tag tt, int32_t latency, int32_t codec_delay,
-                          const AooData *md);
+                          const std::optional<AooData>& md);
 
     AooError handle_stop(const Sink& s, int32_t stream);
 

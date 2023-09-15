@@ -186,7 +186,8 @@ struct ip_host {
     int port = 0;
 
     bool valid() const {
-        return !name.empty() && port > 0;
+        // NB: name might be empty (= origin)!
+        return port > 0;
     }
 
     bool operator==(const ip_host& other) const {
@@ -198,20 +199,29 @@ struct ip_host {
     }
 };
 
-inline osc::OutboundPacketStream& operator<<(osc::OutboundPacketStream& msg, const ip_host& addr) {
-    msg << addr.name.c_str() << addr.port;
+inline osc::OutboundPacketStream& operator<<(osc::OutboundPacketStream& msg, const ip_host& host) {
+    if (host.valid()) {
+        msg << host.name.c_str() << host.port;
+    } else {
+        msg << osc::Nil << osc::Nil;
+    }
     return msg;
 }
 
-inline AooIpEndpoint osc_read_host(osc::ReceivedMessageArgumentIterator& it) {
-    try {
+inline std::optional<AooIpEndpoint> osc_read_host(osc::ReceivedMessageArgumentIterator& it) {
+    if (it->IsNil()) {
+        it++; it++;
+        return std::nullopt;
+    } else {
         AooIpEndpoint ep;
         ep.hostName = (it++)->AsString();
         ep.port = (it++)->AsInt32();
-        return ep;
-    } catch (const osc::MissingArgumentException&) {
-        LOG_DEBUG("host argument not provided");
-        return AooIpEndpoint { "", 0 };
+        // NB: empty string is allowed (= origin)!
+        if (ep.port > 0) {
+            return ep;
+        } else {
+            throw osc::MalformedPacketException("bad port argument for IP endpoint");
+        }
     }
 }
 

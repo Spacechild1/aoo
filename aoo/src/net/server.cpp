@@ -1021,7 +1021,7 @@ void Server::handle_login(client_endpoint& client, const osc::ReceivedMessage& m
     AOO_REQUEST_INIT(&request, Login, metadata);
     request.version = version;
     request.password = pwd;
-    request.metadata = metadata.data ? &metadata : nullptr;
+    request.metadata = metadata ? &metadata.value() : nullptr;
     // check version
     if (auto err = check_version(version); err != kAooOk) {
         LOG_DEBUG("AooServer: client " << client.id() << ": version mismatch");
@@ -1098,12 +1098,12 @@ void Server::handle_group_join(client_endpoint& client, const osc::ReceivedMessa
     request.groupName = group_name;
     request.groupPwd = group_pwd;
     request.groupId = kAooIdInvalid; // to be created (override later)
-    request.groupMetadata = group_md.size ? &group_md : nullptr;
+    request.groupMetadata = group_md ? &group_md.value() : nullptr;
     request.userName = user_name;
     request.userPwd = user_pwd;
     request.userId = kAooIdInvalid; // to be created (override later)
-    request.userMetadata = user_md.size ? &user_md : nullptr;
-    request.relayAddress = relay.port > 0 ? &relay : nullptr;
+    request.userMetadata = user_md ? &user_md.value() : nullptr;
+    request.relayAddress = relay ? &relay.value() : nullptr;
 
     auto grp = find_group(request.groupName);
     user *usr = nullptr;
@@ -1302,11 +1302,14 @@ void Server::handle_group_update(client_endpoint& client, const osc::ReceivedMes
     auto token = (AooId)(it++)->AsInt32();
     auto group_id = (it++)->AsInt32();
     auto md = osc_read_metadata(it);
+    if (!md) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
     AooRequestGroupUpdate request;
     AOO_REQUEST_INIT(&request, GroupUpdate, groupMetadata);
     request.groupId = group_id;
-    request.groupMetadata = md;
+    request.groupMetadata = *md;
 
     auto grp = find_group(request.groupId);
     if (!grp) {
@@ -1382,11 +1385,14 @@ void Server::handle_user_update(client_endpoint& client, const osc::ReceivedMess
     auto token = (AooId)(it++)->AsInt32();
     auto group_id = (it++)->AsInt32();
     auto md = osc_read_metadata(it);
+    if (!md) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
     AooRequestUserUpdate request;
     AOO_REQUEST_INIT(&request, UserUpdate, userMetadata);
     request.groupId = group_id;
-    request.userMetadata = md;
+    request.userMetadata = *md;
 
     auto grp = find_group(request.groupId);
     if (!grp) {
@@ -1461,10 +1467,13 @@ void Server::handle_custom_request(client_endpoint& client, const osc::ReceivedM
     auto token = (AooId)(it++)->AsInt32();
     auto flags = (it++)->AsInt32();
     auto data = osc_read_metadata(it);
+    if (!data) {
+        throw osc::MalformedMessageException("missing data");
+    }
 
     AooRequestCustom request;
     AOO_REQUEST_INIT(&request, Custom, flags);
-    request.data = data;
+    request.data = *data;
     request.flags = flags;
 
     if (!handle_request(client, token, (AooRequest&)request)) {

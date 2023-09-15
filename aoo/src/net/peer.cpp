@@ -142,16 +142,16 @@ void peer::send(Client& client, const sendfn& fn, time_tag now,
 
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
-            // /aoo/peer/ping <group> <user> <tt>
-            // NB: we send *our* user ID, see above. The empty timetag
-            // distinguishes a handshake ping from a regular ping!
+            // /aoo/peer/ping <group> <user> nil
+            // NB: we send *our* user ID, see above. The protocol asks as to send 'nil'
+            // instead of a timetag to dinstinguish a handshake ping from a regular ping!
             //
             // With the group and user ID, peers can identify us even if
             // we're behind a symmetric NAT. This trick doesn't work
             // if both parties are behind a symmetrict NAT; in that case,
             // UDP hole punching simply doesn't work.
             msg << osc::BeginMessage(kAooMsgPeerPing)
-                << group_id_ << local_id_ << osc::TimeTag(0)
+                << group_id_ << local_id_ << osc::Nil
                 << osc::EndMessage;
 
             for (auto& addr : addrlist_) {
@@ -224,8 +224,7 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
     // 2) reply to /ping message
     // NB: we send *our* user ID, see above.
     if (got_ping_.exchange(false, std::memory_order_acquire)) {
-        // The empty timetag distinguishes a handshake
-        // pong from a regular pong.
+        // The empty timetag distinguishes a handshake pong from a regular pong.
         auto tt1 = ping_tt1_;
         if (!tt1.is_empty()) {
             // regular pong
@@ -242,11 +241,12 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
                       << " (" << time_tag(tt1) << " " << now << ")");
         } else {
             // handshake pong
+            // NB: The protocol asks as to send 'nil' instead of timetags.
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage(kAooMsgPeerPong)
                 << group_id_ << local_id_
-                << osc::TimeTag(0) << osc::TimeTag(0)
+                << osc::Nil << osc::Nil
                 << osc::EndMessage;
 
             send(msg, fn);
@@ -411,8 +411,20 @@ void peer::send_packet_osc(const message_packet& p, const sendfn& fn) const {
     // NB: we send *our* ID (= the sender)
     msg << osc::BeginMessage(kAooMsgPeerMessage)
         << group_id() << local_id() << (int32_t)flags
-        << p.sequence << p.totalsize << p.nframes << p.frame
-        << osc::TimeTag(p.tt) << p.type << osc::Blob(p.data, p.size)
+        << p.sequence << p.totalsize;
+    // frames
+    if (p.nframes > 1) {
+        msg << p.nframes << p.frame;
+    } else {
+        msg << osc::Nil << osc::Nil;
+    }
+    // timetag
+    if (!p.tt.is_empty()) {
+        msg << osc::TimeTag(p.tt);
+    } else {
+        msg << osc::Nil;
+    }
+    msg << p.type << osc::Blob(p.data, p.size)
         << osc::EndMessage;
     send(msg, fn);
 }
@@ -420,13 +432,20 @@ void peer::send_packet_osc(const message_packet& p, const sendfn& fn) const {
 void peer::send_packet_bin(const message_packet& p, const sendfn& fn) const {
     AooByte buf[AOO_MAX_PACKET_SIZE];
 
-    AooFlag flags = (p.reliable * kAooBinMsgMessageReliable) |
-            ((p.nframes > 1) * kAooBinMsgMessageFrames) |
-            ((!p.tt.is_empty()) * kAooBinMsgMessageTimestamp);
+    AooFlag flags = 0;
+    if (p.reliable) {
+        flags |= kAooBinMsgMessageReliable;
+    }
+    if (p.nframes > 1) {
+        flags |= kAooBinMsgMessageFrames;
+    }
+    if (!p.tt.is_empty()) {
+        flags |= kAooBinMsgMessageTimestamp;
+    }
 
     // NB: we send *our* user ID
-    auto offset = aoo::binmsg_write_header(buf, sizeof(buf), kAooMsgTypePeer,
-                                           kAooBinMsgCmdMessage, group_id(), local_id());
+    auto offset = aoo::binmsg_write_header(
+        buf, sizeof(buf), kAooMsgTypePeer, kAooBinMsgCmdMessage, group_id(), local_id());
     auto ptr = buf + offset;
     auto end = buf + sizeof(buf);
     aoo::write_bytes<int32_t>(p.sequence, ptr);
@@ -554,7 +573,8 @@ void peer::handle_ping(Client& client, osc::ReceivedMessageArgumentIterator it,
 
     ping_timer_.pong();
 
-    time_tag tt1 = (it++)->AsTimeTag();
+    // NB: 'nil' indicates a handshake ping; internally we use an empty timetag as sentinel.
+    time_tag tt1 = !it->IsNil() ? it->AsTimeTag() : 0;
     // reply to both handshake and regular pings!!!
     // otherwise, the handshake might fail on the other side.
     // This is not 100% threadsafe, but regular pings will never
@@ -579,9 +599,13 @@ void peer::handle_pong(Client& client, osc::ReceivedMessageArgumentIterator it,
 
     ping_timer_.pong();
 
-    time_tag tt1 = (it++)->AsTimeTag();
-    if (!tt1.is_empty()) {
+    // 'nil' indicates a handshake pong
+    if (it->IsNil()) {
+        // handshake pong
+        LOG_DEBUG("AooClient: got handshake pong from " << *this);
+    } else {
         // regular pong
+        time_tag tt1 = (it++)->AsTimeTag();
         time_tag tt2 = (it++)->AsTimeTag();
         time_tag tt3 = time_tag::now();
 
@@ -609,9 +633,6 @@ void peer::handle_pong(Client& client, osc::ReceivedMessageArgumentIterator it,
         LOG_DEBUG("AooClient: got pong from " << *this
                   << "(tt1: " << tt1 << ", tt2: " << tt2 << ", tt3: " << tt3
                   << ", rtt: " << rtt << ", average: " << average_rtt_.load() << ")");
-    } else {
-        // handshake pong
-        LOG_DEBUG("AooClient: got handshake pong from " << *this);
     }
 }
 
@@ -621,13 +642,27 @@ void peer::handle_client_message(Client &client, osc::ReceivedMessageArgumentIte
     message_packet p;
     p.sequence = (it++)->AsInt32();
     p.totalsize = (it++)->AsInt32();
-    p.nframes = (it++)->AsInt32();
-    p.frame = (it++)->AsInt32();
-    p.tt = (time_tag)(it++)->AsTimeTag();
+    // frames
+    if (!it->IsNil()) {
+        p.nframes = (it++)->AsInt32();
+        p.frame = (it++)->AsInt32();
+    } else {
+        p.nframes = 1; it++;
+        p.frame = 0; it++;
+    }
+    if (!it->IsNil()) {
+        p.tt = (it++)->AsTimeTag();
+    } else {
+        p.tt = 0; it++;
+    }
     auto data = osc_read_metadata(it);
-    p.type = data.type;
-    p.data = data.data;
-    p.size = data.size;
+    if (data) {
+        p.type = data->type;
+        p.data = data->data;
+        p.size = data->size;
+    } else {
+        throw osc::MalformedMessageException("missing data");
+    }
 
     // tell the send thread that it should answer with OSC messages
     binary_.store(false, std::memory_order_relaxed);

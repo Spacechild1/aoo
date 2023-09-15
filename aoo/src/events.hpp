@@ -100,7 +100,8 @@ struct sink_add_event : endpoint_event<AooEventEndpoint> {
 struct invite_event : endpoint_event<AooEventInvite> {
     RT_CLASS(invite_event)
 
-    invite_event(const ip_address& addr, AooId id, AooId token, const AooData *md)
+    invite_event(const ip_address& addr, AooId id, AooId token,
+                 const std::optional<AooData>& md)
         : endpoint_event(BASE_EVENT(AooEventInvite, metadata), addr, id) {
         this->token = token;
         if (md) {

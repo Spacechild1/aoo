@@ -813,7 +813,7 @@ void Sink::handle_xrun(int32_t nsamples) {
 
 // /aoo/sink/<id>/start <src> <version> <stream_id> <flags> <lastformat>
 // <nchannels> <samplerate> <blocksize> <codec> <options>
-// [<metadata_type> <metadata_content>]
+// (<metadata_type>) (<metadata_content>)
 AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
                                     const ip_address& addr)
 {
@@ -852,7 +852,7 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
     auto latency = (it++)->AsInt32();
     auto codec_delay = (it++)->AsInt32();
 
-    AooData metadata = osc_read_metadata(it); // optional
+    auto metadata = osc_read_metadata(it); // optional
 
     if (id < 0){
         LOG_WARNING("AooSink: bad ID for " << kAooMsgStart << " message");
@@ -869,8 +869,7 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
     }
     return src->handle_start(*this, stream_id, seq_start, format_id, f,
                              (const AooByte *)ext_data, ext_size,
-                             tt, latency, codec_delay,
-                             (metadata.data ? &metadata : nullptr));
+                             tt, latency, codec_delay, metadata);
 }
 
 // /aoo/sink/<id>/stop <src> <stream>
@@ -917,8 +916,8 @@ AooError Sink::handle_decline_message(const osc::ReceivedMessage& msg,
     }
 }
 
-// /aoo/sink/<id>/data <src> <stream_id> <seq> <tt> <sr>
-// <channel_onset> <totalsize> <msgsize> <nframes> <frame> <data>
+// /aoo/sink/<id>/data <src> <stream_id> <seq> (<tt>) (<sr>)
+// <channel_onset> <totalsize> (<msgsize>) (<nframes>) (<frame>) (<data>)
 
 AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
                                    const ip_address& addr)
@@ -928,21 +927,54 @@ AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
     auto id = (it++)->AsInt32();
 
     net_packet d;
+    d.flags = 0;
     d.stream_id = (it++)->AsInt32();
     d.sequence = (it++)->AsInt32();
-    d.tt = (it++)->AsTimeTag();
-    d.samplerate = (it++)->AsDouble();
+    // timestamp
+    if (it->IsNil()) {
+        d.tt = 0; it++;
+    } else {
+        d.tt = (it++)->AsTimeTag();
+        d.flags |= kAooBinMsgDataTimeStamp;
+    }
+    // samplerate
+    if (it->IsNil()) {
+        d.samplerate = 0; it++;
+    } else {
+        d.samplerate = (it++)->AsDouble();
+        d.flags |= kAooBinMsgDataSampleRate;
+    }
     d.channel = (it++)->AsInt32();
     d.totalsize = (it++)->AsInt32();
-    d.msgsize = (it++)->AsInt32();
-    d.nframes = (it++)->AsInt32();
-    d.frame = (it++)->AsInt32();
-    const void *blobdata;
-    osc::osc_bundle_element_size_t blobsize;
-    (it++)->AsBlob(blobdata, blobsize);
-    d.data = (const AooByte *)blobdata;
-    d.size = blobsize;
-    d.flags = 0;
+    // stream message
+    if (it->IsNil()) {
+        d.msgsize = 0; it++;
+    } else {
+        d.msgsize = (it++)->AsInt32();
+        d.flags |= kAooBinMsgDataStreamMessage;
+    }
+    // frames
+    if (it->IsNil()) {
+        d.nframes = 1; it++;
+        d.frame = 0; it++;
+    } else {
+        d.nframes = (it++)->AsInt32();
+        d.frame = (it++)->AsInt32();
+        d.flags |= kAooBinMsgDataStreamMessage;
+    }
+    // data
+    if (it->IsNil()) {
+        // empty block (xrun)
+        d.data = nullptr;
+        d.size = 0;
+        d.flags |= kAooBinMsgDataXRun;
+    } else {
+        const void *blobdata;
+        osc::osc_bundle_element_size_t blobsize;
+        (it++)->AsBlob(blobdata, blobsize);
+        d.data = (const AooByte *)blobdata;
+        d.size = blobsize;
+    }
 
     return handle_data_packet(d, false, addr, id);
 }
@@ -1269,15 +1301,11 @@ void source_desc::add_xrun(double nblocks){
     xrunblocks_ += nblocks;
 }
 
-// /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
-// <format_id> <nchannels> <samplerate> <blocksize> <codec> <options>
-// [<metadata>]
-
 AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq_start,
                                    int32_t format_id, const AooFormat& f,
                                    const AooByte *ext_data, int32_t ext_size,
                                    aoo::time_tag tt, int32_t latency, int32_t codec_delay,
-                                   const AooData *md) {
+                                   const std::optional<AooData>& md) {
     LOG_DEBUG("AooSink: handle start (" << stream_id << ")");
     auto state = state_.load(std::memory_order_acquire);
     if (state == source_state::invite) {
@@ -1534,6 +1562,7 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
 #endif
     // check and fix up samplerate
     if (d.samplerate == 0){
+        assert(d.flags & kAooBinMsgDataSampleRate);
         // no dynamic resampling, just use nominal samplerate
         d.samplerate = format_->sampleRate;
     }

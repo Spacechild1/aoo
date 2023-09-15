@@ -1333,7 +1333,7 @@ void Source::update_historybuffer(){
 
 // /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
 // <format_id> <nchannels> <samplerate> <blocksize> <codec> <extension>
-// <tt> <latency> <codec_delay> [<metadata_type> <metadata_content>]
+// <tt> <latency> <codec_delay> (<metadata_type) (metadata_content>)
 void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
                     int32_t seq_start, int32_t format_id, const AooFormat& f,
                     const AooByte *extension, AooInt32 size,
@@ -1358,6 +1358,8 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
         << osc::TimeTag(tt) << latency << codec_delay;
     if (metadata) {
         msg << metadata->type << osc::Blob(metadata->data, metadata->size);
+    } else {
+        msg << osc::Nil << osc::Nil;
     }
     msg << osc::EndMessage;
 
@@ -1445,6 +1447,7 @@ void Source::dispatch_requests(const sendfn& fn){
 
 void Source::send_start(const sendfn& fn){
 #if 0
+    // a) send /start message as soon as possible
     if (!needstart_.exchange(false, std::memory_order_acquire)) {
         return;
     }
@@ -1455,13 +1458,14 @@ void Source::send_start(const sendfn& fn){
         return;
     }
 #else
+    // b) send /start message only when audio is ready to be send
     if (!needstart_.load(std::memory_order_relaxed)) {
         return;
     }
 
     shared_lock updatelock(update_mutex_); // reader lock!
 
-    // only send /start message once we have data to send
+    // wait until we have data to send
     if (audioqueue_.read_available() == 0) {
         return;
     }
@@ -1553,38 +1557,25 @@ AooSize write_bin_data(AooByte *buffer, AooSize size,
 {
     assert(size >= 32);
 
-    auto flags = d.flags;
-    if (d.samplerate != 0){
-        flags |= kAooBinMsgDataSampleRate;
-    }
-    if (d.nframes > 1){
-        flags |= kAooBinMsgDataFrames;
-    }
-    if (d.msgsize > 0){
-        flags |= kAooBinMsgDataStreamMessage;
-    }
-    if (!d.tt.is_empty()) {
-        flags |= kAooBinMsgDataTimeStamp;
-    }
     // write arguments
     auto it = buffer;
     aoo::write_bytes<int32_t>(stream_id, it);
     aoo::write_bytes<int32_t>(d.sequence, it);
     aoo::write_bytes<uint8_t>(d.channel, it);
-    aoo::write_bytes<uint8_t>(flags, it);
+    aoo::write_bytes<uint8_t>(d.flags, it);
     aoo::write_bytes<uint16_t>(d.size, it);
-    if (flags & kAooBinMsgDataFrames) {
+    if (d.flags & kAooBinMsgDataFrames) {
         aoo::write_bytes<uint32_t>(d.totalsize, it);
         aoo::write_bytes<uint16_t>(d.nframes, it);
         aoo::write_bytes<uint16_t>(d.frame, it);
     }
-    if (flags & kAooBinMsgDataStreamMessage) {
+    if (d.flags & kAooBinMsgDataStreamMessage) {
         aoo::write_bytes<uint32_t>(d.msgsize, it);
     }
-    if (flags & kAooBinMsgDataSampleRate) {
+    if (d.flags & kAooBinMsgDataSampleRate) {
         aoo::write_bytes<double>(d.samplerate, it);
     }
-    if (flags & kAooBinMsgDataTimeStamp) {
+    if (d.flags & kAooBinMsgDataTimeStamp) {
         aoo::write_bytes<uint64_t>(d.tt, it);
     }
     // write audio data
@@ -1596,8 +1587,8 @@ AooSize write_bin_data(AooByte *buffer, AooSize size,
     return (it - buffer);
 }
 
-// /aoo/sink/<id>/data <src> <stream_id> <seq> <tt> <sr> <channel_onset>
-// <totalsize> <msgsize> <nframes> <frame> <data>
+// /aoo/sink/<id>/data <src> <stream_id> <seq> (<tt>) (<sr>) <channel_onset>
+// <totalsize> (<msgsize>) (<nframes>) (<frame>) (<data>)
 
 void send_packet_osc(const endpoint& ep, AooId id, int32_t stream_id,
                      const data_packet& d, const sendfn& fn) {
@@ -1608,9 +1599,34 @@ void send_packet_osc(const endpoint& ep, AooId id, int32_t stream_id,
     snprintf(address, sizeof(address), "%s/%d%s",
              kAooMsgDomain kAooMsgSink, ep.id, kAooMsgData);
 
-    msg << osc::BeginMessage(address) << id << stream_id << d.sequence << osc::TimeTag(d.tt)
-        << d.samplerate << d.channel << d.totalsize << d.msgsize << d.nframes
-        << d.frame << osc::Blob(d.data, d.size) << osc::EndMessage;
+    msg << osc::BeginMessage(address) << id << stream_id << d.sequence;
+    if (d.flags & kAooBinMsgDataTimeStamp) {
+        msg << osc::TimeTag(d.tt);
+    } else {
+        msg << osc::Nil;
+    }
+    if (d.flags & kAooBinMsgDataSampleRate) {
+        msg << d.samplerate;
+    } else {
+        msg << osc::Nil;
+    }
+    msg << d.channel << d.totalsize;
+    if (d.flags & kAooBinMsgDataStreamMessage) {
+        msg << d.msgsize;
+    } else {
+        msg << osc::Nil;
+    }
+    if (d.flags & kAooBinMsgDataFrames) {
+        msg << d.nframes << d.frame;
+    } else {
+        msg << osc::Nil << osc::Nil;
+    }
+    if (d.flags & kAooBinMsgDataXRun) {
+        msg << osc::Nil;
+    } else {
+        msg << osc::Blob(d.data, d.size);
+    }
+    msg << osc::EndMessage;
 
 #if AOO_DEBUG_DATA
     LOG_DEBUG("AooSource: send block: seq = " << d.sequence << ", tt = " << d.tt << ", sr = "
@@ -1769,6 +1785,7 @@ void Source::send_xruns(const sendfn &fn) {
             d.frame = 0;
             d.data = nullptr;
             d.size = 0;
+            // omit all other flags!
             d.flags = kAooBinMsgDataXRun;
 
             // wrap around to prevent signed integer overflow
@@ -1814,7 +1831,7 @@ void Source::send_data(const sendfn& fn){
         // calculate stream timestamp (if required)
         if (auto interval = tt_interval_.load(); interval > 0) {
             // convert interval to blocks
-            int32_t blocks = interval * (double)format_->sampleRate / (double)format_->blockSize;
+            auto blocks = std::max<int32_t>(1, interval * (double)format_->sampleRate / (double)format_->blockSize);
             if ((sequence_ % blocks) == 0) {
                 tt = stream_tt_ + aoo::time_tag::from_seconds(stream_samples_ / (double)samplerate_);
             }
@@ -1952,6 +1969,20 @@ void Source::send_data(const sendfn& fn){
                 (binary ? kBinDataHeaderSize : kDataHeaderSize);
         auto dv = std::div(d.totalsize, maxpacketsize);
         d.nframes = dv.quot + (dv.rem != 0);
+
+        // make flags
+        if (d.samplerate != 0){
+            d.flags |= kAooBinMsgDataSampleRate;
+        }
+        if (d.nframes > 1){
+            d.flags |= kAooBinMsgDataFrames;
+        }
+        if (d.msgsize > 0){
+            d.flags |= kAooBinMsgDataStreamMessage;
+        }
+        if (!d.tt.is_empty()) {
+            d.flags |= kAooBinMsgDataTimeStamp;
+        }
 
         // save block (if we have a history buffer)
         if (history_.capacity() > 0){
@@ -2352,8 +2383,7 @@ void Source::handle_invite(const osc::ReceivedMessage& msg,
     // make sure that the event is only sent once per invitation.
     if (sink->need_invite(token)) {
         // push "invite" event
-        e2 = make_event<invite_event>(
-            addr, id, token, (metadata.data ? &metadata : nullptr));
+        e2 = make_event<invite_event>(addr, id, token, metadata);
     }
 
     lock1.unlock(); // unlock before sending events
