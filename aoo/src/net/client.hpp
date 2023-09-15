@@ -485,9 +485,9 @@ private:
 
     void handle_peer_changed(const osc::ReceivedMessage& msg);
 
-    void handle_peer_add(const osc::ReceivedMessage& msg);
+    void handle_peer_join(const osc::ReceivedMessage& msg);
 
-    void handle_peer_remove(const osc::ReceivedMessage& msg);
+    void handle_peer_leave(const osc::ReceivedMessage& msg);
 
     void handle_ping(const osc::ReceivedMessage& msg);
 

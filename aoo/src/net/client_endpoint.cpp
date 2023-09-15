@@ -131,8 +131,8 @@ void client_endpoint::send_notification(Server& server, const AooData &data) con
     send_message(msg);
 }
 
-void client_endpoint::send_peer_add(Server& server, const group& grp, const user& usr,
-                                    const client_endpoint& client) const {
+void client_endpoint::send_peer_join(Server& server, const group& grp, const user& usr,
+                                     const client_endpoint& client) const {
 
     LOG_DEBUG("AooServer: send peer " << grp << "|" << usr << " " << client.public_addresses().front()
               << " to client " << id() << " " << public_addresses().front());
@@ -151,18 +151,18 @@ void client_endpoint::send_peer_add(Server& server, const group& grp, const user
         << grp.name().c_str() << grp.id()
         << usr.name().c_str() << usr.id()
         << client.version().c_str() << (int32_t)flags
+        << usr.metadata() << usr.relay_addr();
     // IP addresses
-        << (int32_t)client.public_addresses().size();
+    msg << (int32_t)client.public_addresses().size();
     for (auto& addr : client.public_addresses()){
         msg << addr;
     }
-    msg << usr.metadata() << usr.relay_addr()
-        << osc::EndMessage;
+    msg << osc::EndMessage;
 
     send_message(msg);
 }
 
-void client_endpoint::send_peer_remove(Server& server, const group& grp, const user& usr) const {
+void client_endpoint::send_peer_leave(Server& server, const group& grp, const user& usr) const {
     LOG_DEBUG("AooServer: remove peer " << grp.name() << "|" << usr.name());
 
     auto msg = server.start_message();

@@ -1166,12 +1166,13 @@ void Client::perform(const login_cmd& cmd) {
     msg << osc::BeginMessage(kAooMsgServerLogin)
         << token << aoo_getVersionString()
         << encrypt(connection_->pwd_).c_str()
-        << (int32_t)addrlist.size();
+        << connection_->metadata_;
+    // address list
+    msg << (int32_t)addrlist.size();
     for (auto& addr : addrlist){
         msg << addr;
     }
-    msg << connection_->metadata_
-        << osc::EndMessage;
+    msg << osc::EndMessage;
 
     send_server_message(msg);
 }
@@ -1222,12 +1223,14 @@ void Client::perform(const group_join_cmd& cmd)
     auto token = next_token_++;
     pending_requests_.emplace(token, std::make_unique<group_join_cmd>(cmd));
 
-    auto msg = start_server_message(cmd.group_md_.size() + cmd.user_md_.size());
+    auto group_pwd = encrypt(cmd.group_pwd_);
+    auto user_pwd = encrypt(cmd.user_pwd_);
 
+    auto msg = start_server_message(cmd.group_md_.size() + cmd.user_md_.size());
     msg << osc::BeginMessage(kAooMsgServerGroupJoin) << token
-        << cmd.group_name_.c_str() << encrypt(cmd.group_pwd_).c_str()
-        << cmd.user_name_.c_str() << encrypt(cmd.user_pwd_).c_str()
-        << cmd.group_md_ << cmd.user_md_ << cmd.relay_
+        << cmd.group_name_.c_str() << group_pwd.c_str() << cmd.group_md_
+        << cmd.user_name_.c_str() << user_pwd.c_str() << cmd.user_md_
+        << cmd.relay_
         << osc::EndMessage;
 
     send_server_message(msg);
@@ -1240,9 +1243,9 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
     if (result == kAooErrorNone) {
         auto group_id = (it++)->AsInt32();
         auto group_flags = (AooFlag)(it++)->AsInt32();
+        auto group_md = osc_read_metadata(it); // optional
         auto user_id = (it++)->AsInt32();
         auto user_flags = (AooFlag)(it++)->AsInt32();
-        auto group_md = osc_read_metadata(it); // optional
         auto user_md = osc_read_metadata(it); // optional
         auto private_md = osc_read_metadata(it); // optional
         auto relay = osc_read_host(it); // optional
@@ -1639,9 +1642,9 @@ void Client::handle_server_message(const osc::ReceivedMessage& msg, int32_t n){
             } else if (!strcmp(pattern, kAooMsgPong)) {
                 handle_pong(msg);
             } else if (!strcmp(pattern, kAooMsgPeerJoin)) {
-                handle_peer_add(msg);
+                handle_peer_join(msg);
             } else if (!strcmp(pattern, kAooMsgPeerLeave)) {
-                handle_peer_remove(msg);
+                handle_peer_leave(msg);
             } else if (!strcmp(pattern, kAooMsgPeerChanged)) {
                 handle_peer_changed(msg);
             } else if (!strcmp(pattern, kAooMsgLogin)) {
@@ -1817,7 +1820,7 @@ static osc::ReceivedPacket unwrap_message(const osc::ReceivedMessage& msg, ip_ad
     return osc::ReceivedPacket((const char *)msg_data, msg_size);
 }
 
-void Client::handle_peer_add(const osc::ReceivedMessage& msg){
+void Client::handle_peer_join(const osc::ReceivedMessage& msg){
     auto it = msg.ArgumentsBegin();
     auto group_name = (it++)->AsString();
     auto group_id = (it++)->AsInt32();
@@ -1825,7 +1828,9 @@ void Client::handle_peer_add(const osc::ReceivedMessage& msg){
     auto user_id = (it++)->AsInt32();
     auto version = (it++)->AsString();
     auto flags = (AooFlag)(it++)->AsInt32();
-    // collect IP addresses
+    auto metadata = osc_read_metadata(it); // optional
+    auto relay = osc_read_host(it); // optional
+    // IP addresses
     auto addrcount = (it++)->AsInt32();
     ip_address_list addrlist;
     for (int32_t i = 0; i < addrcount; ++i){
@@ -1844,8 +1849,6 @@ void Client::handle_peer_add(const osc::ReceivedMessage& msg){
             LOG_DEBUG("AooClient: ignore local address " << addr);
         }
     }
-    auto metadata = osc_read_metadata(it); // optional
-    auto relay = osc_read_host(it); // optional
 
     peer_lock lock(peers_);
     // check if peer already exists (shouldn't happen)
@@ -1888,7 +1891,7 @@ void Client::handle_peer_add(const osc::ReceivedMessage& msg){
     LOG_VERBOSE("AooClient: peer " << *peer << " joined");
 }
 
-void Client::handle_peer_remove(const osc::ReceivedMessage& msg){
+void Client::handle_peer_leave(const osc::ReceivedMessage& msg){
     auto it = msg.ArgumentsBegin();
     auto group = (it++)->AsInt32();
     auto user = (it++)->AsInt32();

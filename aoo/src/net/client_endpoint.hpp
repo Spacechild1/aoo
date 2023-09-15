@@ -189,10 +189,10 @@ public:
 
     void send_notification(Server& server, const AooData& data) const;
 
-    void send_peer_add(Server& server, const group& grp, const user& usr,
-                       const client_endpoint& client) const;
+    void send_peer_join(Server& server, const group& grp, const user& usr,
+                        const client_endpoint& client) const;
 
-    void send_peer_remove(Server& server, const group& grp, const user& usr) const;
+    void send_peer_leave(Server& server, const group& grp, const user& usr) const;
 
     void send_group_update(Server& server, const group& grp, AooId usr);
 

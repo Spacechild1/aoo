@@ -354,14 +354,14 @@ Login to server.
 |  `i`  | request token                    |
 |  `s`  | version string                   |
 |  `s`  | password (encrypted)             |
+| (`i`) | [metadata type](#4.2-data-types) |
+| (`b`) | metadata content                 |
 |  `i`  | address count                    |
 |  `s`  | IP address 1                     |
 |  `i`  | port 1                           |
 | [`s`] | IP address 2                     |
 | [`i`] | port 2                           |
 |  ...  | ...                              |
-| (`i`) | [metadata type](#4.2-data-types) |
-| (`b`) | metadata content                 |
 
 ---
 
@@ -402,10 +402,10 @@ Join a group on the server.
 |  `i`  | request token                          |
 |  `s`  | group name                             |
 |  `s`  | group password (encrypted)             |
-|  `s`  | user name                              |
-|  `s`  | user password (encrypted)              |
 | (`i`) | group [metadata type](#4.2-data-types) |
 | (`b`) | group metadata content                 |
+|  `s`  | user name                              |
+|  `s`  | user password (encrypted)              |
 | (`i`) | user [metadata type](#4.2-data-types)  |
 | (`b`) | user metadata content                  |
 | (`s`) | relay hostname                         |
@@ -427,10 +427,10 @@ Group join response.
     |  `i`  | 0 (= no error)                           |
     |  `i`  | group ID                                 |
     |  `i`  | group flags                              |
-    |  `i`  | user ID                                  |
-    |  `i`  | user flags                               |
     | (`i`) | group [metadata type](#4.2-data-types)   |
     | (`b`) | group metadata content                   |
+    |  `i`  | user ID                                  |
+    |  `i`  | user flags                               |
     | (`i`) | user [metadata type](#4.2-data-types)    |
     | (`b`) | user metadata content                    |
     | (`i`) | private [metadata type](#4.2-data-types) |
@@ -610,16 +610,16 @@ A peer has joined the group.
 |  `i`  | user ID                          |
 |  `s`  | version string                   |
 |  `i`  | flags                            |
+| (`i`) | [metadata type](#4.2-data-types) |
+| (`b`) | metadata content                 |
+| (`s`) | relay hostname                   |
+| (`i`) | relay port                       |
 |  `i`  | address count                    |
 |  `s`  | IP address 1                     |
 |  `i`  | port 1                           |
 | [`s`] | IP address 2                     |
 | [`i`] | port 2                           |
 |  ...  | ...                              |
-| (`i`) | [metadata type](#4.2-data-types) |
-| (`b`) | metadata content                 |
-| (`s`) | relay hostname                   |
-| (`i`) | relay port                       |
 
 ---
 

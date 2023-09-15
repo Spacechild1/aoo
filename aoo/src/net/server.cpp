@@ -797,9 +797,9 @@ void Server::on_user_joined_group(const group& grp, const user& usr,
         if ((peer.id() != usr.id()) && peer.active()) {
             if (auto other = find_client(peer)) {
                 // notify new member
-                client.send_peer_add(*this, grp, peer, *other);
+                client.send_peer_join(*this, grp, peer, *other);
                 // notify existing member
-                other->send_peer_add(*this, grp, usr, client);
+                other->send_peer_join(*this, grp, usr, client);
             } else {
                 LOG_ERROR("AooServer: user_joined_group: can't find client for peer " << peer);
             }
@@ -817,7 +817,7 @@ void Server::on_user_left_group(const group& grp, const user& usr) {
     for (auto& peer : grp.users()) {
         if (peer.id() != usr.id()) {
             if (auto other = find_client(peer)) {
-                other->send_peer_remove(*this, grp, usr);
+                other->send_peer_leave(*this, grp, usr);
             } else {
                 LOG_ERROR("AooServer: user_left_group: can't find client for peer " << peer);
             }
@@ -1010,12 +1010,12 @@ void Server::handle_login(client_endpoint& client, const osc::ReceivedMessage& m
     auto token = (AooId)(it++)->AsInt32();
     auto version = (it++)->AsString();
     auto pwd = (it++)->AsString();
+    auto metadata = osc_read_metadata(it); // optional
     // collect IP addresses
     auto addrcount = (it++)->AsInt32();
     for (int32_t i = 0; i < addrcount; ++i) {
         client.add_public_address(osc_read_address(it));
     }
-    auto metadata = osc_read_metadata(it); // optional
 
     AooRequestLogin request;
     AOO_REQUEST_INIT(&request, Login, metadata);
@@ -1087,9 +1087,9 @@ void Server::handle_group_join(client_endpoint& client, const osc::ReceivedMessa
     auto token = (AooId)(it++)->AsInt32();
     auto group_name = (it++)->AsString();
     auto group_pwd = (it++)->AsString();
+    auto group_md = osc_read_metadata(it); // optional
     auto user_name = (it++)->AsString();
     auto user_pwd = (it++)->AsString();
-    auto group_md = osc_read_metadata(it); // optional
     auto user_md = osc_read_metadata(it); // optional
     auto relay = osc_read_host(it); // optional
 
@@ -1223,9 +1223,8 @@ AooError Server::do_group_join(client_endpoint &client, AooId token,
 
     msg << osc::BeginMessage(kAooMsgClientGroupJoin)
         << token << kAooErrorNone
-        << grp->id() << (int32_t)grp->flags()
-        << usr->id() << (int32_t)usr->flags()
-        << grp->metadata() << usr->metadata()
+        << grp->id() << (int32_t)grp->flags() << grp->metadata()
+        << usr->id() << (int32_t)usr->flags() << usr->metadata()
         << metadata_view(response.privateMetadata)
         << relay_addr
         << osc::EndMessage;
