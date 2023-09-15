@@ -15,8 +15,9 @@
 #define DEFAULT_LATENCY 25
 
 // "fake" stream message types
-const int kAooDataStreamTime = -2; // AooEventStreamTime
-const int kAooDataStreamState = -1; // AooEventStreamState
+const int kAooDataStreamTime = -3; // AooEventStreamTime
+const int kAooDataStreamState = -2; // AooEventStreamState
+// NB: kAooDataUnspecified = -1
 
 /*///////////////////// aoo_receive~ ////////////////////*/
 
@@ -491,7 +492,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             if (offset > 0) {
                 // HACK: schedule as fake stream message
                 AooStreamMessage msg;
-                msg.type = kAooDataStreamState;
+                msg.type = kAooDataStreamTime;
                 msg.sampleOffset = offset;
                 msg.size = sizeof(tt);
                 msg.data = (AooByte *)&tt;
@@ -566,6 +567,8 @@ static void aoo_receive_queue_tick(t_aoo_receive *x)
 
 void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
                                             const aoo::ip_address& address, AooId id) {
+    // 4 extra atoms for endpoint (host, port, ID) + event
+    // NB: in case of "fake" stream messages, we just over-allocate.
     auto size = msg.size + 4;
     auto vec = (t_atom *)alloca(sizeof(t_atom) * size);
     if (!x_node->serialize_endpoint(address, id, 3, vec)) {
@@ -575,20 +578,20 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
     if (msg.type == kAooDataStreamState) {
         // fake stream message
         AooStreamState state;
-        assert(size == sizeof(state)); // see aoo_receive_handle_event()
+        assert(msg.size == sizeof(state)); // see aoo_receive_handle_event()
         memcpy(&state, msg.data, sizeof(state));
         SETSYMBOL(vec + 3, gensym("state"));
         SETFLOAT(vec + 4, state);
 
-        outlet_anything(x_msgout, gensym("event"), size, vec);
+        outlet_anything(x_msgout, gensym("event"), 5, vec);
     } else if (msg.type == kAooDataStreamTime) {
         AooNtpTime tt;
-        assert(size == sizeof(tt)); // see aoo_receive_handle_event()
+        assert(msg.size == sizeof(tt)); // see aoo_receive_handle_event()
         memcpy(&tt, msg.data, sizeof(tt));
         SETSYMBOL(vec + 3, gensym("time"));
         SETFLOAT(vec + 4, get_elapsed_ms(tt));
 
-        outlet_anything(x_msgout, gensym("event"), size, vec);
+        outlet_anything(x_msgout, gensym("event"), 5, vec);
     } else {
         // message type
         datatype_to_atom(msg.type, vec[3]);
