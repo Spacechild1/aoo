@@ -137,14 +137,15 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         }
     };
 
-    local_addr_.clear();
+    local_ipv4_addr_.clear();
+    global_ipv6_addr_.clear();
     int sock = socket_udp(0);
 
     // try to get global IPv6 address
     try {
         auto ipv6_addr = get_address(sock, "2001:4860:4860::8888", 80, ip_address::IPv6, false);
-        local_addr_.emplace_back(ipv6_addr.name(), udp_client_.port());
-        LOG_DEBUG("AooClient: global IPv6 address: " << local_addr_.back());
+        global_ipv6_addr_ = ip_address(ipv6_addr.name(), udp_client_.port());
+        LOG_DEBUG("AooClient: global IPv6 address: " << global_ipv6_addr_);
     } catch (const std::exception& e) {
         LOG_VERBOSE("AooClient: could not get global IPv6 address");
         LOG_DEBUG(e.what());
@@ -153,8 +154,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     // try to get private IPv4 address
     try {
         auto ipv4_addr = get_address(sock, "8.8.8.8", 80, socket_family(sock), true);
-        local_addr_.emplace_back(ipv4_addr.name_unmapped(), udp_client_.port()); // unmapped!
-        LOG_DEBUG("AooClient: private IPv4 address: " << local_addr_.back());
+        local_ipv4_addr_ = ip_address(ipv4_addr.name_unmapped(), udp_client_.port()); // unmapped!
+        LOG_DEBUG("AooClient: private IPv4 address: " << local_ipv4_addr_);
     } catch (const std::exception& e) {
         LOG_VERBOSE("AooClient: could not get private IPv4 address");
         LOG_DEBUG(e.what());
@@ -627,8 +628,7 @@ AooError AOO_CALL aoo::net::Client::joinGroup(
         const AooChar *userName, const AooChar *userPwd, const AooData *userMetadata,
         const AooIpEndpoint *relayAddress, AooResponseHandler cb, void *context) {
     auto cmd = std::make_unique<group_join_cmd>(groupName, groupPwd, groupMetadata,
-                                                userName, userPwd, userMetadata,
-                                                (relayAddress ? ip_host(*relayAddress) : ip_host{}),
+                                                userName, userPwd, userMetadata, relayAddress,
                                                 cb, context);
     push_command(std::move(cmd));
     return kAooOk;
@@ -1138,7 +1138,13 @@ void Client::perform(const login_cmd& cmd) {
     // send login request
     auto token = next_token_++;
     // create address list; start with local/global addresses
-    ip_address_list addrlist = local_addr_;
+    ip_address_list addrlist;
+    if (local_ipv4_addr_.valid()) {
+        addrlist.push_back(local_ipv4_addr_);
+    }
+    if (global_ipv6_addr_.valid()) {
+        addrlist.push_back(global_ipv6_addr_);
+    }
     // add public IP address
     if (cmd.public_ip_.valid()) {
         addrlist.push_back(cmd.public_ip_);
@@ -1265,9 +1271,18 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
             }
             // 2) server group relay
             if (relay) {
-                auto addrlist = ip_address::resolve(relay->hostName, relay->port,
-                                                    family, ipv4mapped);
-                m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                if (*relay->hostName) {
+                    auto addrlist = ip_address::resolve(relay->hostName, relay->port,
+                                                        family, ipv4mapped);
+                    m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                } else {
+                    // replace missing hostname with server IP address(es)
+                    auto& host = connection_->host_;
+                    auto addrlist = ip_address::resolve(host.name, host.port, family, ipv4mapped);
+                    for (auto& addr : addrlist) {
+                        m.relay_list.emplace_back(addr.name(), relay->port);
+                    }
+                }
             }
             // 3) use UDP server as relay
             if (server_relay_) {
@@ -1841,9 +1856,10 @@ void Client::handle_peer_join(const osc::ReceivedMessage& msg){
             LOG_WARNING("AooClient: ignore IPv4-mapped peer address " << addr);
             continue;
         }
-        // filter local addresses so that we don't accidentally ping ourselves!
-        if (addr.valid() && std::find(local_addr_.begin(), local_addr_.end(), addr)
-                                == local_addr_.end()) {
+        // filter local IPv4 addresses so that we don't accidentally ping ourselves!
+        // (it is possible for peers in different networks to have the same local IPv4 address)
+        // TODO: should we do the same for custom interface addresses?
+        if (addr.valid() && addr != local_ipv4_addr_) {
             addrlist.push_back(addr);
         } else {
             LOG_DEBUG("AooClient: ignore local address " << addr);
@@ -1872,8 +1888,16 @@ void Client::handle_peer_join(const osc::ReceivedMessage& msg){
     auto use_ipv4_mapped = udp_client_.use_ipv4_mapped();
     ip_address_list user_relay;
     if (relay) {
-        user_relay = aoo::ip_address::resolve(relay->hostName, relay->port,
-                                              family, use_ipv4_mapped);
+        if (*relay->hostName) {
+            user_relay = aoo::ip_address::resolve(relay->hostName, relay->port,
+                                                  family, use_ipv4_mapped);
+        } else {
+            // replace missing hostname with peer IP address(es).
+            // (the relay should support the same families as the peer itself.)
+            for (auto& addr : addrlist) {
+                user_relay.emplace_back(addr.name(), relay->port);
+            }
+        }
         // add to group relay list
         auto& list = membership->relay_list;
         list.insert(list.end(), user_relay.begin(), user_relay.end());
@@ -2355,6 +2379,9 @@ void udp_client::handle_query(Client &client, const osc::ReceivedMessage &msg) {
         // read public address (make sure it is really unmapped)
         ip_address public_addr = osc_read_address(it).unmapped();
 
+#if 1
+        // TODO: public_addr_ isn't really used anywhere, so I guess we could
+        // replace it with a simple atomic flag.
         {
             scoped_lock lock(addr_mutex_);
             if (public_addr_ == public_addr) {
@@ -2364,6 +2391,7 @@ void udp_client::handle_query(Client &client, const osc::ReceivedMessage &msg) {
             }
             public_addr_ = public_addr;
         }
+#endif
         LOG_DEBUG("AooClient: public address: " << public_addr);
 
         // now we can try to login

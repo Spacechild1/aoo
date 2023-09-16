@@ -224,8 +224,10 @@ public:
      * \param userMetadata (optional) user metadata
      *        See AooResponseGroupJoin::userMetadata resp.
      *        AooEventPeer::metadata.
-     * \param relayAddress relay address
-     * \param cb function to be called with server reply
+     * \param relayAddress (optional) relay address
+     *        If `hostName` is `NULL`, it means that the relay
+     *        has the same IP address(es) as the AOO client.
+     * \param cb a function to be called with server reply
      * \param context user data passed to callback function
      */
     virtual AooError AOO_CALL joinGroup(

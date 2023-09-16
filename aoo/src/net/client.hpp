@@ -118,8 +118,6 @@ public:
 
     bool use_ipv4_mapped() const { return use_ipv4_mapped_; }
 
-    // ip_address::ip_type type() const { return type_; }
-
     AooError handle_osc_message(Client& client, const AooByte *data, int32_t n,
                                 const ip_address& addr, int32_t type, AooMsgType onset);
 
@@ -336,7 +334,8 @@ private:
     udp_client udp_client_;
     sendfn udp_sendfn_;
     osc_stream_receiver receiver_;
-    ip_address_list local_addr_;
+    ip_address local_ipv4_addr_;
+    ip_address global_ipv6_addr_;
     std::vector<std::string> interfaces_;
     sync::mutex interface_mutex_; // TODO: replace with seqlock?
     int event_socket_ = -1;
@@ -583,11 +582,11 @@ public:
     {
         group_join_cmd(const std::string& group_name, const char * group_pwd, const AooData *group_md,
                        const std::string& user_name, const char * user_pwd, const AooData *user_md,
-                       const ip_host& relay, AooResponseHandler cb, void *user)
+                       const AooIpEndpoint* relay, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
               group_name_(group_name), group_pwd_(group_pwd ? group_pwd : ""), group_md_(group_md),
               user_name_(user_name), user_pwd_(user_pwd ? user_pwd : ""), user_md_(user_md),
-              relay_(relay) {}
+              relay_(relay ? *relay : ip_host{}) {}
 
         void perform(Client& obj) override {
             obj.perform(*this);

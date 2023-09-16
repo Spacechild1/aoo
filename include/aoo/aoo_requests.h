@@ -155,8 +155,8 @@ typedef struct AooRequestGroupJoin
      * metadata it wants, by setting AooResponseGroupJoin::userMetadata. */
     const AooData *userMetadata;
     /* other */
-    /** (optional) Relay address provided by the user/client. The server will
-     * forward it to all peers. */
+    /** (optional) UDP relay address provided by the user/client.
+     * The server will forward it to all peers. */
     const AooIpEndpoint *relayAddress;
 } AooRequestGroupJoin;
 
@@ -180,9 +180,11 @@ typedef struct AooResponseGroupJoin
     /** (optional) private metadata that is only sent to the client.
      * For example, this can be used for state synchronization. */
     const AooData *privateMetadata;
-    /** (optional) relay address provided by the server.
-      * For example, the AOO server might provide a group with a
-      * dedicated UDP relay server. */
+    /** (optional) UDP relay address provided by the server.
+     * For example, you may provide a group with a dedicated UDP
+     * relay server.
+     * If `hostName` is `NULL`, it means that the relay has the same
+     * IP address(es) as the AOO server. */
     const AooIpEndpoint *relayAddress;
 } AooResponseGroupJoin;
 

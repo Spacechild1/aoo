@@ -21,9 +21,10 @@ class user {
 public:
     user(const std::string& name, const std::string& pwd, AooId id,
          AooId group, AooId client, const AooData *md,
-         const ip_host& relay, AooFlag flags)
+         const AooIpEndpoint *relay, AooFlag flags)
         : name_(name), pwd_(pwd), id_(id), group_(group),
-          client_(client), flags_(flags), md_(md), relay_(relay) {}
+          client_(client), flags_(flags), md_(md),
+          relay_(relay ? *relay : ip_host{}) {}
 
     ~user() {}
 
@@ -89,8 +90,9 @@ using user_list = std::vector<user>;
 class group {
 public:
     group(const std::string& name, const std::string& pwd, AooId id,
-         const AooData *md, const ip_host& relay, AooFlag flags)
-        : name_(name), pwd_(pwd), id_(id), flags_(flags), md_(md), relay_(relay) {}
+         const AooData *md, const AooIpEndpoint *relay, AooFlag flags)
+        : name_(name), pwd_(pwd), id_(id), flags_(flags), md_(md),
+          relay_(relay ? *relay : ip_host{}) {}
 
     const std::string& name() const { return name_; }
 

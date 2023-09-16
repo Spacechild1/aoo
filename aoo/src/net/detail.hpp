@@ -180,7 +180,7 @@ struct ip_host {
     ip_host(const std::string& _name, int _port)
         : name(_name), port(_port) {}
     ip_host(const AooIpEndpoint& ep)
-        : name(ep.hostName), port(ep.port) {}
+        : name(ep.hostName ? ep.hostName : ""), port(ep.port) {}
 
     std::string name;
     int port = 0;

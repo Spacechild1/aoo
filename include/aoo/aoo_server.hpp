@@ -204,19 +204,23 @@ public:
         return control(kAooCtlSetPassword, 0, AOO_ARG(pwd));
     }
 
-    /** \brief get the server password */
+    /** \brief set external (global) relay host
+     *
+     *  If `hostName` is `NULL`, it means that the relay has
+     *  the same IP address(es) as the AOO server.
+     *  If `ep` is `NULL`, the relay host is unset. */
     AooError setRelayHost(const AooIpEndpoint *ep)
     {
         return control(kAooCtlSetRelayHost, 0, AOO_ARG(ep));
     }
 
-    /** \brief enabled/disable server relay */
+    /** \brief enabled/disable UDP server relay */
     AooError setServerRelay(AooBool b)
     {
         return control(kAooCtlSetServerRelay, 0, AOO_ARG(b));
     }
 
-    /** \brief check if server relay is enabled */
+    /** \brief check if UDP server relay is enabled */
     AooError getServerRelay(AooBool& b)
     {
         return control(kAooCtlGetServerRelay, 0, AOO_ARG(b));
