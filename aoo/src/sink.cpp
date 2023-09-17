@@ -2747,11 +2747,8 @@ void send_invitation(const Sink& s, const endpoint& ep, AooId token,
     snprintf(address, sizeof(address), "%s/%d%s",
              kAooMsgDomain kAooMsgSource, ep.id, kAooMsgInvite);
 
-    msg << osc::BeginMessage(address) << s.id() << token;
-    if (metadata){
-        msg << metadata->type << osc::Blob(metadata->data, metadata->size);
-    }
-    msg << osc::EndMessage;
+    msg << osc::BeginMessage(address) << s.id() << token
+        << metadata_view(metadata) << osc::EndMessage;
 
     LOG_DEBUG("AooSink: send " kAooMsgInvite " to source " << ep
               << " (" << token << ")");

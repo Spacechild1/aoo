@@ -1355,13 +1355,9 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
         << stream_id << seq_start << format_id
         << f.numChannels << f.sampleRate << f.blockSize
         << f.codecName << osc::Blob(extension, size)
-        << osc::TimeTag(tt) << latency << codec_delay;
-    if (metadata) {
-        msg << metadata->type << osc::Blob(metadata->data, metadata->size);
-    } else {
-        msg << osc::Nil << osc::Nil;
-    }
-    msg << osc::EndMessage;
+        << osc::TimeTag(tt) << latency << codec_delay
+        << metadata_view(metadata)
+        << osc::EndMessage;
 
     ep.send(msg, fn);
 }
