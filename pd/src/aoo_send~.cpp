@@ -948,23 +948,32 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
     x_clock = clock_new(this, (t_method)aoo_send_tick);
     x_metadata_type = kAooDataUnspecified;
 
-    // arg #1: port number
-    x_port = atom_getfloatarg(0, argc, argv);
+    // arg #1: channels
+    // NB: users may explicitly specify 0 channels for pure message streams!
+    int nchannels = argc > 0 ? atom_getfloat(argv) : 1;
+    if (nchannels < 0){
+        nchannels = 0;
+    } else if (nchannels > AOO_MAX_NUM_CHANNELS) {
+        // NB: in theory we can support any number of channels;
+        // this rather meant to handle patches that accidentally
+        // use the old argument order where the port would come first!
+        pd_error(this, "%s: channel count (%d) out of range",
+                 classname(this), nchannels);
+        nchannels = 0;
+    }
+    x_nchannels = nchannels;
 
-    // arg #2: ID
-    AooId id = atom_getfloatarg(1, argc, argv);
+    // arg #2 (optional): port number
+    // NB: 0 means "don't listen"
+    x_port = atom_getfloatarg(1, argc, argv);
+
+    // arg #3 (optional): ID
+    AooId id = atom_getfloatarg(2, argc, argv);
     if (id < 0){
         pd_error(this, "%s: bad id % d, setting to 0", classname(this), id);
         id = 0;
     }
     x_id = id;
-
-    // arg #3: num channels
-    int nchannels = argc >= 3 ? atom_getfloat(argv + 2) : 1;
-    if (nchannels < 0){
-        nchannels = 0;
-    }
-    x_nchannels = nchannels;
 
     // make additional inlets
     if (nchannels > 1){
