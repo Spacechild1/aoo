@@ -57,9 +57,6 @@ struct t_aoo_send
     AooId x_id = 0;
     double x_logicaltime = 0;
     std::unique_ptr<t_float *[]> x_vec;
-    // metadata
-    AooDataType x_metadata_type;
-    std::vector<AooByte> x_metadata;
     // sinks
     std::vector<t_sink> x_sinks;
     // node
@@ -730,15 +727,27 @@ static void aoo_send_remove(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
     }
 }
 
-static void aoo_send_start(t_aoo_send *x)
+static void aoo_send_start(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
-    if (!x->x_metadata.empty()){
-        AooData md;
-        md.type = x->x_metadata_type;
-        md.data = x->x_metadata.data();
-        md.size = x->x_metadata.size();
+    if (argc > 0) {
+        // with metadata
+        AooData metadata;
+        if (!atom_to_datatype(*argv, metadata.type, x)) {
+            return;
+        }
+        auto size = argc - 1;
+        if (!size) {
+            pd_error(x, "%s: metadata must not be empty", classname(x));
+            return;
+        }
+        auto data = (AooByte *)alloca(size);
+        for (int i = 0; i < size; i++) {
+            data[i] = atom_getfloat(&argv[i + 1]);
+        }
+        metadata.size = size;
+        metadata.data = data;
 
-        x->x_source->startStream(&md);
+        x->x_source->startStream(&metadata);
     } else {
         x->x_source->startStream(nullptr);
     }
@@ -764,38 +773,6 @@ static void aoo_send_active(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
         bool active = atom_getfloat(argv + 3);
         x->x_source->activate(ep, active);
-    }
-}
-
-static void aoo_send_metadata(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
-{
-    if (!argc){
-        return;
-    }
-    if (argc < 2) {
-        // empty metadata is not allowed
-        pd_error(x, "%s: metadata must not be empty", classname(x));
-    #if 1
-        x->x_metadata_type = kAooDataUnspecified;
-        x->x_metadata.clear();
-    #endif
-        return;
-    }
-    // metadata type
-    AooDataType type;
-    if (!atom_to_datatype(*argv, type, x)) {
-    #if 1
-        x->x_metadata_type = kAooDataUnspecified;
-        x->x_metadata.clear();
-    #endif
-        return;
-    }
-    x->x_metadata_type = type;
-    // metadata content
-    auto size = argc - 1;
-    x->x_metadata.resize(size);
-    for (int i = 0; i < size; ++i){
-        x->x_metadata[i] = (AooByte)atom_getfloat(argv + i + 1);
     }
 }
 
@@ -946,7 +923,6 @@ static void * aoo_send_new(t_symbol *s, int argc, t_atom *argv)
 t_aoo_send::t_aoo_send(int argc, t_atom *argv)
 {
     x_clock = clock_new(this, (t_method)aoo_send_tick);
-    x_metadata_type = kAooDataUnspecified;
 
     // arg #1: channels
     // NB: users may explicitly specify 0 channels for pure message streams!
@@ -1039,13 +1015,11 @@ void aoo_send_tilde_setup(void)
     class_addmethod(aoo_send_class, (t_method)aoo_send_active,
                     gensym("active"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_start,
-                    gensym("start"), A_NULL);
+                    gensym("start"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_stop,
                     gensym("stop"), A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_reset,
                     gensym("reset"), A_NULL);
-    class_addmethod(aoo_send_class, (t_method)aoo_send_metadata,
-                    gensym("metadata"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_auto_invite,
                     gensym("auto_invite"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_invite,
