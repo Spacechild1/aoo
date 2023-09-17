@@ -38,7 +38,9 @@ private:
     aoo::time_tag d_last_osctime;
     aoo::time_tag d_osctime_adjusted;
     double d_last_big_delta = 0;
+#if DEJITTER_CHECK
     double d_last_logical_time = -1;
+#endif
 
     void update();
 
@@ -65,7 +67,7 @@ t_dejitter::~t_dejitter(){
 // This is called exactly once per DSP tick and before any other clocks in AOO objects.
 void t_dejitter::update()
 {
-#if 1
+#if DEJITTER_CHECK
     // check if this is really called once per DSP tick
     auto logical_time = clock_getlogicaltime();
     if (logical_time == d_last_logical_time) {
@@ -74,7 +76,7 @@ void t_dejitter::update()
     d_last_logical_time = logical_time;
 #endif
     aoo::time_tag osctime = aoo::time_tag::now();
-    if (!d_last_osctime.value()) {
+    if (d_last_osctime.is_empty()) {
         d_osctime_adjusted = osctime;
     } else {
     #if DEJITTER_DEBUG

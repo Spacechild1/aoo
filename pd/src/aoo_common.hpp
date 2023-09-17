@@ -20,6 +20,8 @@
 
 #define DEJITTER_DEBUG 0 // debug dejitter algorithm
 
+#define DEJITTER_CHECK 1 // extra checks
+
 // compatibility with older versions of "m_pd.h"
 #if PD_MINOR_VERSION < 52
 typedef enum {
