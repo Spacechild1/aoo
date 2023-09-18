@@ -68,7 +68,8 @@ class t_node_imp final : public t_node
     t_pd * x_clientobj = nullptr;
     int32_t x_refcount = 0;
     int x_port = 0;
-    aoo::ip_address::ip_type x_type = aoo::ip_address::ip_type::Unspec; // TODO
+    aoo::ip_address::ip_type x_type = aoo::ip_address::Unspec;
+    bool x_ipv4mapped = true;
     // threading
     std::thread x_clientthread;
 #if NETWORK_THREAD_POLL
@@ -119,11 +120,14 @@ private:
 };
 
 bool t_node_imp::resolve(t_symbol *host, int port, aoo::ip_address& addr) const {
-    auto result = aoo::ip_address::resolve(host->s_name, port, x_type);
+    auto result = aoo::ip_address::resolve(host->s_name, port, x_type, x_ipv4mapped);
     if (!result.empty()){
         addr = result.front();
         return true;
     } else {
+        char buf[MAXPDSTRING];
+        aoo::socket_strerror(aoo::socket_errno(), buf, sizeof(buf));
+        pd_error(nullptr, "%s", buf);
         return false;
     }
 }
@@ -359,6 +363,13 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
         }
         throw std::runtime_error("could not create node: " + msg);
     }
+    // get socket type
+    if (settings.socketType & kAooSocketIPv6) {
+        x_type = aoo::ip_address::IPv6;
+    } else {
+        x_type = aoo::ip_address::IPv4;
+    }
+    x_ipv4mapped = settings.socketType & kAooSocketIPv4Mapped;
 
     // success
     x_client = std::move(client);
