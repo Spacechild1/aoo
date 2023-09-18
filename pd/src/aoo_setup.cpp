@@ -9,6 +9,12 @@
 #include "string.h"
 #include "stdlib.h"
 
+#ifdef _WIN32
+# include <windows.h>
+#else // _WIN32
+# include <dlfcn.h>
+#endif
+
 // setup function
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
@@ -168,6 +174,8 @@ double get_elapsed_ms(AooNtpTime tt) {
     return aoo::time_tag::duration(g_start_time, tt);
 }
 
+t_signal_setmultiout g_signal_setmultiout;
+
 void aoo_send_tilde_setup(void);
 void aoo_receive_tilde_setup(void);
 void aoo_node_setup(void);
@@ -190,6 +198,21 @@ extern "C" EXPORT void aoo_setup(void)
     post("");
 
     g_start_time = aoo::time_tag::now();
+#ifdef _WIN32
+    // get a handle to the module containing the Pd API functions.
+    // NB: GetModuleHandle("pd.dll") does not cover all cases.
+    HMODULE module;
+    if (GetModuleHandleEx(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            (LPCSTR)&pd_typedmess, &module)) {
+        g_signal_setmultiout = (t_signal_setmultiout)(void *)GetProcAddress(
+            module, "signal_setmultiout");
+    }
+#else
+    // search recursively, starting from the main program
+    g_signal_setmultiout = (t_signal_setmultiout)dlsym(
+        dlopen(nullptr, RTLD_NOW), "signal_setmultiout");
+#endif
 
     aoo_dejitter_setup();
     aoo_node_setup();

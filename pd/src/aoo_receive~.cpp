@@ -57,6 +57,7 @@ struct t_aoo_receive
     int32_t x_nchannels = 0;
     int32_t x_port = 0;
     AooId x_id = 0;
+    bool x_multi = false;
     std::unique_ptr<t_sample *[]> x_vec;
     // sources
     std::vector<t_source> x_sources;
@@ -628,18 +629,53 @@ static t_int * aoo_receive_perform(t_int *w)
     return w + 3;
 }
 
+static void aoo_receive_channels(t_aoo_receive *x, t_floatarg f) {
+    if (x->x_multi) {
+        x->x_nchannels = f > 0 ? f : 1;
+        x->x_vec = nullptr; // sentinel, see "dsp" method
+        canvas_update_dsp();
+    } else {
+        pd_error(x, "%s: 'channels' message requires multi-channel mode", classname(x));
+    }
+}
+
 static void aoo_receive_dsp(t_aoo_receive *x, t_signal **sp)
 {
     int32_t blocksize = sp[0]->s_n;
     int32_t samplerate = sp[0]->s_sr;
+    int32_t nchannels = x->x_nchannels;
 
-    for (int i = 0; i < x->x_nchannels; ++i){
-        x->x_vec[i] = sp[i]->s_vec;
+    // NB: aoo_receive~ is a multi-channel class, so we need to
+    // call signal_setmultiout - even in single-channel mode!
+    if (g_signal_setmultiout) {
+        if (x->x_multi) {
+            g_signal_setmultiout(sp, nchannels);
+        } else {
+            for (int i = 0; i < nchannels; ++i) {
+                g_signal_setmultiout(&sp[i], 1);
+            }
+        }
     }
 
-    // synchronize with network threads!
-    if (blocksize != x->x_blocksize || samplerate != x->x_samplerate){
-        x->x_sink->setup(x->x_nchannels, samplerate, blocksize, 0);
+    bool channels_changed = false;
+    if (x->x_multi) {
+        // channel count changed?
+        if (!x->x_vec) {
+            x->x_vec = std::make_unique<t_sample *[]>(nchannels);
+            channels_changed = true;
+        }
+        for (int i = 0; i < nchannels; ++i){
+            x->x_vec[i] = &sp[0]->s_vec[i * blocksize];
+        }
+    } else {
+        for (int i = 0; i < nchannels; ++i){
+            x->x_vec[i] = sp[i]->s_vec;
+        }
+    }
+
+    if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
+            || channels_changed) {
+        x->x_sink->setup(nchannels, samplerate, blocksize, 0);
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
     }
@@ -710,17 +746,43 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
     x_clock = clock_new(this, (t_method)aoo_receive_tick);
     x_queue_clock = clock_new(this, (t_method)aoo_receive_queue_tick);
 
-    // arg #1: channels
-    // NB: users may explicitly specify 0 channels for pure message streams!
-    int nchannels = argc > 0 ? atom_getfloat(argv) : 1;
-    if (nchannels < 0){
-        nchannels = 0;
-    } else if (nchannels > AOO_MAX_NUM_CHANNELS) {
-        pd_error(this, "%s: channel count (%d) out of range",
-                 classname(this), nchannels);
-        nchannels = 0;
+    // flags
+    while (argc && argv->a_type == A_SYMBOL) {
+        auto flag = argv->a_w.w_symbol->s_name;
+        if (*flag == '-') {
+            if (!strcmp(flag, "-m")) {
+                if (g_signal_setmultiout) {
+                    x_multi = true;
+                } else {
+                    pd_error(this, "%s: no multi-channel support, ignoring '-m' flag", classname(this));
+                }
+            } else {
+                pd_error(this, "%s: ignore unknown flag '%s",
+                         classname(this), flag);
+            }
+            argc--; argv++;
+        } else {
+            break;
+        }
     }
-    x_nchannels = nchannels;
+
+    // arg #1: channels
+    int noutlets;
+    if (x_multi) {
+        noutlets = 1;
+        x_nchannels = std::max<int>(atom_getfloatarg(0, argc, argv), 1);
+    } else {
+        // NB: users may explicitly specify 0 channels for pure message streams!
+        noutlets = argc > 0 ? atom_getfloat(argv) : 1;
+        if (noutlets < 0) {
+            noutlets = 0;
+        } else if (noutlets > AOO_MAX_NUM_CHANNELS) {
+            pd_error(this, "%s: channel count (%d) out of range",
+                     classname(this), noutlets);
+            noutlets = 0;
+        }
+        x_nchannels = noutlets;
+    }
 
     // arg #2 (optional): port number
     // NB: 0 means "don't listen"
@@ -738,11 +800,13 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
     float latency = argc > 3 ? atom_getfloat(argv + 3) : DEFAULT_LATENCY;
 
     // make signal outlets
-    for (int i = 0; i < nchannels; ++i){
+    for (int i = 0; i < noutlets; ++i){
         outlet_new(&x_obj, &s_signal);
     }
-    x_vec = nchannels > 0 ? std::make_unique<t_sample *[]>(nchannels) : nullptr;
-
+    // channel vector
+    if (x_nchannels > 0) {
+        x_vec = std::make_unique<t_sample *[]>(x_nchannels);
+    }
     // event outlet
     x_msgout = outlet_new(&x_obj, 0);
 
@@ -777,7 +841,7 @@ t_aoo_receive::~t_aoo_receive()
 void aoo_receive_tilde_setup(void)
 {
     aoo_receive_class = class_new(gensym("aoo_receive~"), (t_newmethod)(void *)aoo_receive_new,
-        (t_method)aoo_receive_free, sizeof(t_aoo_receive), 0, A_GIMME, A_NULL);
+        (t_method)aoo_receive_free, sizeof(t_aoo_receive), CLASS_MULTICHANNEL, A_GIMME, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_dsp,
                     gensym("dsp"), A_CANT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_port,
@@ -810,4 +874,8 @@ void aoo_receive_tilde_setup(void)
                     gensym("reset"), A_GIMME, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_fill_ratio,
                     gensym("fill_ratio"), A_GIMME, A_NULL);
+    if (g_signal_setmultiout) {
+        class_addmethod(aoo_receive_class, (t_method)aoo_receive_channels,
+            gensym("channels"), A_FLOAT, A_NULL);
+    }
 }

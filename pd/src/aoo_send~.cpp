@@ -67,6 +67,7 @@ struct t_aoo_send
     // (un)invite
     AooId x_invite_token = kAooIdInvalid;
     bool x_auto_invite = true; // on by default
+    bool x_multi = false;
 
     bool get_sink_arg(int argc, t_atom *argv,
                       aoo::ip_address& addr, AooId& id, bool check) const;
@@ -556,14 +557,18 @@ static void aoo_send_format(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         // This also helps to catch an issue with old patches (before 2.0-pre3),
         // which would pass the block size as the channel count because the
         // "channel" argument hasn't been added yet.
-        if (f.header.numChannels > x->x_nchannels){
-            if (x->x_nchannels > 0) {
-                pd_error(x, "%s: 'channel' argument (%d) in 'format' message out of range!",
-                         classname(x), f.header.numChannels);
-                f.header.numChannels = x->x_nchannels;
-            } else {
-                // if we have no inputs, silently bash format to single channel
-                f.header.numChannels = 1;
+        // NB: don't do this in multi-channel mode because the actual channel
+        // count may change after the fact!
+        if (!x->x_multi) {
+            if (f.header.numChannels > x->x_nchannels){
+                if (x->x_nchannels > 0) {
+                    pd_error(x, "%s: 'channel' argument (%d) in 'format' message out of range!",
+                             classname(x), f.header.numChannels);
+                    f.header.numChannels = x->x_nchannels;
+                } else {
+                    // if we have no inputs, silently bash format to single channel
+                    f.header.numChannels = 1;
+                }
             }
         }
 
@@ -848,15 +853,32 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
 {
     int32_t blocksize = sp[0]->s_n;
     int32_t samplerate = sp[0]->s_sr;
-
-    for (int i = 0; i < x->x_nchannels; ++i){
-        x->x_vec[i] = sp[i]->s_vec;
+    int32_t nchannels;
+#ifdef PD_HAVE_MULTICHANNEL
+    if (x->x_multi) {
+        // NB: 's_nchans' only exists in Pd 0.54+
+        nchannels = sp[0]->s_nchans;
+        if (nchannels != x->x_nchannels) {
+            x->x_vec = std::make_unique<t_sample *[]>(nchannels);
+        }
+        for (int i = 0; i < nchannels; ++i){
+            x->x_vec[i] = &sp[0]->s_vec[i * blocksize];
+        }
+    } else
+#endif
+    {
+        nchannels = x->x_nchannels;
+        for (int i = 0; i < nchannels; ++i){
+            x->x_vec[i] = sp[i]->s_vec;
+        }
     }
 
-    if (blocksize != x->x_blocksize || samplerate != x->x_samplerate){
-        x->x_source->setup(x->x_nchannels, samplerate, blocksize, 0);
+    if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
+            || nchannels != x->x_nchannels) {
+        x->x_source->setup(nchannels, samplerate, blocksize, 0);
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
+        x->x_nchannels = nchannels;
     }
 
     dsp_add(aoo_send_perform, 2, (t_int)x, (t_int)x->x_blocksize);
@@ -924,20 +946,48 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
 {
     x_clock = clock_new(this, (t_method)aoo_send_tick);
 
-    // arg #1: channels
-    // NB: users may explicitly specify 0 channels for pure message streams!
-    int nchannels = argc > 0 ? atom_getfloat(argv) : 1;
-    if (nchannels < 0){
-        nchannels = 0;
-    } else if (nchannels > AOO_MAX_NUM_CHANNELS) {
-        // NB: in theory we can support any number of channels;
-        // this rather meant to handle patches that accidentally
-        // use the old argument order where the port would come first!
-        pd_error(this, "%s: channel count (%d) out of range",
-                 classname(this), nchannels);
-        nchannels = 0;
+    // flags
+    while (argc && argv->a_type == A_SYMBOL) {
+        auto flag = argv->a_w.w_symbol->s_name;
+        if (*flag == '-') {
+            if (!strcmp(flag, "-m")) {
+                if (g_signal_setmultiout) {
+                    x_multi = true;
+                } else {
+                    pd_error(this, "%s: no multi-channel support, ignoring '-m' flag", classname(this));
+                }
+            } else {
+                pd_error(this, "%s: ignore unknown flag '%s",
+                         classname(this), flag);
+            }
+            argc--; argv++;
+        } else {
+            break;
+        }
     }
-    x_nchannels = nchannels;
+
+    int ninlets;
+    if (x_multi) {
+        // one multi-channel input; x_nchannels is used to keep track of
+        // channel count.
+        ninlets = 1;
+        x_nchannels = 0; // see "dsp" method
+    } else {
+        // arg #1: channels
+        // NB: users may explicitly specify 0 channels for pure message streams!
+        ninlets = argc > 0 ? atom_getfloat(argv) : 1;
+        if (ninlets < 0){
+            ninlets = 0;
+        } else if (ninlets > AOO_MAX_NUM_CHANNELS) {
+            // NB: in theory we can support any number of channels;
+            // this rather meant to handle patches that accidentally
+            // use the old argument order where the port would come first!
+            pd_error(this, "%s: channel count (%d) out of range",
+                     classname(this), ninlets);
+            ninlets = 0;
+        }
+        x_nchannels = ninlets;
+    }
 
     // arg #2 (optional): port number
     // NB: 0 means "don't listen"
@@ -952,14 +1002,13 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
     x_id = id;
 
     // make additional inlets
-    if (nchannels > 1){
-        int i = nchannels;
-        while (--i){
-            inlet_new(&x_obj, &x_obj.ob_pd, &s_signal, &s_signal);
-        }
+    for (int i = 1; i < ninlets; i++) {
+        inlet_new(&x_obj, &x_obj.ob_pd, &s_signal, &s_signal);
     }
-    x_vec = nchannels > 0 ? std::make_unique<t_sample *[]>(nchannels) : nullptr;
-
+    // channel vector
+    if (x_nchannels > 0) {
+        x_vec = std::make_unique<t_sample *[]>(x_nchannels);
+    }
     // make event outlet
     x_msgout = outlet_new(&x_obj, 0);
 
@@ -970,10 +1019,14 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
     x_source->setEventHandler((AooEventHandler)aoo_send_handle_event,
                               this, kAooEventModePoll);
 
-    AooFormatStorage fmt;
-    format_makedefault(fmt, nchannels);
-    x_source->setFormat(fmt.header);
-    x_codec = gensym(fmt.header.codecName);
+    // set default format
+    // NB: in multi-channel mode, the user must explicitly set the format
+    if (!x_multi) {
+        AooFormatStorage fmt;
+        format_makedefault(fmt, x_nchannels);
+        x_source->setFormat(fmt.header);
+        x_codec = gensym(fmt.header.codecName);
+    }
 
     x_source->setBufferSize(DEFBUFSIZE * 0.001);
 
@@ -999,7 +1052,7 @@ t_aoo_send::~t_aoo_send()
 void aoo_send_tilde_setup(void)
 {
     aoo_send_class = class_new(gensym("aoo_send~"), (t_newmethod)(void *)aoo_send_new,
-        (t_method)aoo_send_free, sizeof(t_aoo_send), 0, A_GIMME, A_NULL);
+        (t_method)aoo_send_free, sizeof(t_aoo_send), CLASS_MULTICHANNEL, A_GIMME, A_NULL);
     CLASS_MAINSIGNALIN(aoo_send_class, t_aoo_send, x_f);
     class_addlist(aoo_send_class, (t_method)aoo_send_list);
     class_addmethod(aoo_send_class, (t_method)aoo_send_dsp,

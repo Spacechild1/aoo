@@ -38,6 +38,16 @@ typedef enum {
 } t_loglevel;
 #endif
 
+#if PD_MINOR_VERSION >= 54
+# define PD_HAVE_MULTICHANNEL
+#else
+# pragma message("building without multi-channel support; requires Pd 0.54+")
+# define CLASS_MULTICHANNEL 0
+#endif
+
+using t_signal_setmultiout = void (*)(t_signal **, int);
+extern t_signal_setmultiout g_signal_setmultiout;
+
 /*///////////////////////////// OSC time ///////////////////////////////*/
 
 uint64_t get_osctime();
