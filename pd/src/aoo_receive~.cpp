@@ -266,16 +266,29 @@ static void aoo_receive_reset(t_aoo_receive *x, t_symbol *s, int argc, t_atom *a
 static void aoo_receive_fill_ratio(t_aoo_receive *x, t_symbol *s, int argc, t_atom *argv){
     aoo::ip_address addr;
     AooId id = 0;
-    if (x->get_source_arg(argc, argv, addr, id, true)) {
-        AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
-        double ratio = 0;
-        x->x_sink->getBufferFillRatio(ep, ratio);
-
-        t_atom msg[4];
-        if (x->x_node->serialize_endpoint(addr, id, 3, msg)){
-            SETFLOAT(msg + 3, ratio);
-            outlet_anything(x->x_msgout, gensym("fill_ratio"), 4, msg);
+    if (argc > 0) {
+        if (!x->get_source_arg(argc, argv, addr, id, true)) {
+            return;
         }
+    } else {
+        // just get the first source (if not empty)
+        if (!x->x_sources.empty()) {
+            auto& src = x->x_sources.front();
+            addr = src.s_address;
+            id = src.s_id;
+        } else {
+            pd_error(x, "%s: no sources", classname(x));
+        }
+    }
+
+    double ratio = 0;
+    AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
+    x->x_sink->getBufferFillRatio(ep, ratio);
+
+    t_atom msg[4];
+    if (x->x_node->serialize_endpoint(addr, id, 3, msg)){
+        SETFLOAT(msg + 3, ratio);
+        outlet_anything(x->x_msgout, gensym("fill_ratio"), 4, msg);
     }
 }
 
