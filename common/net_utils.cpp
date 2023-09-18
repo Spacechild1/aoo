@@ -161,7 +161,11 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t po
     }
 
     hints.ai_flags =
+#if 0
+        // NB: not necessary (and possibly harmful) since we
+        // explicitly pass the desired socket type.
         AI_ADDRCONFIG | // check if we have a matching adapter
+#endif
         AI_NUMERICSERV | // we use a port number
         AI_PASSIVE;      // listen to any addr if hostname is NULL
 #if AOO_USE_IPv6
