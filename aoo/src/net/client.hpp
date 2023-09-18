@@ -145,19 +145,20 @@ private:
 
     bool is_server_address(const ip_address& addr);
 
-    using scoped_lock = sync::scoped_lock<sync::shared_mutex>;
-    using scoped_shared_lock = sync::scoped_shared_lock<sync::shared_mutex>;
+    using unique_lock = sync::unique_lock<sync::shared_spinlock>;
+    using shared_lock = sync::shared_lock<sync::shared_spinlock>;
+    using scoped_lock = sync::scoped_lock<sync::shared_spinlock>;
+    using scoped_shared_lock = sync::scoped_shared_lock<sync::shared_spinlock>;
 
     udp_server udp_server_;
     int port_ = 0;
     AooSocketFlags socket_flags_ = 0;
     ip_address::ip_type address_family_ = ip_address::Unspec;
     bool use_ipv4_mapped_ = false;
+    sync::shared_spinlock addr_lock_; // LATER replace with seqlock?
     std::atomic<bool> start_handshake_{false};
-
+    bool got_address_ = false;
     ip_address remote_addr_;
-    ip_address public_addr_;
-    sync::shared_mutex addr_mutex_; // LATER replace with sequence lock
 
     aoo::time_tag next_ping_time_;
     aoo::time_tag query_deadline_;

@@ -2328,9 +2328,9 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
 
 void udp_client::start_handshake(const ip_address& remote) {
     LOG_DEBUG("AooClient: start UDP handshake with " << remote);
-    scoped_lock lock(addr_mutex_);
+    scoped_lock lock(addr_lock_);
     remote_addr_ = remote;
-    public_addr_.clear();
+    got_address_ = false;
     start_handshake_.store(true);
 }
 
@@ -2339,14 +2339,14 @@ void udp_client::queue_message(message&& m) {
 }
 
 void udp_client::send_server_message(const osc::OutboundPacketStream& msg, const sendfn& fn) {
-    sync::shared_lock<sync::shared_mutex> lock(addr_mutex_);
-    if (!remote_addr_.valid()) {
+    shared_lock lock(addr_lock_);
+    auto addr = remote_addr_;
+    lock.unlock();
+    if (!addr.valid()) {
         LOG_ERROR("AooClient: no server address");
         return;
     }
-    auto addr = remote_addr_;
-    lock.unlock();
-    // send unlocked
+    // send unlocked!
     fn((const AooByte *)msg.Data(), msg.Size(), addr);
 }
 
@@ -2378,20 +2378,14 @@ void udp_client::handle_query(Client &client, const osc::ReceivedMessage &msg) {
 
         // read public address (make sure it is really unmapped)
         ip_address public_addr = osc_read_address(it).unmapped();
-
-#if 1
-        // TODO: public_addr_ isn't really used anywhere, so I guess we could
-        // replace it with a simple atomic flag.
-        {
-            scoped_lock lock(addr_mutex_);
-            if (public_addr_ == public_addr) {
-                LOG_DEBUG("AooClient: public address " << public_addr
-                          << " already received");
-                return; // already received
-            }
-            public_addr_ = public_addr;
+        unique_lock lock(addr_lock_);
+        bool already_received = std::exchange(got_address_, true);
+        lock.unlock();
+        if (already_received) {
+            LOG_DEBUG("AooClient: public address " << public_addr
+                      << " already received");
+            return; // already received
         }
-#endif
         LOG_DEBUG("AooClient: public address: " << public_addr);
 
         // now we can try to login
@@ -2401,7 +2395,7 @@ void udp_client::handle_query(Client &client, const osc::ReceivedMessage &msg) {
 }
 
 bool udp_client::is_server_address(const ip_address& addr){
-    scoped_shared_lock lock(addr_mutex_);
+    scoped_shared_lock lock(addr_lock_);
     return addr == remote_addr_;
 }
 
