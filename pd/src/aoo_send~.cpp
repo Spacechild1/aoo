@@ -526,7 +526,7 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
             SETFLOAT(msg + 6, rtt);
             SETFLOAT(msg + 7, e.packetLoss);
 
-            outlet_anything(x->x_msgout, gensym("event"), 8, msg);
+            outlet_anything(x->x_msgout, gensym("sink_event"), 8, msg);
 
             break;
         }

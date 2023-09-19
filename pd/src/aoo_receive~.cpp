@@ -347,7 +347,8 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
         // common endpoint header
         auto& ep = event->endpoint.endpoint;
         aoo::ip_address addr((const sockaddr *)ep.address, ep.addrlen);
-        t_atom msg[32];
+        const int maxsize = 32;
+        t_atom msg[maxsize];
         if (!x->x_node->serialize_endpoint(addr, ep.id, 3, msg)) {
             bug("aoo_receive_handle_event: serialize_endpoint");
             return;
@@ -375,6 +376,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                     break;
                 }
             }
+
             outlet_anything(x->x_msgout, gensym("remove"), 3, msg);
             break;
         }
@@ -407,28 +409,28 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             SETFLOAT(msg + 5, diff2);
             SETFLOAT(msg + 6, rtt);
 
-            outlet_anything(x->x_msgout, gensym("event"), 7, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 7, msg);
 
             break;
         }
         case kAooEventBufferOverrun:
         {
             SETSYMBOL(msg + 3, gensym("overrun"));
-            outlet_anything(x->x_msgout, gensym("event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
             break;
         }
         case kAooEventBufferUnderrun:
         {
             SETSYMBOL(msg + 3, gensym("underrun"));
-            outlet_anything(x->x_msgout, gensym("event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
             break;
         }
         case kAooEventFormatChange:
         {
             SETSYMBOL(msg + 3, gensym("format"));
             // skip first 4 atoms
-            int n = format_to_atoms(*event->formatChange.format, 29, msg + 4);
-            outlet_anything(x->x_msgout, gensym("event"), n + 4, msg);
+            int n = format_to_atoms(*event->formatChange.format, maxsize - 4, msg + 4);
+            outlet_anything(x->x_msgout, gensym("source_event"), n + 4, msg);
             break;
         }
         case kAooEventStreamStart:
@@ -437,7 +439,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             SETSYMBOL(msg + 3, gensym("start"));
             if (e.metadata){
                 auto count = e.metadata->size + 5;
-                t_atom *vec = (t_atom *)alloca(count * sizeof(t_atom));
+                auto vec = (t_atom *)alloca(count * sizeof(t_atom));
                 // copy endpoint + event name
                 memcpy(vec, msg, 4 * sizeof(t_atom));
                 // type
@@ -446,16 +448,16 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                 for (int i = 0; i < e.metadata->size; ++i){
                     SETFLOAT(vec + 5 + i, (uint8_t)e.metadata->data[i]);
                 }
-                outlet_anything(x->x_msgout, gensym("event"), count, vec);
+                outlet_anything(x->x_msgout, gensym("source_event"), count, vec);
             } else {
-                outlet_anything(x->x_msgout, gensym("event"), 4, msg);
+                outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
             }
             break;
         }
         case kAooEventStreamStop:
         {
             SETSYMBOL(msg + 3, gensym("stop"));
-            outlet_anything(x->x_msgout, gensym("event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
             break;
         }
         case kAooEventStreamState:
@@ -473,7 +475,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             } else {
                 SETSYMBOL(msg + 3, gensym("state"));
                 SETFLOAT(msg + 4, state);
-                outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+                outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
             }
             break;
         }
@@ -492,7 +494,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             } else {
                 SETSYMBOL(msg + 3, gensym("time"));
                 SETFLOAT(msg + 4, get_elapsed_ms(tt));
-                outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+                outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
             }
             break;
         }
@@ -500,21 +502,21 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
         {
             SETSYMBOL(msg + 3, gensym("block_dropped"));
             SETFLOAT(msg + 4, event->blockDrop.count);
-            outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
             break;
         }
         case kAooEventBlockResend:
         {
             SETSYMBOL(msg + 3, gensym("block_resent"));
             SETFLOAT(msg + 4, event->blockResend.count);
-            outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
             break;
         }
         case kAooEventBlockXRun:
         {
             SETSYMBOL(msg + 3, gensym("block_xrun"));
             SETFLOAT(msg + 4, event->blockXRun.count);
-            outlet_anything(x->x_msgout, gensym("event"), 5, msg);
+            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
             break;
         }
         default:
@@ -574,7 +576,7 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
         SETSYMBOL(vec + 3, gensym("state"));
         SETFLOAT(vec + 4, state);
 
-        outlet_anything(x_msgout, gensym("event"), 5, vec);
+        outlet_anything(x_msgout, gensym("source_event"), 5, vec);
     } else if (msg.type == kAooDataStreamTime) {
         AooNtpTime tt;
         assert(msg.size == sizeof(tt)); // see aoo_receive_handle_event()
@@ -582,7 +584,7 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
         SETSYMBOL(vec + 3, gensym("time"));
         SETFLOAT(vec + 4, get_elapsed_ms(tt));
 
-        outlet_anything(x_msgout, gensym("event"), 5, vec);
+        outlet_anything(x_msgout, gensym("source_event"), 5, vec);
     } else {
         // channel
         SETFLOAT(&vec[3], msg.channel);
