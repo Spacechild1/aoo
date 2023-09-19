@@ -152,9 +152,9 @@ struct cached_sink {
 template<typename Alloc>
 struct stream_message : Alloc {
     stream_message() = default;
-    stream_message(uint64_t _time, AooDataType _type,
-                   const char *_data, AooSize _size)
-        : time(_time), type(_type), size(_size) {
+    stream_message(uint64_t _time, int32_t _channel,
+                   AooDataType _type, const char *_data, AooSize _size)
+        : time(_time), channel(_channel), type(_type), size(_size) {
         data = (char *)Alloc::allocate(size);
         memcpy(data, _data, size);
     }
@@ -164,14 +164,15 @@ struct stream_message : Alloc {
     }
 
     stream_message(stream_message&& other)
-        : time(other.time), type(other.type),
-          data(other.data), size(other.size) {
+        : time(other.time), channel(other.channel),
+          type(other.type), data(other.data), size(other.size) {
         other.data = nullptr;
         other.size = 0;
     }
 
     stream_message& operator=(stream_message&& other) {
         time = other.time;
+        channel = other.channel;
         type = other.type;
         data = other.data;
         size = other.size;
@@ -181,6 +182,7 @@ struct stream_message : Alloc {
     }
 
     uint64_t time = 0;
+    int32_t channel = 0;
     AooDataType type = 0;
     char *data = nullptr;
     AooSize size = 0;

@@ -113,8 +113,9 @@ struct net_packet : data_packet {
 struct stream_message_header {
     stream_message_header *next;
     double time;
-    AooDataType type;
-    AooUInt32 size;
+    int16_t channel;
+    int16_t type; // must be signed because of kAooDataStreamTime
+    uint32_t size;
 };
 
 struct flat_stream_message {

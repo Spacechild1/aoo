@@ -817,21 +817,24 @@ static void aoo_send_list(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
     if (!x->check("list")) return;
 
-    if (argc < 2) {
+    if (argc < 3) {
         return;
     }
+
     AooStreamMessage msg;
-    if (!atom_to_datatype(argv[0], msg.type, x)) {
-        return;
-    }
     auto delta = clock_gettimesince(x->x_logicaltime) * 0.001;
     msg.sampleOffset = delta * x->x_samplerate;
-    msg.size = argc - 1;
-    auto buffer = (AooByte *)alloca(msg.size);
-    for (int i = 0; i < msg.size; ++i) {
-        buffer[i] = (AooByte)atom_getfloat(argv + i + 1);
+    msg.channel = std::max<int32_t>(atom_getfloat(argv), 0);
+    if (!atom_to_datatype(argv[1], msg.type, x)) {
+        return;
+    }
+    auto size = argc - 2;
+    auto buffer = (AooByte *)alloca(size);
+    for (int i = 0; i < size; ++i) {
+        buffer[i] = (AooByte)atom_getfloat(argv + i + 2);
     }
     msg.data = buffer;
+    msg.size = size;
 
     if (auto err = x->x_source->addStreamMessage(msg); err != kAooOk) {
         pd_error(x, "%s: could not add stream message: %s",

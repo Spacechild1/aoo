@@ -595,6 +595,9 @@ AOO_API AooError AOO_CALL AooSource_addStreamMessage(
 }
 
 AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message) {
+    if (message.size > kAooStreamMessageMaxSize) {
+        return kAooErrorOverflow; // TODO: better error code?
+    }
 #if 1
     // avoid piling up stream messages
     if (state_.load(std::memory_order_relaxed) == stream_state::idle) {
@@ -618,13 +621,13 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
     } else {
         time = process_samples_ + message.sampleOffset;
     }
-    message_queue_.push(time, message.type, (char *)message.data, message.size);
+    message_queue_.push(time, message.channel, message.type,
+                        (char *)message.data, message.size);
 #if AOO_DEBUG_STREAM_MESSAGE
     LOG_DEBUG("AooSource: add stream message "
               << "(type: " << aoo_dataTypeToString(message.type)
-              << ", size: " << message.size
-              << ", offset: " << message.sampleOffset
-              << ", time: " << time<< ")");
+              << ", channel: " << message.channel << ", size: " << message.size
+              << ", offset: " << message.sampleOffset << ", time: " << time << ")");
 #endif
     return kAooErrorNone;
 }
@@ -1845,11 +1848,11 @@ void Source::send_data(const sendfn& fn){
                 LOG_VERBOSE("AooSource: skip stream message (offset: " << offset << ")");
             } else
         #endif
-            message_prio_queue_.emplace(msg.time, msg.type, msg.data, msg.size);
+            message_prio_queue_.emplace(msg.time, msg.channel, msg.type, msg.data, msg.size);
         #if AOO_DEBUG_STREAM_MESSAGE
             LOG_DEBUG("AooSource: schedule stream message "
                       << "(type: " << aoo_dataTypeToString(msg.type)
-                      << ", size: " << msg.size
+                      << ", channel: " << msg.channel << ", size: " << msg.size
                       << ", time: " << msg.time << ")");
         #endif
         });
@@ -1866,8 +1869,9 @@ void Source::send_data(const sendfn& fn){
                 offset = std::max(0.0, offset);
             #endif
                 aoo::to_bytes<uint16_t>(offset, &buffer[0]);
-                aoo::to_bytes<uint16_t>(msg.type, &buffer[2]);
-                aoo::to_bytes<uint32_t>(msg.size, &buffer[4]);
+                aoo::to_bytes<uint16_t>(msg.channel, &buffer[2]);
+                aoo::to_bytes<uint16_t>(msg.type, &buffer[4]);
+                aoo::to_bytes<uint16_t>(msg.size, &buffer[6]);
                 sendbuffer_.insert(sendbuffer_.end(), buffer.begin(), buffer.end());
                 // add data
                 sendbuffer_.insert(sendbuffer_.end(), msg.data, msg.data + msg.size);

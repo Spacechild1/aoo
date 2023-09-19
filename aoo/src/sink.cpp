@@ -1817,10 +1817,12 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
             }
         } else if (!try_decode_block(s, stats)) {
             // buffer ran out -> "inactive"
+            // TODO: delay "inactive" and "stop" event by codec delay (if non-zero)
+            // and read remaining data from decoder.
             if (stream_state_ != stream_state::inactive) {
                 stream_state_ = stream_state::inactive;
                 LOG_DEBUG("AooSink: stream inactive");
-                // TODO: read out partial data from resampler and send sample offset
+                // TODO: read out partial data from resampler and set sample offset
                 auto e = make_event<stream_state_event>(ep, kAooStreamStateInactive, 0);
                 eventbuffer_.push_back(std::move(e));
             }
@@ -1926,6 +1928,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 if (offset >= 0) {
                     AooStreamMessage msg;
                     msg.sampleOffset = offset;
+                    msg.channel = it->channel;
                     msg.type = it->type;
                     msg.size = it->size;
                     msg.data = (const AooByte *)reinterpret_cast<flat_stream_message *>(it)->data;
@@ -1938,7 +1941,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 #if AOO_DEBUG_STREAM_MESSAGE
                     LOG_DEBUG("AooSink: dispatch stream message "
                               << "(type: " << aoo_dataTypeToString(msg.type)
-                              << ", size: " << msg.size
+                              << ", channel: " << msg.channel << ", size: " << msg.size
                               << ", offset: " << msg.sampleOffset << ")");
                 #endif
 
@@ -2337,12 +2340,13 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         auto msg = (stream_time_message *)aoo::rt_allocate(alloc_size);
         msg->header.next = nullptr;
         msg->header.time = time;
+        msg->header.channel = 0;
         msg->header.type = kAooDataStreamTime;
         msg->header.size = sizeof(AooNtpTime);
         msg->tt = b.tt;
     #if AOO_DEBUG_STREAM_MESSAGE
-        LOG_DEBUG("AooSink: schedule stream time message (tt: " << aoo::time_tag(b.tt)
-                  << ", time: " << (int64_t)time << ")");
+        LOG_DEBUG("AooSink: schedule stream time message (tt: "
+                  << aoo::time_tag(b.tt) << ", time: " << (int64_t)time << ")");
     #endif
         // insert in list (keep sorted!)
         if (stream_messages_) {
@@ -2363,8 +2367,9 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         auto endptr = data + msgsize;
         for (int32_t i = 0; i < num_messages; ++i) {
             auto offset = aoo::read_bytes<uint16_t>(msgptr);
+            auto channel = aoo::read_bytes<uint16_t>(msgptr);
             auto type = aoo::read_bytes<uint16_t>(msgptr);
-            auto size = aoo::read_bytes<uint32_t>(msgptr);
+            auto size = aoo::read_bytes<uint16_t>(msgptr);
             auto aligned_size = (size + 3) & ~3; // aligned to 4 bytes
             if ((endptr - msgptr) < aligned_size) {
                 LOG_ERROR("AooSink: stream message with bad size argument");
@@ -2375,13 +2380,14 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             auto msg = (flat_stream_message *)aoo::rt_allocate(alloc_size);
             msg->header.next = nullptr;
             msg->header.time = time;
+            msg->header.channel = channel;
             msg->header.type = type;
             msg->header.size = size;
         #if AOO_DEBUG_STREAM_MESSAGE
             LOG_DEBUG("AooSink: schedule stream message "
                       << "(type: " << aoo_dataTypeToString(type)
-                      << ", size: " << size << ", offset: " << offset
-                      << ", time: " << (int64_t)time << ")");
+                      << ", channel: " << channel << ", size: " << size
+                      << ", offset: " << offset << ", time: " << (int64_t)time << ")");
         #endif
             memcpy(msg->data, msgptr, size);
             // insert in list (keep sorted!)

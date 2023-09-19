@@ -49,10 +49,6 @@ bool validate_format(AooFormatNull& f, bool loud = true)
         }
         f.header.sampleRate = 44100;
     }
-#if 1
-    // bash to single channel
-    f.header.numChannels = 1;
-#else
     // validate channels
     if (f.header.numChannels <= 0 || f.header.numChannels > 255){
         if (loud){
@@ -61,7 +57,6 @@ bool validate_format(AooFormatNull& f, bool loud = true)
         }
         f.header.numChannels = 1;
     }
-#endif
 
     return true;
 }

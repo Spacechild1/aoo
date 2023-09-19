@@ -35,9 +35,10 @@ struct t_stream_message
 {
     t_stream_message(const AooStreamMessage& msg, const AooEndpoint& ep)
         : address((const sockaddr *)ep.address, ep.addrlen), id(ep.id),
-          type(msg.type), data(msg.data, msg.data + msg.size) {}
+          channel(msg.channel), type(msg.type), data(msg.data, msg.data + msg.size) {}
     aoo::ip_address address;
     AooId id;
+    int32_t channel;
     AooDataType type;
     std::vector<AooByte> data;
 };
@@ -552,7 +553,7 @@ static void aoo_receive_queue_tick(t_aoo_receive *x)
     while (!queue.empty()){
         if (queue.top().time <= now) {
             auto& m = queue.top().data;
-            AooStreamMessage msg { 0, m.type, m.data.data(), m.data.size() };
+            AooStreamMessage msg { 0, m.channel, m.type, m.data.data(), m.data.size() };
             x->dispatch_stream_message(msg, m.address, m.id);
             queue.pop();
         } else {
@@ -567,16 +568,15 @@ static void aoo_receive_queue_tick(t_aoo_receive *x)
 
 void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
                                             const aoo::ip_address& address, AooId id) {
-    // 4 extra atoms for endpoint (host, port, ID) + event
+    // 5 extra atoms for endpoint (host, port, ID) + message (channel, type)
     // NB: in case of "fake" stream messages, we just over-allocate.
-    auto size = msg.size + 4;
+    auto size = msg.size + 5;
     auto vec = (t_atom *)alloca(sizeof(t_atom) * size);
     if (!x_node->serialize_endpoint(address, id, 3, vec)) {
         bug("dispatch_stream_message: serialize_endpoint");
         return;
     }
     if (msg.type == kAooDataStreamState) {
-        // fake stream message
         AooStreamState state;
         assert(msg.size == sizeof(state)); // see aoo_receive_handle_event()
         memcpy(&state, msg.data, sizeof(state));
@@ -593,11 +593,13 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
 
         outlet_anything(x_msgout, gensym("event"), 5, vec);
     } else {
+        // channel
+        SETFLOAT(&vec[3], msg.channel);
         // message type
-        datatype_to_atom(msg.type, vec[3]);
+        datatype_to_atom(msg.type, vec[4]);
         // message content
         for (int i = 0; i < msg.size; ++i) {
-            SETFLOAT(&vec[i + 4], msg.data[i]);
+            SETFLOAT(&vec[i + 5], msg.data[i]);
         }
 
         outlet_anything(x_msgout, gensym("msg"), size, vec);

@@ -535,6 +535,8 @@ typedef struct AooStreamMessage
 {
     /** sample offset */
     AooInt32 sampleOffset;
+    /** channel number */
+    AooInt32 channel;
     /** the message type */
     AooDataType type;
     /** the data content */
@@ -542,6 +544,8 @@ typedef struct AooStreamMessage
     /** the data size in bytes */
     AooSize size;
 } AooStreamMessage;
+
+#define kAooStreamMessageMaxSize 65535
 
 /*------------------------------------------------------------------*/
 
