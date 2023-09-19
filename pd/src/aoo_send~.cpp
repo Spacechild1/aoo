@@ -559,7 +559,9 @@ static void aoo_send_format(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         // "channel" argument hasn't been added yet.
         // NB: don't do this in multi-channel mode because the actual channel
         // count may change after the fact!
-        if (!x->x_multi) {
+        // NB: neither do this for the "null" codec (= pure message streams)
+        // where we typically have no signal inlets.
+        if (!x->x_multi && (strcmp(f.header.codecName, "null") != 0)) {
             if (f.header.numChannels > x->x_nchannels){
                 if (x->x_nchannels > 0) {
                     pd_error(x, "%s: 'channel' argument (%d) in 'format' message out of range!",
