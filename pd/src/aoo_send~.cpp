@@ -643,6 +643,11 @@ static void aoo_send_ping(t_aoo_send *x, t_floatarg f)
     x->x_source->setPingInterval(f * 0.001);
 }
 
+static void aoo_send_stream_time(t_aoo_send *x, t_floatarg f)
+{
+    x->x_source->setStreamTimeSendInterval(f * 0.001);
+}
+
 static void aoo_send_resend(t_aoo_send *x, t_floatarg f)
 {
     x->x_source->setResendBufferSize(f * 0.001);
@@ -1075,6 +1080,8 @@ void aoo_send_tilde_setup(void)
                     gensym("stop"), A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_reset,
                     gensym("reset"), A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_sink_list,
+                    gensym("sink_list"), A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_auto_invite,
                     gensym("auto_invite"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_invite,
@@ -1093,6 +1100,8 @@ void aoo_send_tilde_setup(void)
                     gensym("packetsize"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_ping,
                     gensym("ping"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_stream_time,
+                    gensym("stream_time"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_resend,
                     gensym("resend"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_redundancy,
@@ -1103,6 +1112,4 @@ void aoo_send_tilde_setup(void)
                     gensym("dll_bandwidth"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_binary,
                     gensym("binary"), A_FLOAT, A_NULL);
-    class_addmethod(aoo_send_class, (t_method)aoo_send_sink_list,
-                    gensym("sink_list"), A_NULL);
 }
