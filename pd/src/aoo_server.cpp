@@ -286,7 +286,6 @@ void aoo_server_setup(void)
 {
     aoo_server_class = class_new(gensym("aoo_server"), (t_newmethod)(void *)aoo_server_new,
         (t_method)aoo_server_free, sizeof(t_aoo_server), 0, A_GIMME, A_NULL);
-    class_sethelpsymbol(aoo_server_class, gensym("aoo_net"));
     class_addmethod(aoo_server_class, (t_method)aoo_server_relay,
          gensym("relay"), A_FLOAT, A_NULL);
     class_addmethod(aoo_server_class, (t_method)aoo_server_port,
