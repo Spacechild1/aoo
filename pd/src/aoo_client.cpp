@@ -104,7 +104,6 @@ struct t_aoo_client
     t_clock *x_queue_clock = nullptr;
     t_outlet *x_stateout = nullptr;
     t_outlet *x_msgout = nullptr;
-    t_outlet *x_addrout = nullptr;
 };
 
 bool t_aoo_client::check(const char *name) const
@@ -450,30 +449,32 @@ static void aoo_client_target(t_aoo_client *x, t_symbol *s, int argc, t_atom *ar
 void t_aoo_client::dispatch_message(AooId group, AooId user,
                                     const AooData& msg, double delay) const
 {
-    // 1) peer + delay
-    t_atom info[3];
     auto peer = find_peer(group, user);
-    if (peer) {
-        SETSYMBOL(info, peer->group_name);
-        SETSYMBOL(info + 1, peer->user_name);
-    } else {
+    if (!peer) {
         // should never happen because the peer should have been added
         bug("dispatch_message");
         return;
     }
-    SETFLOAT(info + 2, delay);
 
-    outlet_list(x_addrout, &s_list, 3, info);
+    // <offset> <group> <user> <type> <data...>
+    auto size = msg.size + 4;
+    // prevent possible stack overflow with huge messages
+    auto vec = (t_atom *)((size > MAXPDSTRING) ?
+        getbytes(size * sizeof(t_atom)) : alloca(size * sizeof(t_atom)));
 
-    // 2) message
-    auto size = msg.size + 1;
-    auto vec = (t_atom *)alloca(size * sizeof(t_atom));
-    datatype_to_atom(msg.type, vec[0]);
+    SETFLOAT(&vec[0], delay);
+    SETSYMBOL(&vec[1], peer->group_name);
+    SETSYMBOL(&vec[2], peer->user_name);
+    datatype_to_atom(msg.type, vec[3]);
     for (int i = 0; i < msg.size; ++i){
-        SETFLOAT(vec + i + 1, (uint8_t)msg.data[i]);
+        SETFLOAT(&vec[i + 4], (uint8_t)msg.data[i]);
     }
 
     outlet_anything(x_msgout, gensym("msg"), size, vec);
+
+    if (size > MAXPDSTRING) {
+        freebytes(vec, size * sizeof(t_atom));
+    }
 }
 
 static void aoo_client_queue_tick(t_aoo_client *x)
@@ -882,7 +883,6 @@ t_aoo_client::t_aoo_client(int argc, t_atom *argv)
     x_queue_clock = clock_new(this, (t_method)aoo_client_queue_tick);
     x_stateout = outlet_new(&x_obj, 0);
     x_msgout = outlet_new(&x_obj, 0);
-    x_addrout = outlet_new(&x_obj, 0);
 
     int port = argc ? atom_getfloat(argv) : 0;
 
