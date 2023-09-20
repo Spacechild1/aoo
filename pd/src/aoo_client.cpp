@@ -19,9 +19,10 @@ t_class *aoo_client_class;
 
 struct t_peer_message
 {
-    t_peer_message(AooId grp, AooId usr, const AooData& msg)
-        : group(grp), user(usr), type(msg.type),
+    t_peer_message(float del, AooId grp, AooId usr, const AooData& msg)
+        : delay(del), group(grp), user(usr), type(msg.type),
           data(msg.data, msg.data + msg.size) {}
+    float delay;
     AooId group;
     AooId user;
     AooDataType type;
@@ -55,6 +56,7 @@ struct t_aoo_client
     // for OSC messages
     t_dejitter *x_dejitter = nullptr;
     t_float x_offset = -1; // immediately
+    t_float x_delay = 0; // extra message delay
     bool x_connected = false;
     bool x_schedule = true;
     bool x_discard = false;
@@ -71,7 +73,7 @@ struct t_aoo_client
 
     void handle_message(AooId group, AooId user, AooNtpTime time, const AooData& msg);
 
-    void dispatch_message(AooId group, AooId user, const AooData& msg, double delay) const;
+    void dispatch_message(t_float delay, AooId group, AooId user, const AooData& msg) const;
 
     void send_message(int argc, t_atom *argv, AooId group, AooId user);
 
@@ -320,6 +322,11 @@ static void aoo_client_offset(t_aoo_client *x, t_floatarg f)
     x->x_offset = f;
 }
 
+static void aoo_client_delay(t_aoo_client *x, t_floatarg f)
+{
+    x->x_delay = f;
+}
+
 static void aoo_client_schedule(t_aoo_client *x, t_floatarg f)
 {
     x->x_schedule = (f != 0);
@@ -446,8 +453,8 @@ static void aoo_client_target(t_aoo_client *x, t_symbol *s, int argc, t_atom *ar
 }
 
 // handle incoming peer message
-void t_aoo_client::dispatch_message(AooId group, AooId user,
-                                    const AooData& msg, double delay) const
+void t_aoo_client::dispatch_message(t_float delay, AooId group, AooId user,
+                                    const AooData& msg) const
 {
     auto peer = find_peer(group, user);
     if (!peer) {
@@ -486,7 +493,7 @@ static void aoo_client_queue_tick(t_aoo_client *x)
         if (queue.top().time <= now) {
             auto& msg = queue.top().data;
             AooData data { msg.type, msg.data.data(), msg.data.size() };
-            x->dispatch_message(msg.group, msg.user, data, 0);
+            x->dispatch_message(msg.delay, msg.group, msg.user, data);
             queue.pop();
         } else {
             break;
@@ -507,25 +514,27 @@ void t_aoo_client::handle_message(AooId group, AooId user, AooNtpTime time,
         aoo::time_tag now = x_dejitter ? dejitter_osctime(x_dejitter) : get_osctime();
         auto delay = aoo::time_tag::duration(now, tt) * 1000.0;
         if (x_schedule) {
-            if (delay > 0) {
+            // NB: only add extra delay to automatically scheduled messages!
+            delay += x_delay;
+            if (delay >= 0) {
                 // put on queue and schedule on clock (using logical time)
                 auto abstime = clock_getsystimeafter(delay);
                 // reschedule if we are the next due element
                 if (x_queue.empty() || abstime < x_queue.top().time) {
                     clock_set(x_queue_clock, abstime);
                 }
-                x_queue.emplace(t_peer_message(group, user, data), abstime);
+                x_queue.emplace(t_peer_message(delay, group, user, data), abstime);
             } else if (!x_discard) {
                 // output late message (negative delay!)
-                dispatch_message(group, user, data, delay);
+                dispatch_message(delay, group, user, data);
             }
         } else {
             // output immediately with delay (may be negative!)
-            dispatch_message(group, user, data, delay);
+            dispatch_message(delay, group, user, data);
         }
     } else {
         // send immediately
-        dispatch_message(group, user, data, 0);
+        dispatch_message(0, group, user, data);
     }
 }
 
@@ -947,6 +956,8 @@ void aoo_client_setup(void)
                     gensym("send"), A_GIMME, A_NULL);
     class_addmethod(aoo_client_class, (t_method)aoo_client_offset,
                     gensym("offset"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_client_class, (t_method)aoo_client_delay,
+                    gensym("delay"), A_FLOAT, A_NULL);
     class_addmethod(aoo_client_class, (t_method)aoo_client_schedule,
                     gensym("schedule"), A_FLOAT, A_NULL);
     class_addmethod(aoo_client_class, (t_method)aoo_client_discard_late,
