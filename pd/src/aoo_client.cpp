@@ -755,19 +755,22 @@ static void aoo_client_disconnect(t_aoo_client *x)
 static void AOO_CALL group_join_cb(t_aoo_client *x, const AooRequest *request,
                                    AooError result, const AooResponse *response){
     if (result == kAooErrorNone) {
-        x->push_reply([x, group=std::string(request->groupJoin.groupName), id=response->groupJoin.groupId](){
+        x->push_reply([x, group_name=std::string(request->groupJoin.groupName),
+                       group_id=response->groupJoin.groupId,
+                       user_id = response->groupJoin.userId](){
             // add group
-            auto name = gensym(group.c_str());
-            if (!x->find_group(id)) {
-                x->x_groups.push_back({ name, id });
+            auto name = gensym(group_name.c_str());
+            if (!x->find_group(group_id)) {
+                x->x_groups.push_back({ name, group_id });
             } else {
                 bug("group_join_cb");
             }
 
-            t_atom msg[2];
+            t_atom msg[3];
             SETSYMBOL(msg, name);
             SETFLOAT(msg + 1, 1); // 1: success
-            outlet_anything(x->x_msgout, gensym("group_join"), 2, msg);
+            SETFLOAT(msg + 2, user_id);
+            outlet_anything(x->x_msgout, gensym("group_join"), 3, msg);
         });
     } else {
         auto& e = response->error;
