@@ -395,7 +395,6 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             outlet_anything(x->x_msgout, gensym("uninvite_timeout"), 3, msg);
             break;
         }
-        //---------------------- source events ------------------------------//
         case kAooEventSourcePing:
         {
             auto& e = event->sourcePing;
@@ -404,60 +403,55 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             double diff2 = aoo_ntpTimeDuration(e.t2, e.t3) * 1000.0;
             double rtt = aoo_ntpTimeDuration(e.t1, e.t3) * 1000.0;
 
-            SETSYMBOL(msg + 3, gensym("ping"));
-            SETFLOAT(msg + 4, diff1);
-            SETFLOAT(msg + 5, diff2);
-            SETFLOAT(msg + 6, rtt);
+            SETFLOAT(msg + 3, diff1);
+            SETFLOAT(msg + 4, diff2);
+            SETFLOAT(msg + 5, rtt);
 
-            outlet_anything(x->x_msgout, gensym("source_event"), 7, msg);
+            outlet_anything(x->x_msgout, gensym("ping"), 6, msg);
 
             break;
         }
         case kAooEventBufferOverrun:
         {
-            SETSYMBOL(msg + 3, gensym("overrun"));
-            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("overrun"), 3, msg);
             break;
         }
         case kAooEventBufferUnderrun:
         {
-            SETSYMBOL(msg + 3, gensym("underrun"));
-            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("underrun"), 3, msg);
             break;
         }
         case kAooEventFormatChange:
         {
-            SETSYMBOL(msg + 3, gensym("format"));
-            // skip first 4 atoms
-            int n = format_to_atoms(*event->formatChange.format, maxsize - 4, msg + 4);
-            outlet_anything(x->x_msgout, gensym("source_event"), n + 4, msg);
+            // skip first 3 atoms
+            int n = format_to_atoms(*event->formatChange.format, maxsize - 3, msg + 3);
+            outlet_anything(x->x_msgout, gensym("format"), n + 3, msg);
             break;
         }
         case kAooEventStreamStart:
         {
             auto& e = event->streamStart;
-            SETSYMBOL(msg + 3, gensym("start"));
             if (e.metadata){
-                auto count = e.metadata->size + 5;
+                // <ip> <port> <id> <type> <data...>
+                auto count = e.metadata->size + 4;
                 auto vec = (t_atom *)alloca(count * sizeof(t_atom));
-                // copy endpoint + event name
-                memcpy(vec, msg, 4 * sizeof(t_atom));
+                // copy endpoint
+                memcpy(vec, msg, 3 * sizeof(t_atom));
                 // type
-                datatype_to_atom(e.metadata->type, vec[4]);
+                datatype_to_atom(e.metadata->type, vec[3]);
                 // data
                 for (int i = 0; i < e.metadata->size; ++i){
-                    SETFLOAT(vec + 5 + i, (uint8_t)e.metadata->data[i]);
+                    SETFLOAT(vec + 4 + i, (uint8_t)e.metadata->data[i]);
                 }
-                outlet_anything(x->x_msgout, gensym("source_event"), count, vec);
+                outlet_anything(x->x_msgout, gensym("start"), count, vec);
             } else {
-                outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
+                outlet_anything(x->x_msgout, gensym("start"), 3, msg);
             }
             break;
         }
         case kAooEventStreamStop:
         {
-            SETSYMBOL(msg + 3, gensym("stop"));
-            outlet_anything(x->x_msgout, gensym("source_event"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("stop"), 3, msg);
             break;
         }
         case kAooEventStreamState:
@@ -473,9 +467,8 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                 msg.data = (AooByte *)&state;
                 aoo_receive_handle_stream_message(x, &msg, &ep);
             } else {
-                SETSYMBOL(msg + 3, gensym("state"));
-                SETFLOAT(msg + 4, state);
-                outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
+                SETFLOAT(msg + 3, state);
+                outlet_anything(x->x_msgout, gensym("state"), 4, msg);
             }
             break;
         }
@@ -492,31 +485,27 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                 msg.data = (AooByte *)&tt;
                 aoo_receive_handle_stream_message(x, &msg, &ep);
             } else {
-                SETSYMBOL(msg + 3, gensym("time"));
-                SETFLOAT(msg + 4, get_elapsed_ms(tt));
-                outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
+                SETFLOAT(msg + 3, get_elapsed_ms(tt));
+                outlet_anything(x->x_msgout, gensym("time"), 4, msg);
             }
             break;
         }
         case kAooEventBlockDrop:
         {
-            SETSYMBOL(msg + 3, gensym("block_dropped"));
-            SETFLOAT(msg + 4, event->blockDrop.count);
-            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
+            SETFLOAT(msg + 3, event->blockDrop.count);
+            outlet_anything(x->x_msgout, gensym("block_dropped"), 4, msg);
             break;
         }
         case kAooEventBlockResend:
         {
-            SETSYMBOL(msg + 3, gensym("block_resent"));
-            SETFLOAT(msg + 4, event->blockResend.count);
-            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
+            SETFLOAT(msg + 3, event->blockResend.count);
+            outlet_anything(x->x_msgout, gensym("block_resent"), 4, msg);
             break;
         }
         case kAooEventBlockXRun:
         {
-            SETSYMBOL(msg + 3, gensym("block_xrun"));
-            SETFLOAT(msg + 4, event->blockXRun.count);
-            outlet_anything(x->x_msgout, gensym("source_event"), 5, msg);
+            SETFLOAT(msg + 3, event->blockXRun.count);
+            outlet_anything(x->x_msgout, gensym("block_xrun"), 4, msg);
             break;
         }
         default:
@@ -573,18 +562,16 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
         AooStreamState state;
         assert(msg.size == sizeof(state)); // see aoo_receive_handle_event()
         memcpy(&state, msg.data, sizeof(state));
-        SETSYMBOL(vec + 3, gensym("state"));
-        SETFLOAT(vec + 4, state);
+        SETFLOAT(vec + 3, state);
 
-        outlet_anything(x_msgout, gensym("source_event"), 5, vec);
+        outlet_anything(x_msgout, gensym("state"), 4, vec);
     } else if (msg.type == kAooDataStreamTime) {
         AooNtpTime tt;
         assert(msg.size == sizeof(tt)); // see aoo_receive_handle_event()
         memcpy(&tt, msg.data, sizeof(tt));
-        SETSYMBOL(vec + 3, gensym("time"));
-        SETFLOAT(vec + 4, get_elapsed_ms(tt));
+        SETFLOAT(vec + 3, get_elapsed_ms(tt));
 
-        outlet_anything(x_msgout, gensym("source_event"), 5, vec);
+        outlet_anything(x_msgout, gensym("time"), 4, vec);
     } else {
         // channel
         SETFLOAT(&vec[3], msg.channel);

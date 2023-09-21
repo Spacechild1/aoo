@@ -460,7 +460,8 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
                 x->x_source->handleInvite(ep, e.token, true);
             }
 
-            if (e.metadata){
+            if (e.metadata) {
+                // <ip> <port> <id> <type> <data...>
                 auto count = e.metadata->size + 4;
                 t_atom *vec = (t_atom *)alloca(count * sizeof(t_atom));
                 // copy endpoint
@@ -520,13 +521,12 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
             double diff2 = aoo_ntpTimeDuration(e.t2, e.t3) * 1000.0;
             double rtt = aoo_ntpTimeDuration(e.t1, e.t3) * 1000.0;
 
-            SETSYMBOL(msg + 3, gensym("ping"));
-            SETFLOAT(msg + 4, diff1);
-            SETFLOAT(msg + 5, diff2);
-            SETFLOAT(msg + 6, rtt);
-            SETFLOAT(msg + 7, e.packetLoss);
+            SETFLOAT(msg + 3, diff1);
+            SETFLOAT(msg + 4, diff2);
+            SETFLOAT(msg + 5, rtt);
+            SETFLOAT(msg + 6, e.packetLoss);
 
-            outlet_anything(x->x_msgout, gensym("sink_event"), 8, msg);
+            outlet_anything(x->x_msgout, gensym("ping"), 7, msg);
 
             break;
         }
