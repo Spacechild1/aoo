@@ -85,7 +85,7 @@
 #X text 107 167 stop streaming;
 #X text 322 575 another source on the same port;
 #X text 343 606 the same port can also be used by sinks;
-#N canvas 705 62 656 757 advanced 0;
+#N canvas 705 62 656 838 advanced 0;
 #X msg 111 522 packetsize \$1;
 #X text 220 521 max. UDP packet size (default: 512 bytes);
 #X text 167 252 buffersize (ms) for resending lost packets (default: 1000);
@@ -99,7 +99,7 @@
 #X msg 94 415 codec_set <param> <value>;
 #X msg 108 448 codec_get <param>;
 #X text 243 447 get the value of a codec parameter;
-#X obj 39 704 s \$0-msg;
+#X obj 39 774 s \$0-msg;
 #X text 244 468 responds with a [codec_get <param> <value>( message.;
 #X text 200 322 redundancy might help to reduce packet loss \, at the cost of increased network traffic., f 44;
 #X text 288 416 set the value of a codec parameter;
@@ -113,8 +113,8 @@
 #X text 121 33 stop listening;
 #X text 282 572 enable/disable dynamic resampling (off by default), f 34;
 #X text 247 624 time DLL filter bandwidth for dynamic resampling (default: 0.0001), f 38;
-#X msg 144 695 binary \$1;
-#X obj 144 670 tgl 19 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000 0 1;
+#X msg 144 745 binary \$1;
+#X obj 144 720 tgl 19 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000 0 1;
 #X floatatom 39 30 5 0 0 0 - - - 0;
 #X floatatom 51 88 5 0 0 0 - - - 0;
 #X floatatom 62 140 5 0 0 0 - - - 0;
@@ -123,11 +123,14 @@
 #X floatatom 111 496 6 0 0 0 - - - 0;
 #X obj 116 559 tgl 19 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000 0 1;
 #X floatatom 125 614 8 0 0 0 - - - 0;
-#X text 225 683 enable/disable binary message format (on by default), f 36;
+#X text 225 733 enable/disable binary message format (on by default), f 36;
 #X floatatom 73 193 5 0 0 0 - - - 0;
 #X msg 73 217 stream_time \$1;
 #X text 190 217 set stream timestamp interval in ms (default: 1000) \, 0 = off;
 #X text 108 113 change AOO source ID;
+#X floatatom 135 670 8 0 0 0 - - - 0;
+#X msg 135 693 buffersize \$1;
+#X text 248 695 set send buffer size in ms (default: 25 ms);
 #X connect 0 0 13 0;
 #X connect 3 0 13 0;
 #X connect 5 0 13 0;
@@ -151,6 +154,8 @@
 #X connect 36 0 21 0;
 #X connect 38 0 39 0;
 #X connect 39 0 13 0;
+#X connect 42 0 43 0;
+#X connect 43 0 13 0;
 #X restore 420 375 pd advanced;
 #X text 285 646 see also;
 #X obj 358 646 aoo_receive~;

@@ -673,6 +673,11 @@ static void aoo_send_binary(t_aoo_send *x, t_floatarg f)
     x->x_source->setBinaryDataMsg(f);
 }
 
+static void aoo_send_buffersize(t_aoo_send *x, t_floatarg f)
+{
+    x->x_source->setBufferSize(f * 0.001);
+}
+
 static void aoo_send_add(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
     if (!x->check(argc, argv, 3, "add")) return;
@@ -1112,4 +1117,6 @@ void aoo_send_tilde_setup(void)
                     gensym("dll_bandwidth"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_binary,
                     gensym("binary"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_buffersize,
+                    gensym("buffersize"), A_FLOAT, A_NULL);
 }
