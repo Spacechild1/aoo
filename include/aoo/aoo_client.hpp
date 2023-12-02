@@ -327,12 +327,12 @@ public:
      *
      * \param group the group ID
      * \param user the user ID
-     * \param[out] groupNameBuf group name buffer
-     * \param[in,out] groupNameSize the group name buffer size;
-     *        updated to the actual size (including the 0 terminator)
-     * \param[out] userNameBuf user name buffer
-     * \param[in,out] userNameSize user name buffer size
-     *        updated to the actual size (including 0 terminator)
+     * \param[out] (optional) groupNameBuf group name buffer
+     * \param[in,out] (optional) groupNameSize the group name buffer size;
+     *        updated to the actual size (excluding the 0 character)
+     * \param[out] (optional) userNameBuf user name buffer
+     * \param[in,out] (optional) userNameSize user name buffer size
+     *        updated to the actual size (excluding the 0 character)
      */
     virtual AooError AOO_CALL getPeerName(
             AooId group, AooId user,

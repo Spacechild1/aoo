@@ -778,19 +778,19 @@ AooError AOO_CALL aoo::net::Client::getPeerName(
     for (auto& p : peers_){
         if (p.match(group, user)) {
             if (groupNameBuffer && groupNameSize) {
-                auto len = p.group_name().size() + 1;
-                if (*groupNameSize >= len) {
-                    memcpy(groupNameBuffer, p.group_name().c_str(), len);
-                    *groupNameSize = len;
+                auto size = p.group_name().size() + 1;
+                if (*groupNameSize >= size) {
+                    memcpy(groupNameBuffer, p.group_name().c_str(), size);
+                    *groupNameSize = size - 1; // exclude the 0 character!
                 } else {
                     return kAooErrorInsufficientBuffer;
                 }
             }
             if (userNameBuffer && userNameSize) {
-                auto len = p.user_name().size() + 1;
-                if (*userNameSize >= len) {
-                    memcpy(userNameBuffer, p.user_name().c_str(), len);
-                    *userNameSize = len;
+                auto size = p.user_name().size() + 1;
+                if (*userNameSize >= size) {
+                    memcpy(userNameBuffer, p.user_name().c_str(), size);
+                    *userNameSize = size - 1; // exclude the 0 character!
                 } else {
                     return kAooErrorInsufficientBuffer;
                 }
