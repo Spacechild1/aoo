@@ -157,7 +157,7 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
  * \param[out] sockaddr sockaddr buffer
  * \param[in,out] addrlen sockaddr buffer size; updated to actual size
  */
-AOO_API AooError aoo_sockaddrFromIpEndpoint(const AooChar *ipAddress, AooUInt16 port,
+AOO_API AooError aoo_ipEndpointToSockaddr(const AooChar *ipAddress, AooUInt16 port,
         AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
 
 /**

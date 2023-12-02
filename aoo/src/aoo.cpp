@@ -416,8 +416,10 @@ const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
 
 //------------------------ sockaddr -------------------------//
 
-AooError aoo_sockaddrFromIpEndpoint(const AooChar *ipAddress, AooUInt16 port,
-                                    AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen) {
+AOO_API AooError AOO_CALL aoo_ipEndpointToSockaddr(
+    const AooChar *ipAddress, AooUInt16 port,
+    AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen)
+{
     aoo::ip_address::ip_type family;
     if (type & kAooSocketIPv6) {
         if (type & kAooSocketIPv4) {
