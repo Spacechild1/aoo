@@ -243,7 +243,7 @@ const char *aoo_strerror(AooError e){
 
 //----------------------- OSC --------------------------//
 
-AooError AOO_CALL aoo_parsePattern(
+AOO_API AooError AOO_CALL aoo_parsePattern(
         const AooByte *msg, AooInt32 size,
         AooMsgType *type, AooId *id, AooInt32 *offset) {
     int32_t count = 0;
@@ -325,25 +325,25 @@ AooError AOO_CALL aoo_parsePattern(
 
 //-------------------- NTP time ----------------------------//
 
-uint64_t AOO_CALL aoo_getCurrentNtpTime(void){
+AOO_API uint64_t AOO_CALL aoo_getCurrentNtpTime(void){
     return aoo::time_tag::now();
 }
 
-double AOO_CALL aoo_osctime_to_seconds(AooNtpTime t){
+AOO_API double AOO_CALL aoo_osctime_to_seconds(AooNtpTime t){
     return aoo::time_tag(t).to_seconds();
 }
 
-uint64_t AOO_CALL aoo_osctime_from_seconds(AooSeconds s){
+AOO_API uint64_t AOO_CALL aoo_osctime_from_seconds(AooSeconds s){
     return aoo::time_tag::from_seconds(s);
 }
 
-double AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2){
+AOO_API double AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2){
     return aoo::time_tag::duration(t1, t2);
 }
 
 //---------------------- version -------------------------//
 
-void AOO_CALL aoo_getVersion(AooInt32 *major, AooInt32 *minor,
+AOO_API void AOO_CALL aoo_getVersion(AooInt32 *major, AooInt32 *minor,
                             AooInt32 *patch, AooInt32 *test){
     if (major) *major = kAooVersionMajor;
     if (minor) *minor = kAooVersionMinor;
@@ -388,7 +388,7 @@ AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {
     }
 }
 
-const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
+AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
     const AooChar *result;
     switch (type) {
     case kAooDataRaw:
@@ -446,9 +446,11 @@ AOO_API AooError AOO_CALL aoo_ipEndpointToSockaddr(
     return kAooOk;
 }
 
-AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
-                                  AooChar *ipAddressBuffer, AooSize *ipAddressSize,
-                                  AooUInt16 *port, AooSocketFlags *type) {
+AOO_API AooError AOO_CALL aoo_sockaddrToIpEndpoint(
+    const void *sockaddr, AooSize addrlen,
+    AooChar *ipAddressBuffer, AooSize *ipAddressSize,
+    AooUInt16 *port, AooSocketFlags *type)
+{
     aoo::ip_address addr((const struct sockaddr *)sockaddr, addrlen);
     auto ipstring = addr.name();
     auto ipsize = strlen(ipstring) + 1;
@@ -475,13 +477,14 @@ AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
 
 //--------------------------- socket/system error --------------------------//
 
-AooError aoo_getLastSocketError(AooInt32 *errorCode,
-                                AooChar *errorMessageBuffer, AooSize *errorMessageSize) {
+AOO_API AooError AOO_CALL aoo_getLastSocketError(
+    AooInt32 *errorCode, AooChar *errorMessageBuffer, AooSize *errorMessageSize)
+{
     auto e = aoo::socket_errno();
     *errorCode = e;
     if (errorMessageBuffer) {
         auto len = aoo::socket_strerror(e, errorMessageBuffer, *errorMessageSize);
-        // NB: null character excluded!
+        // NB: 0 character excluded!
         if (len > 0 && len < *errorMessageSize) {
             *errorMessageSize = len;
         } else {
@@ -491,8 +494,9 @@ AooError aoo_getLastSocketError(AooInt32 *errorCode,
     return kAooOk;
 }
 
-AooError aoo_getLastSystemError(AooInt32 *errorCode,
-                                AooChar *errorMessageBuffer, AooSize *errorMessageSize) {
+AOO_API AooError AOO_CALL aoo_getLastSystemError(
+    AooInt32 *errorCode, AooChar *errorMessageBuffer, AooSize *errorMessageSize)
+{
     // WSAGetLastError() is just a wrapper around GetLastError()
     return aoo_getLastSocketError(errorCode, errorMessageBuffer, errorMessageSize);
 }
@@ -624,7 +628,7 @@ const AooCodecHostInterface * aoo_getCodecHostInterface(void)
     return &aoo::g_interface;
 }
 
-AooError AOO_CALL aoo_registerCodec(const AooCodecInterface *codec){
+AOO_API AooError AOO_CALL aoo_registerCodec(const AooCodecInterface *codec){
     if (aoo::find_codec(codec->name)) {
         LOG_WARNING("codec " << codec->name << " already registered!");
         return kAooErrorAlreadyExists;
@@ -648,7 +652,7 @@ void aoo_opusUnload();
 #define CHECK_SETTING(ptr, field) \
     (ptr && AOO_CHECK_FIELD(ptr, AooSettings, field))
 
-AooError AOO_CALL aoo_initialize(const AooSettings *settings) {
+AOO_API AooError AOO_CALL aoo_initialize(const AooSettings *settings) {
     static bool initialized = false;
     if (!initialized) {
     #if AOO_NET
@@ -684,7 +688,7 @@ AooError AOO_CALL aoo_initialize(const AooSettings *settings) {
     return kAooOk;
 }
 
-void AOO_CALL aoo_terminate() {
+AOO_API void AOO_CALL aoo_terminate() {
 #if AOO_DEBUG_MEMORY
     aoo::g_rt_memory_pool.print();
 #endif
