@@ -2104,7 +2104,7 @@ void Client::on_exception(const char *what, const osc::Exception &err,
 //---------------------- udp_client ------------------------//
 
 AooError udp_client::setup(Client& client, AooClientSettings& settings) {
-    if (settings.portNumber <= 0) {
+    if (settings.portNumber == 0) {
         return kAooErrorBadArgument;
     }
 

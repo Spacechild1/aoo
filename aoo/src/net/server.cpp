@@ -133,32 +133,37 @@ AOO_API AooError AOO_CALL AooServer_run(
 
 AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
     try {
-        while  (tcp_server_.running()) {
-            // first check client timers
-            auto now = aoo::time_tag::now();
-            double timeout = 1e9;
+        std::vector<AooId> client_timeouts;
 
-            if (!nonBlocking || now >= next_timeout_) {
+        while  (tcp_server_.running()) {
+            double sleep = 1e9;
+
+            // first check client timers
+            {
+                auto now = aoo::time_tag::now();
+
                 settings_lock_.lock();
                 auto settings = ping_settings_;
                 settings_lock_.unlock();
 
-                std::vector<AooId> client_timeouts;
-
+                sync::scoped_lock lock(mutex_); // writer lock to protect client list
                 for (auto& [id, client] : clients_) {
                     auto [timeout, wait] = client.update(*this, now, settings);
                     if (timeout) {
                         LOG_VERBOSE("AooServer: client " << id << " not responding");
                         client_timeouts.push_back(id);
-                    } else if (wait < timeout) {
-                        timeout = wait;
+                    } else if (wait < sleep) {
+                        sleep = wait;
                     }
                 }
 
                 // remove timed-out clients
                 for (auto& id : client_timeouts) {
                     remove_client(id, kAooErrorNotResponding, "client is not responding");
+                    // remove from TCP server!
+                    tcp_server_.close(id);
                 }
+                client_timeouts.clear();
             }
 
             // check and dispatch messages
@@ -175,12 +180,13 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
             if (nonBlocking) {
                 return tcp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
             } else {
-                tcp_server_.run(timeout);
+                tcp_server_.run(sleep);
             }
         }
 
         // NB: in non-blocking mode, close() will be called in setup()!
         if (!nonBlocking) {
+            sync::scoped_lock lock(mutex_); // writer lock to protect client list
             close();
         }
 
@@ -304,7 +310,7 @@ AooError AOO_CALL aoo::net::Server::handleRequest(
         return kAooErrorBadArgument;
     }
 
-    sync::scoped_lock lock(mutex_); // writer lock
+    sync::scoped_lock lock(mutex_); // writer lock!
 
     auto c = find_client(client);
     if (!c) {
@@ -435,7 +441,7 @@ AooError AOO_CALL aoo::net::Server::addGroup(
     // this might "waste" a group ID, but we don't care.
     auto id = get_next_group_id();
     std::string hashed_pwd = password ? aoo::net::encrypt(password) : "";
-    auto grp = group(name, hashed_pwd, id, metadata, relayAddress, kAooGroupPersistent);
+    group grp(name, hashed_pwd, id, metadata, relayAddress, kAooGroupPersistent);
     if (add_group(std::move(grp))) {
         if (groupId) {
             *groupId = id;
@@ -866,8 +872,6 @@ AooId Server::accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_
     auto id = get_next_client_id();
     // TODO: check max. client count
     clients_.emplace(id, client_endpoint(id, fn));
-    // force timer update! See run().
-    next_timeout_.clear();
 
     LOG_DEBUG("AooServer: add client " << id);
     return id;

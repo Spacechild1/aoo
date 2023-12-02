@@ -244,7 +244,6 @@ private:
     aoo::udp_server udp_server_;
     aoo::tcp_server tcp_server_;
     std::vector<char> sendbuffer_;
-    aoo::time_tag next_timeout_;
     // message queue
     struct message {
         AooId group;
@@ -262,13 +261,13 @@ private:
     //
     // NB: shared_recursive_mutex only supports recursive shared
     // locks if the top-level lock is exclusive! AFAICT, this is
-    // should be ok since all API methods that take a reader lock
-    // are read-only and should not cause any callback invocations.
+    // should be ok since all API methods that may cause callback
+    // invocations (events or requests) take a writer lock.
     //
     // (Yes, I know that recursive locks are evil, but it's
     // the best solution I could come up with that allows
     // API methods to be called safely both from the outside
-    // and from within event handlers and request handlers.)
+    // and from within event handlers and request handlers.
     sync::shared_recursive_mutex mutex_;
     // request handler
     AooRequestHandler request_handler_{nullptr};

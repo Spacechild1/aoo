@@ -365,8 +365,8 @@ using shared_mutex = std::shared_mutex;
 
 #endif // _WIN32 || AOO_HAVE_PTHREAD_RWLOCK
 
-// NB: lock_shared() and try_lock_shared() may only be called
-// recursively while holding an exclusive lock!!! Use with care!
+// WARNING: lock() and try_lock() may only be called recursively
+// if the topmost lock is exclusive! Use with care!!!
 class shared_recursive_mutex : public shared_mutex {
 public:
     // exclusive
