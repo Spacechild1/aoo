@@ -170,10 +170,10 @@ Send a ping.
 
 ### Arguments:
 
-| type | description    |
-| ---: | -------------- |
-|  `i` | sink/source ID |
-|  `t` | timestamp      |
+| type | description      |
+| ---: | ---------------- |
+|  `i` | sink/source ID   |
+|  `t` | tt (send time)   |
 
 ---
 
@@ -183,12 +183,13 @@ Reply to ping message.
 
 ### Arguments:
 
-| type  | description           |
-| ----: | --------------------- |
-|  `i`  | sink/source ID        |
-|  `t`  | timestamp 1 (remote)  |
-|  `t`  | timestamp 2 (local)   |
-| [`f`] |packet loss percentage |
+| type  | description            |
+| ----: | ---------------------- |
+|  `i`  | sink/source ID         |
+|  `t`  | tt1 (send time)        |
+|  `t`  | tt2 (receive time)     |
+|  `t`  | tt3 (send time)        |
+| [`f`] | packet loss percentage |
 
 <br>
 
@@ -210,9 +211,9 @@ Send a ping to a peer.
 | ----: | ---------------- |
 |  `i`  | group ID         |
 |  `i`  | user ID (sender) |
-| (`t`) | timestamp        |
+| (`t`) | tt (send time)   |
 
-Note: *timestamp* is `nil` in handshake pings.
+Note: *tt* is `nil` in handshake pings.
 
 ---
 
@@ -222,14 +223,15 @@ Reply to ping message.
 
 ### Arguments:
 
-| type  | description          |
-| ----: | -------------------- |
-|  `i`  | group ID             |
-|  `i`  | user ID (sender)     |
-| (`t`) | timestamp 1 (remote) |
-| (`t`) | timestamp 2 (local)  |
+| type  | description        |
+| ----: | ------------------ |
+|  `i`  | group ID           |
+|  `i`  | user ID (sender)   |
+| (`t`) | tt1 (send time)    |
+| (`t`) | tt2 (receive time) |
+| (`t`) | tt3 (send time)    |
 
-Note: *timestamp 1* and *timestamp 2* are `nil` in handshake pongs.
+Note: *tt1*, *tt2* and *tt3* are `nil` in handshake pongs.
 
 ---
 

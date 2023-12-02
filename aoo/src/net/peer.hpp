@@ -158,6 +158,7 @@ private:
     aoo::time_tag next_handshake_;
     aoo::time_tag handshake_deadline_;
     time_tag ping_tt1_;
+    time_tag ping_tt2_;
     std::atomic<float> average_rtt_{0};
     std::atomic<bool> connected_{false};
     std::atomic<bool> got_ping_{false};

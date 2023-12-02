@@ -226,19 +226,20 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
     if (got_ping_.exchange(false, std::memory_order_acquire)) {
         // The empty timetag distinguishes a handshake pong from a regular pong.
         auto tt1 = ping_tt1_;
+        auto tt2 = ping_tt2_;
         if (!tt1.is_empty()) {
             // regular pong
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage(kAooMsgPeerPong)
                 << group_id_ << local_id_
-                << osc::TimeTag(tt1) << osc::TimeTag(now)
+                << osc::TimeTag(tt1) << osc::TimeTag(tt2) << osc::TimeTag(now)
                 << osc::EndMessage;
 
             send(msg, fn);
 
-            LOG_DEBUG("AooClient: send pong to " << *this
-                      << " (" << time_tag(tt1) << " " << now << ")");
+            LOG_DEBUG("AooClient: send pong to " << *this << " (tt1: " << tt1
+                      << ", tt2: " << tt2 << ", tt3: " << now << ")");
         } else {
             // handshake pong
             // NB: The protocol asks as to send 'nil' instead of timetags.
@@ -246,7 +247,7 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage(kAooMsgPeerPong)
                 << group_id_ << local_id_
-                << osc::Nil << osc::Nil
+                << osc::Nil << osc::Nil << osc::Nil
                 << osc::EndMessage;
 
             send(msg, fn);
@@ -580,10 +581,11 @@ void peer::handle_ping(Client& client, osc::ReceivedMessageArgumentIterator it,
     // be sent fast enough to actually cause a race condition.
     // TODO: maybe use a queue instead?
     ping_tt1_ = tt1;
+    ping_tt2_ = time_tag::now(); // local receive time
     got_ping_.store(true, std::memory_order_release);
     if (!tt1.is_empty()) {
         LOG_DEBUG("AooClient: got ping from " << *this
-                  << "(tt1: " << tt1 << ", tt2: " << time_tag::now() << ")");
+                  << " (tt1: " << tt1 << ", tt2: " << ping_tt2_ << ")");
     } else {
         // handshake ping
         LOG_DEBUG("AooClient: got handshake ping from " << *this);
@@ -604,11 +606,12 @@ void peer::handle_pong(Client& client, osc::ReceivedMessageArgumentIterator it,
         LOG_DEBUG("AooClient: got handshake pong from " << *this);
     } else {
         // regular pong
-        time_tag tt1 = (it++)->AsTimeTag();
-        time_tag tt2 = (it++)->AsTimeTag();
-        time_tag tt3 = time_tag::now();
+        time_tag tt1 = (it++)->AsTimeTag(); // local send time
+        time_tag tt2 = (it++)->AsTimeTag(); // remote receive time
+        time_tag tt3 = (it++)->AsTimeTag(); // remote send time
+        time_tag tt4 = time_tag::now(); // local receive time
 
-        auto rtt = time_tag::duration(tt1, tt3);
+        auto rtt = time_tag::duration(tt1, tt4) - time_tag::duration(tt2, tt3);
     #if 1
         // NB: we are the only thread writing to average_rtt_, so we don't need a CAS loop!
         auto avg = average_rtt_.load(std::memory_order_relaxed);
@@ -626,11 +629,11 @@ void peer::handle_pong(Client& client, osc::ReceivedMessageArgumentIterator it,
     #endif
 
         // only send event for regular pong!
-        auto e = std::make_unique<peer_ping_event>(*this, tt1, tt2, tt3);
+        auto e = std::make_unique<peer_ping_event>(*this, tt1, tt2, tt3, tt4);
         client.send_event(std::move(e));
 
-        LOG_DEBUG("AooClient: got pong from " << *this
-                  << "(tt1: " << tt1 << ", tt2: " << tt2 << ", tt3: " << tt3
+        LOG_DEBUG("AooClient: got pong from " << *this << " (tt1: " << tt1
+                  << ", tt2: " << tt2 << ", tt3: " << tt3 << ", tt4: " << tt4
                   << ", rtt: " << rtt << ", average: " << average_rtt_.load() << ")");
     }
 }

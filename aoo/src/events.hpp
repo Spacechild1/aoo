@@ -136,11 +136,12 @@ struct source_ping_event : endpoint_event<AooEventSourcePing> {
 
     source_ping_event(const aoo::endpoint& ep,
                       aoo::time_tag tt1, aoo::time_tag tt2,
-                      aoo::time_tag tt3)
-        : endpoint_event(BASE_EVENT(AooEventSourcePing, t3), ep) {
+                      aoo::time_tag tt3, aoo::time_tag tt4)
+        : endpoint_event(BASE_EVENT(AooEventSourcePing, t4), ep) {
         this->t1 = tt1;
         this->t2 = tt2;
         this->t3 = tt3;
+        this->t4 = tt4;
     }
 };
 
@@ -149,11 +150,12 @@ struct sink_ping_event : endpoint_event<AooEventSinkPing> {
 
     sink_ping_event(const aoo::endpoint& ep,
                     aoo::time_tag tt1, aoo::time_tag tt2,
-                    aoo::time_tag tt3, float packetloss)
+                    aoo::time_tag tt3, aoo::time_tag tt4, float packetloss)
         : endpoint_event(BASE_EVENT(AooEventSinkPing, packetLoss), ep) {
         this->t1 = tt1;
         this->t2 = tt2;
         this->t3 = tt3;
+        this->t4 = tt4;
         this->packetLoss = packetloss;
     }
 };

@@ -517,16 +517,18 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
         {
             auto& e = event->sinkPing;
 
-            double diff1 = aoo_ntpTimeDuration(e.t1, e.t2) * 1000.0;
-            double diff2 = aoo_ntpTimeDuration(e.t2, e.t3) * 1000.0;
-            double rtt = aoo_ntpTimeDuration(e.t1, e.t3) * 1000.0;
+            double delta1 = aoo_ntpTimeDuration(e.t1, e.t2) * 1000.0;
+            double delta2 = aoo_ntpTimeDuration(e.t3, e.t4) * 1000.0;
+            double total_rtt = aoo_ntpTimeDuration(e.t1, e.t4) * 1000.0;
+            double network_rtt = total_rtt - aoo_ntpTimeDuration(e.t2, e.t3) * 1000;
 
-            SETFLOAT(msg + 3, diff1);
-            SETFLOAT(msg + 4, diff2);
-            SETFLOAT(msg + 5, rtt);
-            SETFLOAT(msg + 6, e.packetLoss);
+            SETFLOAT(msg + 3, delta1);
+            SETFLOAT(msg + 4, delta2);
+            SETFLOAT(msg + 5, network_rtt);
+            SETFLOAT(msg + 6, total_rtt);
+            SETFLOAT(msg + 7, e.packetLoss);
 
-            outlet_anything(x->x_msgout, gensym("ping"), 7, msg);
+            outlet_anything(x->x_msgout, gensym("ping"), 8, msg);
 
             break;
         }

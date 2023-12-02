@@ -64,7 +64,8 @@ struct sink_request {
             int32_t token;
         } decline;
         struct {
-            AooNtpTime time;
+            AooNtpTime tt1;
+            AooNtpTime tt2;
         } pong;
     };
 };

@@ -51,7 +51,8 @@ struct request {
     request_type type;
     union {
         struct {
-            AooNtpTime time;
+            AooNtpTime tt1;
+            AooNtpTime tt2;
         } pong;
         struct {
             AooId token;
@@ -179,7 +180,7 @@ public:
 
     AooError handle_ping(const Sink& s, time_tag tt);
 
-    AooError handle_pong(const Sink& s, time_tag tt1, time_tag tt2);
+    AooError handle_pong(const Sink& s, time_tag tt1, time_tag tt2, time_tag tt3);
 
     void send(const Sink& s, const sendfn& fn);
 
@@ -213,7 +214,7 @@ private:
     // send messages
     void send_ping(const Sink&s, const sendfn& fn);
 
-    void send_pong(const Sink& s, AooNtpTime tt1, const sendfn& fn);
+    void send_pong(const Sink& s, time_tag tt1, time_tag tt2, const sendfn& fn);
 
     void send_start_request(const Sink& s, const sendfn& fn);
 

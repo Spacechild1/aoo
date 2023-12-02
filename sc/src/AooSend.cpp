@@ -94,12 +94,13 @@ void AooSend::handleEvent(const AooEvent *event){
     case kAooEventSinkPing:
     {
         auto& e = event->sinkPing;
-        double diff1 = aoo_ntpTimeDuration(e.t1, e.t2);
-        double diff2 = aoo_ntpTimeDuration(e.t2, e.t3);
-        double rtt = aoo_ntpTimeDuration(e.t1, e.t3);
+        auto delta1 = aoo_ntpTimeDuration(e.t1, e.t2);
+        auto delta2 = aoo_ntpTimeDuration(e.t3, e.t4);
+        auto total_rtt = aoo_ntpTimeDuration(e.t1, e.t4);
+        auto network_rtt = total_rtt - aoo_ntpTimeDuration(e.t2, e.t3);
 
         beginEvent(msg, "/ping", e.endpoint);
-        msg << diff1 << diff2 << rtt << e.packetLoss;
+        msg << delta1 << delta2 << network_rtt << total_rtt;
         sendMsgRT(msg);
         break;
     }

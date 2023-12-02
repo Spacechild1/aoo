@@ -644,15 +644,17 @@ void aoo_client_handle_event(t_aoo_client *x, const AooEvent *event, int32_t lev
         peer_to_atoms(*peer, 5, msg);
 
         auto delta1 = aoo::time_tag::duration(e.t1, e.t2) * 1000;
-        auto delta2 = aoo::time_tag::duration(e.t2, e.t3) * 1000;
-        auto rtt = aoo::time_tag::duration(e.t1, e.t3) * 1000;
+        auto delta2 = aoo::time_tag::duration(e.t3, e.t4) * 1000;
+        auto total_rtt = aoo::time_tag::duration(e.t1, e.t4) * 1000;
+        auto network_rtt = total_rtt - aoo::time_tag::duration(e.t2, e.t3) * 1000;
 
         peer_to_atoms(*peer, 5, msg);
         SETFLOAT(msg + 5, delta1);
         SETFLOAT(msg + 6, delta2);
-        SETFLOAT(msg + 7, rtt);
+        SETFLOAT(msg + 7, network_rtt);
+        SETFLOAT(msg + 8, total_rtt);
 
-        outlet_anything(x->x_msgout, gensym("peer_ping"), 8, msg);
+        outlet_anything(x->x_msgout, gensym("peer_ping"), 9, msg);
 
         break;
     }

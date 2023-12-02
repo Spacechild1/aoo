@@ -36,10 +36,10 @@
 #X text 377 61 begin handshake with new peer in group;
 #X msg 33 99 peer_timeout <group> <user> <id> <IP> <port>;
 #X text 367 96 handshake has timed out - could not establish connection with peer, f 37;
-#X msg 33 217 peer_ping <group> <user> <id> <IP> <port> <delay1> <delay2> <rtt>, f 43;
-#X text 351 224 received ping (reply) from peer;
+#X text 361 224 received ping (reply) from peer;
 #X msg 33 274 msg <delay> <group> <user> <type> <bytes...>;
 #X text 356 272 message received from peer. See [pd messages].;
+#X msg 33 217 peer_ping <group> <user> <id> <IP> <port> <delay1> <delay2> <network_rtt> <total_rtt>, f 44;
 #X restore 305 631 pd events;
 #N canvas 638 96 632 620 example 0;
 #X msg 78 208 disconnect;

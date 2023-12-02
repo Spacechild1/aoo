@@ -44,18 +44,20 @@ struct peer_event : ievent
 
 struct peer_ping_event : ievent
 {
-    peer_ping_event(const peer& p, time_tag tt1, time_tag tt2, time_tag tt3)
+    peer_ping_event(const peer& p, time_tag tt1, time_tag tt2,
+                    time_tag tt3, time_tag tt4)
         : group_(p.group_id()), user_(p.user_id()),
-          tt1_(tt1), tt2_(tt2), tt3_(tt3) {}
+          tt1_(tt1), tt2_(tt2), tt3_(tt3), tt4_(tt4) {}
 
     void dispatch(const event_handler &fn) const override {
         AooEventPeerPing e;
-        AOO_EVENT_INIT(&e, AooEventPeerPing, t3);
+        AOO_EVENT_INIT(&e, AooEventPeerPing, t4);
         e.group = group_;
         e.user = user_;
         e.t1 = tt1_;
         e.t2 = tt2_;
         e.t3 = tt3_;
+        e.t4 = tt4_;
 
         fn(e);
     }
@@ -65,6 +67,7 @@ struct peer_ping_event : ievent
     time_tag tt1_;
     time_tag tt2_;
     time_tag tt3_;
+    time_tag tt4_;
 };
 
 struct peer_state_event : ievent

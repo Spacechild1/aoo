@@ -1403,11 +1403,12 @@ void send_decline_msg(const endpoint& ep, int32_t id, int32_t token, const sendf
     ep.send(msg, fn);
 }
 
-// /aoo/sink/<id>/pong <src> <tt1> <tt2>
-void send_pong_msg(const endpoint& ep, int32_t id, aoo::time_tag tt1, const sendfn& fn) {
+// /aoo/sink/<id>/pong <src> <tt1> <tt2> <tt3>
+void send_pong_msg(const endpoint& ep, int32_t id, aoo::time_tag tt1,
+                   aoo::time_tag tt2, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgPong " to " << ep);
 
-    auto tt2 = aoo::time_tag::now(); // use real system time
+    auto tt3 = aoo::time_tag::now(); // local send time
 
     char buf[AOO_MAX_PACKET_SIZE];
     osc::OutboundPacketStream msg(buf, sizeof(buf));
@@ -1419,7 +1420,7 @@ void send_pong_msg(const endpoint& ep, int32_t id, aoo::time_tag tt1, const send
              kAooMsgDomain kAooMsgSink, ep.id, kAooMsgPong);
 
     msg << osc::BeginMessage(address) << id
-        << osc::TimeTag(tt1) << osc::TimeTag(tt2)
+        << osc::TimeTag(tt1) << osc::TimeTag(tt2) << osc::TimeTag(tt3)
         << osc::EndMessage;
 
     ep.send(msg, fn);
@@ -1436,7 +1437,7 @@ void Source::dispatch_requests(const sendfn& fn){
             send_decline_msg(r.ep, id(), r.decline.token, fn);
             break;
         case request_type::pong:
-            send_pong_msg(r.ep, id(), r.pong.time, fn);
+            send_pong_msg(r.ep, id(), r.pong.tt1, r.pong.tt2, fn);
             break;
         default:
             LOG_ERROR("AooSource: unknown request type");
@@ -2461,7 +2462,8 @@ void Source::handle_ping(const osc::ReceivedMessage& msg,
         if (sink->is_active()){
             // push pong request
             sink_request r(request_type::pong, sink->ep);
-            r.pong.time = tt1;
+            r.pong.tt1 = tt1;
+            r.pong.tt2 = aoo::time_tag::now(); // local receive time
             push_request(r);
         } else {
             LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPing << "' message: sink not active");
@@ -2478,9 +2480,10 @@ void Source::handle_pong(const osc::ReceivedMessage& msg,
 {
     auto it = msg.ArgumentsBegin();
     AooId id = (it++)->AsInt32();
-    time_tag tt1 = (it++)->AsTimeTag();
-    time_tag tt2 = (it++)->AsTimeTag();
-    float packetloss = (msg.ArgumentCount() >= 4) ? (it++)->AsFloat() : 0;
+    time_tag tt1 = (it++)->AsTimeTag(); // source send time
+    time_tag tt2 = (it++)->AsTimeTag(); // sink receive time
+    time_tag tt3 = (it++)->AsTimeTag(); // sink send time
+    float packetloss = (msg.ArgumentCount() >= 5) ? (it++)->AsFloat() : 0;
 
     LOG_DEBUG("AooSource: handle pong");
 
@@ -2489,13 +2492,9 @@ void Source::handle_pong(const osc::ReceivedMessage& msg,
     auto sink = find_sink(addr, id);
     if (sink) {
         if (sink->is_active()){
-        #if 0
-            auto tt3 = timer_.get_absolute(); // use last stream time
-        #else
-            auto tt3 = aoo::time_tag::now(); // use real system time
-        #endif
+            auto tt4 = aoo::time_tag::now(); // source receive time
             // send ping event
-            auto e = make_event<sink_ping_event>(sink->ep, tt1, tt2, tt3, packetloss);
+            auto e = make_event<sink_ping_event>(sink->ep, tt1, tt2, tt3, tt4, packetloss);
             send_event(std::move(e), kAooThreadLevelNetwork);
         } else {
             LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPong << "' message: sink not active");

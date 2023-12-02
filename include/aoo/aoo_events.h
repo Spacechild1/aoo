@@ -153,9 +153,10 @@ typedef struct AooEventSourcePing
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
-    AooNtpTime t1; /** send time */
-    AooNtpTime t2; /** remote time */
-    AooNtpTime t3; /** receive time */
+    AooNtpTime t1; /** sink send time */
+    AooNtpTime t2; /** source receive time */
+    AooNtpTime t3; /** source send time */
+    AooNtpTime t4; /** sink receive time */
 } AooEventSourcePing;
 
 /** \brief received ping (reply) from sink */
@@ -163,9 +164,10 @@ typedef struct AooEventSinkPing
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
-    AooNtpTime t1; /** send time */
-    AooNtpTime t2; /** remote time */
-    AooNtpTime t3; /** receive time */
+    AooNtpTime t1; /** source send time */
+    AooNtpTime t2; /** sink receive time */
+    AooNtpTime t3; /** sink send time */
+    AooNtpTime t4; /** source receive time */
     float packetLoss; /** packet loss percentage (0.0 - 1.0) */
 } AooEventSinkPing;
 
@@ -371,9 +373,10 @@ typedef struct AooEventPeerPing
     AOO_EVENT_HEADER
     AooId group;
     AooId user;
-    AooNtpTime t1; /** send time */
-    AooNtpTime t2; /** remote time */
-    AooNtpTime t3; /** receive time */
+    AooNtpTime t1; /** local send time */
+    AooNtpTime t2; /** remote receive time */
+    AooNtpTime t3; /** remote send time */
+    AooNtpTime t4; /** local receive time */
 } AooEventPeerPing;
 
 /** \brief peer state */
