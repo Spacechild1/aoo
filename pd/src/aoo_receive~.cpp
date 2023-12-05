@@ -635,9 +635,12 @@ static t_int * aoo_receive_perform(t_int *w)
 
 static void aoo_receive_channels(t_aoo_receive *x, t_floatarg f) {
     if (x->x_multi) {
-        x->x_nchannels = f > 0 ? f : 1;
-        x->x_vec = nullptr; // sentinel, see "dsp" method
-        canvas_update_dsp();
+        int nchannels = std::max<int>(f, 1);
+        if (nchannels != x->x_nchannels) {
+            x->x_nchannels = nchannels;
+            x->x_vec = nullptr; // sentinel, see "dsp" method
+            canvas_update_dsp();
+        }
     } else {
         pd_error(x, "%s: 'channels' message requires multi-channel mode", classname(x));
     }
@@ -774,6 +777,7 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
     int noutlets;
     if (x_multi) {
         noutlets = 1;
+        // NB: the channel count cannot be zero!
         x_nchannels = std::max<int>(atom_getfloatarg(0, argc, argv), 1);
     } else {
         // NB: users may explicitly specify 0 channels for pure message streams!
@@ -781,6 +785,9 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
         if (noutlets < 0) {
             noutlets = 0;
         } else if (noutlets > AOO_MAX_NUM_CHANNELS) {
+            // NB: in theory we can support any number of channels;
+            // this rather meant to handle patches that accidentally
+            // use the old argument order where the port would come first!
             pd_error(this, "%s: channel count (%d) out of range",
                      classname(this), noutlets);
             noutlets = 0;
@@ -800,7 +807,7 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
     }
     x_id = id;
 
-    // arg #4 (optional): buffer size (ms)
+    // arg #4 (optional): latency (ms)
     float latency = argc > 3 ? atom_getfloat(argv + 3) : DEFAULT_LATENCY;
 
     // make signal outlets
