@@ -980,15 +980,19 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
         }
     }
 
+    // arg #1: channels
     int ninlets;
     if (x_multi) {
-        // one multi-channel input; x_nchannels is used to keep track of
-        // channel count.
+        // one multi-channel inlet
         ninlets = 1;
-        x_nchannels = 0; // see "dsp" method
+        // x_nchannels is used to keep track of the channel count, see "dsp" method.
+        // The creation argument sets the initial number of channels, so we can set
+        // the default format. NB: the channel count cannot be zero!
+        x_nchannels = std::max<int>(atom_getfloatarg(0, argc, argv), 1);
     } else {
-        // arg #1: channels
         // NB: users may explicitly specify 0 channels for pure message streams!
+        // (In this case, the user must provide the number of "message channels"
+        // - if needed - with the "format" message.)
         ninlets = argc > 0 ? atom_getfloat(argv) : 1;
         if (ninlets < 0){
             ninlets = 0;
@@ -1034,13 +1038,10 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
                               this, kAooEventModePoll);
 
     // set default format
-    // NB: in multi-channel mode, the user must explicitly set the format
-    if (!x_multi) {
-        AooFormatStorage fmt;
-        format_makedefault(fmt, x_nchannels);
-        x_source->setFormat(fmt.header);
-        x_codec = gensym(fmt.header.codecName);
-    }
+    AooFormatStorage fmt;
+    format_makedefault(fmt, x_nchannels);
+    x_source->setFormat(fmt.header);
+    x_codec = gensym(fmt.header.codecName);
 
     x_source->setBufferSize(DEFBUFSIZE * 0.001);
 
