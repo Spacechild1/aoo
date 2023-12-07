@@ -7,8 +7,6 @@
 #include "common/sync.hpp"
 #include "common/time.hpp"
 
-#include "oscpack/osc/OscReceivedElements.h"
-
 #include <functional>
 #include <vector>
 #include <map>
@@ -633,15 +631,13 @@ void aoo_client_handle_event(t_aoo_client *x, const AooEvent *event, int32_t lev
     case kAooEventPeerPing:
     {
         auto& e = event->peerPing;
-        t_atom msg[8];
+        t_atom msg[9];
 
         auto peer = x->find_peer(e.group, e.user);
         if (!peer) {
             bug("aoo_client: can't find peer %d|%d for ping event", e.group, e.user);
             return;
         }
-
-        peer_to_atoms(*peer, 5, msg);
 
         auto delta1 = aoo::time_tag::duration(e.t1, e.t2) * 1000;
         auto delta2 = aoo::time_tag::duration(e.t3, e.t4) * 1000;
