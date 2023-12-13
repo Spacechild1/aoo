@@ -174,6 +174,34 @@ double get_elapsed_ms(AooNtpTime tt) {
     return aoo::time_tag::duration(g_start_time, tt);
 }
 
+//---------------------------------------------------//
+
+static t_class *aoo_class;
+
+struct t_aoo
+{
+    t_object x_obj;
+};
+
+void aoo_pdversion(t_aoo *x)
+{
+    t_atom msg[3];
+    int major, minor, bugfix;
+    sys_getversion(&major, &minor, &bugfix);
+    SETFLOAT(&msg[0], major);
+    SETFLOAT(&msg[1], minor);
+    SETFLOAT(&msg[2], bugfix);
+    outlet_anything(x->x_obj.ob_outlet, gensym("pdversion"), 3, msg);
+}
+
+void * aoo_new() {
+    auto x = (t_aoo *)pd_new(aoo_class);
+    outlet_new(&x->x_obj, &s_list);
+    return x;
+}
+
+//---------------------------------------------------//
+
 t_signal_setmultiout g_signal_setmultiout;
 
 void aoo_send_tilde_setup(void);
@@ -213,6 +241,9 @@ extern "C" EXPORT void aoo_setup(void)
     g_signal_setmultiout = (t_signal_setmultiout)dlsym(
         dlopen(nullptr, RTLD_NOW), "signal_setmultiout");
 #endif
+    aoo_class = class_new(gensym("aoo"), (t_newmethod)aoo_new, 0,
+                          sizeof(t_aoo), 0, A_NULL);
+    class_addmethod(aoo_class, (t_method)aoo_pdversion, gensym("pdversion"), A_NULL);
 
     aoo_dejitter_setup();
     aoo_node_setup();
