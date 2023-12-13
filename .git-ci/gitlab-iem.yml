@@ -32,7 +32,6 @@ variables:
 ### ad-hoc code signing for macOS
 .script:codesign:macos: &script_codesign_macos
   - dir="$(pwd)/build/${CI_JOB_NAME}"
-  - ls -R $dir
   - codesign --force --sign - "${dir}/aoo/lib/libaoo.dylib"
   - codesign --force --sign - "${dir}/aoo/bin/aooserver"
   - codesign --force --sign - "${dir}/pd/aoo/aoo.${PD_EXTENSION}"
