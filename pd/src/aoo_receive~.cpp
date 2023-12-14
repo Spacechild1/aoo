@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+// for hardware buffer sizes up to 1024 @ 44.1 kHz
 #define DEFAULT_LATENCY 25
 
 // "fake" stream message types

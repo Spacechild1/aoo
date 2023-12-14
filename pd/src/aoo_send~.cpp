@@ -849,6 +849,12 @@ static t_int * aoo_send_perform(t_int *w)
     if (x->x_node){
         auto err = x->x_source->process(x->x_vec.get(), n, get_osctime());
 
+        if (err == kAooErrorOverflow) {
+            pd_error(x, "%s: send buffer overflow. Try to manually increase "
+                     "the send buffer size with the 'buffersize' method.",
+                     classname(x));
+        }
+
         if (err != kAooErrorIdle){
             x->x_node->notify();
         }
