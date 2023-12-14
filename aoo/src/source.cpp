@@ -263,6 +263,10 @@ AooError AOO_CALL aoo::Source::control(
         if (buffersize_.exchange(bufsize) != bufsize){
             scoped_lock lock(update_mutex_); // writer lock!
             update_audioqueue();
+            if (need_resampling()){
+                // reset resampler, see process()!
+                resampler_.reset();
+            }
         }
         break;
     }
@@ -1287,17 +1291,18 @@ void Source::handle_xrun(int32_t nsamples) {
 
 void Source::update_audioqueue(){
     if (encoder_ && samplerate_ > 0){
-        // recalculate buffersize from seconds to samples
-        int32_t bufsize = buffersize_.load() * format_->sampleRate;
-        auto d = std::div(bufsize, format_->blockSize);
+        // convert buffersize from seconds to samples
+        auto buffersize = buffersize_.load();
+        int32_t buffersamples = buffersize * (double)format_->sampleRate;
+        auto d = std::div(buffersamples, format_->blockSize);
         int32_t nbuffers = d.quot + (d.rem != 0); // round up
         // minimum buffer size depends on resampling and reblocking!
         auto resample = (double)format_->sampleRate / (double)samplerate_;
         auto reblock = (double)format_->blockSize / (double)blocksize_;
-        int32_t minblocks = std::ceil(resample * reblock);
+        int32_t minblocks = std::ceil(resample / reblock);
         nbuffers = std::max<int32_t>(nbuffers, minblocks);
-        LOG_DEBUG("AooSource: buffersize (ms): " << (buffersize_.load() * 1000.0)
-                  << ", samples: " << bufsize << ", nbuffers: " << nbuffers
+        LOG_DEBUG("AooSource: buffersize (ms): " << (buffersize * 1000.0)
+                  << ", samples: " << buffersamples << ", nbuffers: " << nbuffers
                   << ", minimum: " << minblocks);
 
         // resize audio buffer
