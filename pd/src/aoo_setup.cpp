@@ -183,15 +183,11 @@ struct t_aoo
     t_object x_obj;
 };
 
-void aoo_pdversion(t_aoo *x)
+void aoo_multichannel(t_aoo *x)
 {
-    t_atom msg[3];
-    int major, minor, bugfix;
-    sys_getversion(&major, &minor, &bugfix);
-    SETFLOAT(&msg[0], major);
-    SETFLOAT(&msg[1], minor);
-    SETFLOAT(&msg[2], bugfix);
-    outlet_anything(x->x_obj.ob_outlet, gensym("pdversion"), 3, msg);
+    t_atom a;
+    SETFLOAT(&a, g_signal_setmultiout != nullptr);
+    outlet_anything(x->x_obj.ob_outlet, gensym("multichannel"), 1, &a);
 }
 
 void * aoo_new() {
@@ -226,6 +222,9 @@ extern "C" EXPORT void aoo_setup(void)
     post("");
 
     g_start_time = aoo::time_tag::now();
+
+#ifdef PD_HAVE_MULTICHANNEL
+    // runtime check for multichannel support:
 #ifdef _WIN32
     // get a handle to the module containing the Pd API functions.
     // NB: GetModuleHandle("pd.dll") does not cover all cases.
@@ -241,9 +240,11 @@ extern "C" EXPORT void aoo_setup(void)
     g_signal_setmultiout = (t_signal_setmultiout)dlsym(
         dlopen(nullptr, RTLD_NOW), "signal_setmultiout");
 #endif
+#endif // PD_HAVE_MULTICHANNEL
+
     aoo_class = class_new(gensym("aoo"), (t_newmethod)aoo_new, 0,
                           sizeof(t_aoo), 0, A_NULL);
-    class_addmethod(aoo_class, (t_method)aoo_pdversion, gensym("pdversion"), A_NULL);
+    class_addmethod(aoo_class, (t_method)aoo_multichannel, gensym("multichannel"), A_NULL);
 
     aoo_dejitter_setup();
     aoo_node_setup();
