@@ -29,12 +29,12 @@ public:
 
     void push(const T& x) {
         queue_.push_back(proxy{ x, counter_++ });
-        std::push_heap(queue_.begin(), queue_.end(), comp_);
+        std::push_heap(queue_.begin(), queue_.end(), proxy_comp{});
     }
 
     void push(T&& x) {
         queue_.push_back(proxy{ std::move(x), counter_++ });
-        std::push_heap(queue_.begin(), queue_.end(), comp_);
+        std::push_heap(queue_.begin(), queue_.end(), proxy_comp{});
     }
 
     template<typename... Args>
@@ -43,7 +43,7 @@ public:
     }
 
     void pop() {
-        std::pop_heap(queue_.begin(), queue_.end(), comp_);
+        std::pop_heap(queue_.begin(), queue_.end(), proxy_comp{});
         queue_.pop_back();
         if (queue_.empty()) {
             counter_ = 0;
@@ -53,11 +53,7 @@ private:
     struct proxy
     {
         proxy(T&& o, size_t c)
-            : object_(std::move(o))
-            , order_(c) {}
-
-        proxy(const T& o, size_t c)
-            : object_(o)
+            : object_(std::forward<T>(o))
             , order_(c) {}
 
         T object_;
@@ -68,18 +64,17 @@ private:
     {
         bool operator()(const proxy& l, const proxy& r) const
         {
-            if (comp_(l.object_, r.object_))
+            Comp comp;
+            if (comp(l.object_, r.object_))
                 return true;
-            if (comp_(r.object_, l.object_))
+            if (comp(r.object_, l.object_))
                 return false;
             // NB: higher order means lower priority!
             return l.order_ > r.order_;
         }
-        Comp comp_;
     };
     using rebind_alloc = typename std::allocator_traits<Alloc>::template rebind_alloc<proxy>;
     std::vector<proxy, rebind_alloc> queue_;
-    proxy_comp comp_;
     size_t counter_ = 0;
 };
 

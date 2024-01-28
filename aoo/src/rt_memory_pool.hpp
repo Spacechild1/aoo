@@ -162,7 +162,7 @@ public:
     }
 
     bool contains(char * ptr) const {
-        return ptr >= data_ && ptr < (data_ + size_);
+        return (uintptr_t)ptr >= (uintptr_t)data_ && (uintptr_t)ptr < ((uintptr_t)data_ + size_);
     }
 
     size_t size() const {
