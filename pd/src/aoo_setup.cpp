@@ -186,7 +186,11 @@ struct t_aoo
 void aoo_multichannel(t_aoo *x)
 {
     t_atom a;
+#ifdef PD_HAVE_MULTICHANNEL
     SETFLOAT(&a, g_signal_setmultiout != nullptr);
+#else
+    SETFLOAT(&a, -1); // compiled without multichannel support
+#endif
     outlet_anything(x->x_obj.ob_outlet, gensym("multichannel"), 1, &a);
 }
 
