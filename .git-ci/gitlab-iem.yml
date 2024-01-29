@@ -15,6 +15,9 @@ variables:
 
 .script:deps: &script_deps
 # submodules
+  - echo ${CI_COMMIT_TAG}
+  - echo ${DEKEN_USERNAME}
+  - echo ${DEKEN_PASSWORD}
   - git submodule update --init
 # supercollider
   - git clone https://github.com/supercollider/supercollider.git "${SC_PATH}"
@@ -224,32 +227,4 @@ variables:
 Linux:
   extends:
     - .Linux
-    - .base
-Linux_i386:
-  extends:
-    - .Linux_i386
-    - .base
-Linux_ARMhf:
-  extends:
-    - .Linux_ARMhf
-    - .base
-Linux_ARM64:
-  extends:
-    - .Linux_ARM64
-    - .base
-Darwin:
-  extends:
-    - .Darwin
-    - .base
-w32:
-  extends:
-    - .w32
-    - .base
-w64:
-  extends:
-    - .w64
-    - .base
-package:
-  extends:
-    - .package
     - .base
