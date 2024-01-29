@@ -1,11 +1,14 @@
 # compile time options
 option(AOO_CUSTOM_ALLOCATOR "build with custom allocator support" OFF)
+mark_as_advanced(AOO_CUSTOM_ALLOCATOR)
 message(STATUS "Use custom allocator: ${AOO_CUSTOM_ALLOCATOR}")
 
 set(AOO_PACKET_SIZE 512 CACHE STRING "default UDP packet size")
+mark_as_advanced(AOO_PACKET_SIZE)
 message(STATUS "Default UDP packet size: ${AOO_PACKET_SIZE}")
 
 set(AOO_MAX_PACKET_SIZE 4096 CACHE STRING "max. UDP packet size")
+mark_as_advanced(AOO_MAX_PACKET_SIZE)
 message(STATUS "Max. UDP packet size: ${AOO_MAX_PACKET_SIZE}")
 
 if (AOO_PACKET_SIZE GREATER AOO_MAX_PACKET_SIZE)
@@ -13,36 +16,50 @@ if (AOO_PACKET_SIZE GREATER AOO_MAX_PACKET_SIZE)
 endif()
 
 option(AOO_DYNAMIC_RESAMPLING "enable/disable dynamic resampling" OFF)
+mark_as_advanced(AOO_DYNAMIC_RESAMPLING)
 message(STATUS "Use dynamic resampling: ${AOO_DYNAMIC_RESAMPLING}")
 
-set(AOO_DLL_BANDWIDTH 0.0001 CACHE STRING "default DLL filter bandwidth")
+set(AOO_DLL_BANDWIDTH 0.001 CACHE STRING "default DLL filter bandwidth")
+mark_as_advanced(AOO_DLL_BANDWIDTH)
 message(STATUS "Default DLL filter bandwidth: ${AOO_DLL_BANDWIDTH}")
 
 option(AOO_BINARY_DATA_MSG "use binary data messages" ON)
+mark_as_advanced(AOO_BINARY_DATA_MSG)
 message(STATUS "Use binary data message: ${AOO_BINARY_DATA_MSG}")
 
 # compile time debugging options
 option(AOO_DEBUG_MEMORY "debug memory usage" OFF)
+mark_as_advanced(AOO_DEBUG_MEMORY)
 
 option(AOO_DEBUG_DATA "debug data transmission" OFF)
+mark_as_advanced(AOO_DEBUG_DATA)
 
 option(AOO_DEBUG_RESEND "debug data retransmission" OFF)
+mark_as_advanced(AOO_DEBUG_RESEND)
 
 option(AOO_DEBUG_DLL "debug time DLL filter" OFF)
+mark_as_advanced(AOO_DEBUG_DLL)
 
 option(AOO_DEBUG_TIMER "debug timer" OFF)
+mark_as_advanced(AOO_DEBUG_TIMER)
 
 option(AOO_DEBUG_RESAMPLER "debug resampler" OFF)
+mark_as_advanced(AOO_DEBUG_RESAMPLER)
 
 option(AOO_DEBUG_JITTER_BUFFER "debug jitter buffer" OFF)
+mark_as_advanced(AOO_DEBUG_JITTER_BUFFER)
 
 option(AOO_DEBUG_STREAM_MESSAGE "debug jitter buffer" OFF)
+mark_as_advanced(AOO_DEBUG_STREAM_MESSAGE)
 
 option(AOO_DEBUG_RELAY "debug relay" OFF)
+mark_as_advanced(AOO_DEBUG_RELAY)
 
 option(AOO_DEBUG_CLIENT_MESSAGE "debug client message" OFF)
+mark_as_advanced(AOO_DEBUG_CLIENT_MESSAGE)
 
 option(AOO_CLIENT_SIMULATE "network simulation in the client" OFF)
+mark_as_advanced(AOO_CLIENT_SIMULATE)
 
 set(OPTIONS
     -DAOO_CUSTOM_ALLOCATOR=$<BOOL:${AOO_CUSTOM_ALLOCATOR}>
@@ -50,7 +67,6 @@ set(OPTIONS
     -DAOO_MAX_PACKET_SIZE=${AOO_MAX_PACKET_SIZE}
     -DAOO_DYNAMIC_RESAMPLING=$<BOOL:${AOO_DYNAMIC_RESAMPLING}>
     -DAOO_DLL_BANDWIDTH=${AOO_DLL_BANDWIDTH}
-    -DAOO_TIMER_TOLERANCE=${AOO_TIMER_TOLERANCE}
     -DAOO_BINARY_DATA_MSG=$<BOOL:${AOO_BINARY_DATA_MSG}>
     -DAOO_DEBUG_MEMORY=$<BOOL:${AOO_DEBUG_MEMORY}>
     -DAOO_DEBUG_DATA=$<BOOL:${AOO_DEBUG_DATA}>
