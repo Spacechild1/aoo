@@ -164,11 +164,11 @@ variables:
 .Linux_ARM64:
   allow_failure: true
   <<: *build_linux_arm64
-.Darwin:
+.macOS:
   <<: *build_macos
-.w32:
+.win32:
   <<: *build_w32
-.w64:
+.win64:
   <<: *build_w64
 
 #######################################################################
@@ -184,7 +184,7 @@ variables:
   before_script:
     - apt-get update && apt-get --no-install-recommends -y install deken zip
   script:
-# create zip files for all platform (e.g. aoo_v0.3.0_w32.zip)
+# create zip files for all platform (e.g. aoo_v0.3.0_win64.zip)
     - rm -f ./*.zip
     - root=$(pwd)
 # Pd + SuperCollider:
@@ -237,17 +237,17 @@ Linux_ARM64:
   extends:
     - .Linux_ARM64
     - .base
-Darwin:
+macOS:
   extends:
-    - .Darwin
+    - .macOS
     - .base
-w32:
+win32:
   extends:
-    - .w32
+    - .win32
     - .base
-w64:
+win64:
   extends:
-    - .w64
+    - .win64
     - .base
 package:
   extends:
