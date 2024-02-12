@@ -329,11 +329,11 @@ AOO_API uint64_t AOO_CALL aoo_getCurrentNtpTime(void){
     return aoo::time_tag::now();
 }
 
-AOO_API double AOO_CALL aoo_osctime_to_seconds(AooNtpTime t){
+AOO_API double AOO_CALL aoo_ntpTimeToSeconds(AooNtpTime t){
     return aoo::time_tag(t).to_seconds();
 }
 
-AOO_API uint64_t AOO_CALL aoo_osctime_from_seconds(AooSeconds s){
+AOO_API uint64_t AOO_CALL aoo_ntpTimeFromSeconds(AooSeconds s){
     return aoo::time_tag::from_seconds(s);
 }
 
