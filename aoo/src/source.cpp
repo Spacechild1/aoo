@@ -1357,7 +1357,7 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
             + kAooMsgSinkLen + 16 + kAooMsgStartLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSink, ep.id, kAooMsgStart);
+             kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgStart);
 
     msg << osc::BeginMessage(address) << id << aoo_getVersionString()
         << stream_id << seq_start << format_id
@@ -1382,7 +1382,7 @@ void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream, const sendfn&
             + kAooMsgSinkLen + 16 + kAooMsgStopLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSink, ep.id, kAooMsgStop);
+             kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgStop);
 
     msg << osc::BeginMessage(address) << id << stream << osc::EndMessage;
 
@@ -1401,7 +1401,7 @@ void send_decline_msg(const endpoint& ep, int32_t id, int32_t token, const sendf
             + kAooMsgSinkLen + 16 + kAooMsgDeclineLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSink, ep.id, kAooMsgDecline);
+             kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgDecline);
 
     msg << osc::BeginMessage(address) << id << token << osc::EndMessage;
 
@@ -1422,7 +1422,7 @@ void send_pong_msg(const endpoint& ep, int32_t id, aoo::time_tag tt1,
             + kAooMsgSinkLen + 16 + kAooMsgDeclineLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSink, ep.id, kAooMsgPong);
+             kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgPong);
 
     msg << osc::BeginMessage(address) << id
         << osc::TimeTag(tt1) << osc::TimeTag(tt2) << osc::TimeTag(tt3)
@@ -1602,7 +1602,7 @@ void send_packet_osc(const endpoint& ep, AooId id, int32_t stream_id,
 
     char address[kDataMaxAddrSize];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSink, ep.id, kAooMsgData);
+             kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgData);
 
     msg << osc::BeginMessage(address) << id << stream_id << d.sequence;
     if (d.flags & kAooBinMsgDataTimeStamp) {
@@ -2073,7 +2073,7 @@ void Source::resend_data(const sendfn &fn){
                     int32_t size;
                     AooByte *data;
                 };
-                auto framevec = (frame_data *)alloca(std::max(d.nframes, 1) * sizeof(frame_data));
+                auto framevec = (frame_data *)alloca(std::max<int>(d.nframes, 1) * sizeof(frame_data));
                 int32_t numframes = 0;
                 int32_t buf_offset = 0;
 
@@ -2174,7 +2174,7 @@ void Source::send_ping(const sendfn& fn){
                         + kAooMsgSinkLen + 16 + kAooMsgPingLen;
                 char address[max_addr_size];
                 snprintf(address, sizeof(address), "%s/%d%s",
-                         kAooMsgDomain kAooMsgSink, sink.ep.id, kAooMsgPing);
+                         kAooMsgDomain kAooMsgSink, (int)sink.ep.id, kAooMsgPing);
 
                 msg << osc::BeginMessage(address) << id() << osc::TimeTag(tt)
                     << osc::EndMessage;

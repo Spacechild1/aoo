@@ -2505,7 +2505,7 @@ void source_desc::send_ping(const Sink&s, const sendfn& fn) {
                 + kAooMsgSourceLen + 16 + kAooMsgPingLen;
         char address[max_addr_size];
         snprintf(address, sizeof(address), "%s/%d%s",
-                 kAooMsgDomain kAooMsgSource, ep.id, kAooMsgPing);
+                 kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgPing);
 
         msg << osc::BeginMessage(address) << s.id() << osc::TimeTag(tt)
             << osc::EndMessage;
@@ -2554,7 +2554,7 @@ void source_desc::send_pong(const Sink &s, time_tag tt1, time_tag tt2, const sen
             + kAooMsgSourceLen + 16 + kAooMsgPongLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSource, ep.id, kAooMsgPong);
+             kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgPong);
 
     msg << osc::BeginMessage(address) << s.id()
         << osc::TimeTag(tt1) << osc::TimeTag(tt2) << osc::TimeTag(tt3) << packetloss
@@ -2576,7 +2576,7 @@ void source_desc::send_start_request(const Sink& s, const sendfn& fn) {
                                   + 16 + kAooMsgStartLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSource, ep.id, kAooMsgStart);
+             kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgStart);
 
     msg << osc::BeginMessage(address)
         << s.id() << aoo_getVersionString()
@@ -2598,7 +2598,7 @@ void source_desc::send_stop_request(const Sink& s, int32_t stream, const sendfn&
                                   + 16 + kAooMsgStopLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSource, ep.id, kAooMsgStop);
+             kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgStop);
 
     msg << osc::BeginMessage(address)
         << s.id() << stream
@@ -2674,7 +2674,7 @@ void source_desc::send_data_requests(const Sink& s, const sendfn& fn){
         // make OSC address pattern
         char pattern[kDataMaxAddrSize];
         snprintf(pattern, sizeof(pattern), "%s/%d%s",
-                 kAooMsgDomain kAooMsgSource, ep.id, kAooMsgData);
+                 kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgData);
 
         const int32_t maxdatasize = s.packetsize() - kDataHeaderSize;
         const int32_t maxrequests = maxdatasize / 10; // 2 * (int32_t + typetag + padding)
@@ -2711,7 +2711,7 @@ void source_desc::send_data_requests(const Sink& s, const sendfn& fn){
                         LOG_DEBUG("AooSink: send data request ("
                                   << r.sequence << " " << frame << ")");
                     #endif
-                        msg << r.sequence << frame;
+                        msg << r.sequence << (int32_t)frame;
                         if (++numrequests >= maxrequests){
                             // send it off
                             msg << osc::EndMessage;
@@ -2750,7 +2750,7 @@ void send_invitation(const Sink& s, const endpoint& ep, AooId token,
             + kAooMsgSourceLen + 16 + kAooMsgInviteLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSource, ep.id, kAooMsgInvite);
+             kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgInvite);
 
     msg << osc::BeginMessage(address) << s.id() << token
         << metadata_view(metadata) << osc::EndMessage;
@@ -2775,7 +2775,7 @@ void send_uninvitation(const Sink& s, const endpoint& ep,
             + kAooMsgSourceLen + 16 + kAooMsgUninviteLen;
     char address[max_addr_size];
     snprintf(address, sizeof(address), "%s/%d%s",
-             kAooMsgDomain kAooMsgSource, ep.id, kAooMsgUninvite);
+             kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgUninvite);
 
     msg << osc::BeginMessage(address) << s.id() << token
         << osc::EndMessage;

@@ -302,8 +302,8 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
 
         // /aoo/source or /aoo/sink
         if (id) {
-            int32_t skip = 0;
-            if (sscanf((const char *)(msg + count), "/%d%n", id, &skip) > 0) {
+            int skip = 0; // 'int' for sscanf
+            if (sscanf((const char *)(msg + count), "/%d%n", (int *)id, &skip) > 0) {
                 count += skip;
             } else {
                 // TODO only print relevant part of OSC address string

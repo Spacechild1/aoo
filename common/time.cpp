@@ -92,7 +92,7 @@ time_tag time_tag::now(){
 
 std::ostream& operator << (std::ostream& os, time_tag t){
     auto s = t.to_seconds();
-    int32_t days, hours, minutes, seconds, micros;
+    int days, hours, minutes, seconds, micros; // use 'int' for snprintf
 
     auto d = lldiv(s, 86400);
     days = d.quot;
