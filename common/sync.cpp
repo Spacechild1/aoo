@@ -602,7 +602,6 @@ bool event::wait_for(double seconds) {
     pthread_mutex_unlock(&mutex_);
     return true;
 }
-}
 
 #endif // HAVE_SEMAPHORE
 

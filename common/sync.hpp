@@ -25,6 +25,7 @@
   #include <semaphore.h>
 #endif
 
+// TODO: FreeRTOS Semaphore
 #if defined(_WIN32) || defined(__APPLE__) || defined(HAVE_POSIX_SEMAPHORE)
   #define HAVE_SEMAPHORE
 #endif
@@ -49,6 +50,8 @@
        defined(__aarch64__))
 // mnemonic 'yield' is supported from ARMv6k onwards
   #define HAVE_YIELD
+#elif defined(ESP_PLATFORM)
+// TODO
 #else
 // fallback
   #include <thread>
@@ -66,6 +69,8 @@ inline void pause_cpu(){
     _mm_pause();
 #elif defined(HAVE_YIELD)
     __asm__ __volatile__("yield");
+#elif defined(ESP_PLATFORM)
+// TODO
 #else // fallback
   #warning "architecture does not support yield/pause instruction"
   #if 0
@@ -177,6 +182,7 @@ class relaxed_atomic<T, typename std::enable_if<
 
 //----------------- spinlock ----------------------//
 
+// TODO: temporarily disable interrupts on ESP?
 class spinlock {
 public:
     spinlock() = default;
@@ -208,6 +214,7 @@ protected:
 
 //------------- shared spin lock -----------------//
 
+// TODO: temporarily disable interrupts on ESP?
 class shared_spinlock {
 public:
     shared_spinlock() = default;
