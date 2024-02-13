@@ -30,7 +30,7 @@
 #X obj 559 319 fudiparse;
 #X obj 491 262 list trim;
 #X obj 451 229 list split 3;
-#X obj 483 144 print aoo_send~;
+#X obj 483 144 print aoo_receive~;
 #X obj 451 116 t a a;
 #X obj 83 88 route ping time, f 53;
 #X text 466 174 parse stream metadata and stream messages;
