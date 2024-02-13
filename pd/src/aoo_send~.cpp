@@ -496,8 +496,8 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
                 x->add_sink(addr, ep.id);
             } else {
                 // the sink might have been added concurrently by the user (very unlikely)
-                verbose(0, "sink %s %d %d already added",
-                        addr.name(), addr.port(), ep.id);
+                logpost(x, PD_DEBUG, "%s: sink %s %d %d already added",
+                        classname(x), addr.name(), addr.port(), ep.id);
             }
             break;
         }
@@ -507,8 +507,8 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
                 x->remove_sink(addr, ep.id);
             } else {
                 // the sink might have been removed concurrently by the user (very unlikely)
-                verbose(0, "sink %s %d %d already removed",
-                        addr.name(), addr.port(), ep.id);
+                logpost(x, PD_DEBUG, "%s: sink %s %d %d already removed",
+                        classname(x), addr.name(), addr.port(), ep.id);
             }
             break;
         }
@@ -716,7 +716,8 @@ static void aoo_send_add(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         x->add_sink(addr, id);
 
         // print message (use actual IP address)
-        verbose(0, "added sink %s %d %d", addr.name(), addr.port(), id);
+        logpost(x, PD_DEBUG, "%s: added sink %s %d %d",
+                classname(x), addr.name(), addr.port(), id);
     }
 }
 
@@ -742,7 +743,8 @@ static void aoo_send_remove(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 
         x->remove_sink(addr, id);
 
-        verbose(0, "removed sink %s %d %d", addr.name(), addr.port(), id);
+        logpost(x, PD_DEBUG, "%s: removed sink %s %d %d",
+                classname(x), addr.name(), addr.port(), id);
     }
 }
 

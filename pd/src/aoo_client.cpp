@@ -660,7 +660,8 @@ void aoo_client_handle_event(t_aoo_client *x, const AooEvent *event, int32_t lev
         break;
     }
     default:
-        verbose(0, "%s: unknown event type %d", classname(x), event->type);
+        logpost(x, PD_DEBUG, "%s: unknown event type %d",
+                classname(x), event->type);
         break;
     }
 }
@@ -899,7 +900,8 @@ t_aoo_client::t_aoo_client(int argc, t_atom *argv)
     x_node = port > 0 ? t_node::get((t_pd *)this, port) : nullptr;
 
     if (x_node){
-        verbose(0, "new aoo client on port %d", port);
+        logpost(this, PD_DEBUG, "%s: new client on port %d",
+                classname(this), port);
         // start clock
         clock_delay(x_clock, AOO_CLIENT_POLL_INTERVAL);
     }

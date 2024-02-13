@@ -185,7 +185,8 @@ static void aoo_server_handle_event(t_aoo_server *x, const AooEvent *event, int3
         break;
     }
     default:
-        verbose(0, "%s: unknown event type %d", classname(x), event->type);
+        logpost(x, PD_DEBUG, "%s: unknown event type %d",
+                classname(x), event->type);
         break;
     }
 }

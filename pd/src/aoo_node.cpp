@@ -408,7 +408,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
     });
 #endif
 
-    verbose(0, "new aoo node on port %d", port);
+    logpost(nullptr, PD_DEBUG, "aoo: new node on port %d", port);
 }
 
 void t_node_imp::release(t_pd *obj, void *x)
@@ -461,7 +461,7 @@ t_node_imp::~t_node_imp()
     }
 #endif
 
-    verbose(0, "released aoo node on port %d", x_port);
+    logpost(nullptr, PD_DEBUG, "aoo: released node on port %d", x_port);
 }
 
 void aoo_node_setup(void)
