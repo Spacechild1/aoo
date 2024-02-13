@@ -210,8 +210,8 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                 cmd->perform(*this);
             }
 
-            if (!peers_.update()){
-                // LOG_DEBUG("AooClient: update() would block");
+            if (peers_.update()){
+                LOG_DEBUG("AooClient: free stale peers");
             }
 
             if (nonBlocking) {

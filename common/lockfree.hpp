@@ -561,6 +561,10 @@ public:
         refcount_.fetch_sub(1, std::memory_order_release);
     }
 
+    bool need_update() const {
+        return free_.load(std::memory_order_relaxed) != nullptr;
+    }
+
     // This method is called periodically from a non-RT thread to collect garbage.
     // Always call in unlocked state!
     // NB: items on the free list are never reused, so there is no ABA problem

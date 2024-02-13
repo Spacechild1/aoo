@@ -463,8 +463,8 @@ AooError AOO_CALL aoo::Sink::send(AooSendFunc fn, void *user){
     lock.unlock(); // !
 
     // free unused sources
-    if (!sources_.update()){
-        // LOG_DEBUG("AooSink: try_free() would block");
+    if (sources_.update()){
+        LOG_DEBUG("AooSink: free stale sources");
     }
 
     return kAooOk;
@@ -521,7 +521,7 @@ AooError AOO_CALL aoo::Sink::process(
         }
     }
 #if 1
-    if (sources_.empty() && requestqueue_.empty()) {
+    if (sources_.empty() && !sources_.need_update() && requestqueue_.empty()) {
         // nothing to process and no need to call send()
         return kAooErrorIdle;
     }

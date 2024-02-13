@@ -581,8 +581,8 @@ AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
 
     send_ping(reply);
 
-    if (!sinks_.update()){
-        // LOG_DEBUG("AooSource: update() would block");
+    if (sinks_.update()){
+        LOG_DEBUG("AooSource: free stale sinks");
     }
 
     return kAooOk;
@@ -722,7 +722,7 @@ AooError AOO_CALL aoo::Source::process(
     }
 
 #if IDLE_IF_NO_SINKS
-    if (sinks_.empty() && requests_.empty()){
+    if (sinks_.empty() && !sinks_.need_update() && requests_.empty()){
         // nothing to do. users still have to check for pending events,
         // but there is no reason to call send()
         return kAooErrorIdle;
