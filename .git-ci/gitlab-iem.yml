@@ -4,33 +4,53 @@ variables:
   CMAKE_BUILD_TYPE:
     value: "Release"
     description: "Set CMake build type"
-  LOGLEVEL:
-    value: 2
+  LOG_LEVEL:
+    value: "Warning"
     description: "Set log level"
   PD_VERSION: 0.54-1
-# PD_PATH: only set on Windows
+  PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}.src.tar.gz
+  PD_PATH: /tmp/pd
   SC_PATH: /tmp/supercollider
 
 ### script snippets
 
-.script:deps: &script_deps
-# submodules
-  - git submodule update --init
-# supercollider
+# clone SC repository
+.script:sc: &script_sc
   - git clone https://github.com/supercollider/supercollider.git "${SC_PATH}"
   - pushd "${SC_PATH}"
   - git submodule update --init
   - popd
 
+# download Pd sources
+.script:pd: &script_pd
+  - wget -q -O Pd.tgz ${PD_URL}
+  - rm -rf ${PD_PATH}; mkdir -p ${PD_PATH}
+  - tar -xf Pd.tgz -C ${PD_PATH}
+  - rm -f Pd.tgz
+  - mv "${PD_PATH}"/*/* "${PD_PATH}"
+
+# download Pd application (with sources)
+.script:pd_app: &script_pd_app
+  - wget -q -O Pd.zip ${PD_URL}
+  - rm -rf "${PD_PATH}"; mkdir -p "${PD_PATH}"
+  - unzip -q Pd.zip -d "${PD_PATH}"
+  - rm -f Pd.zip
+  - mv "${PD_PATH}"/*/* "${PD_PATH}"
+
+# NOTE: we have to use absolute paths for PD_INSTALLDIR and SC_INSTALLDIR.
+# For some reason, relative paths (including '.') are not appended to CMAKE_INSTALL_PREFIX
+# as they should be, instead they are resolved to the source directory *before* getting passed to CMake.
 .script:cmake: &script_cmake
   - prefix="$(pwd)/build/${CI_JOB_NAME}"
   - rm -rf build
   - cmake -H. -Bbuild -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
-    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_SYSTEM_OPUS=OFF
-    ${PD_EXTENSION:+-DPD_EXTENSION=${PD_EXTENSION}} -DPD_DIR="${PD_PATH}" -DPD_INSTALLDIR="$prefix/pd"
-    -DSC_SUPERNOVA=${SUPERNOVA} -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
+    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_SYSTEM_OPUS=OFF
+    -DPD_INCLUDEDIR="${PD_PATH}/src" -DPD_BINDIR="${PD_PATH}/bin" -DPD_INSTALLDIR="${prefix}/pd"
+    -DPD_EXTENSION=${PD_EXTENSION}
+    -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
+
    # NOTE: by default, CMake 3.21+ uses the compiler to obtain dependencies for makefiles ('compiler_depends.make').
    # For some reason, on the 'Hopper' runner that file would contain bogus file paths which will cause the following
    # invocation of 'cmake --build ./build --target install/strip' to fail with 'multiple target patterns'.
@@ -75,11 +95,13 @@ variables:
     SUPERNOVA: 1
     STATIC_LIBS: 1
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends make cmake git
-      puredata-dev puredata
+    - apt-get update && apt-get install -y --no-install-recommends
+      make cmake wget git
     - test "x${TARGETDEBARCH}" != "x" &&
       { export CC=${TARGETARCH}-gcc; export CXX=${TARGETARCH}-g++; }
-    - *script_deps
+    - git submodule update --init
+    - *script_sc
+    - *script_pd
     - *script_cmake
 
 .build:linux_i386: &build_linux_i386
@@ -108,18 +130,10 @@ variables:
     OSX_ARCHITECTURES: "arm64;x86_64"
     SUPERNOVA: 1
     PD_EXTENSION: d_fat
-    PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}.macos.zip
   before_script:
-    - wget -O Pd.zip ${PD_URL}
-    - rm -rf /Applications/Pd*.app/
-# unzip and install .dmg
-    - unzip -q Pd.zip
-    - hdiutil attach Pd-${PD_VERSION}.dmg
-    - cp -R /Volumes/Pd-${PD_VERSION}/Pd-${PD_VERSION}.app /Applications
-    - hdiutil unmount /Volumes/Pd-${PD_VERSION}
-    - rm -f Pd.zip
-    - rm -f Pd-${PD_VERSION}.dmg
-    - *script_deps
+    - git submodule update --init
+    - *script_sc
+    - *script_pd
     - *script_cmake
   after_script:
     - *script_codesign_macos
@@ -132,17 +146,12 @@ variables:
     IEMCI_CONFIGURATIONS: mingw32
     SUPERNOVA: 1
     STATIC_LIBS: 1
-    PD_PATH: /tmp/pd
     PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}-i386.msw.zip
   before_script:
     - pacman --noconfirm -S "${MINGW_PACKAGE_PREFIX}-cmake"
-    - wget -O Pd.zip ${PD_URL}
-# install locally to avoid hassles with Windows vs. Unix file paths.
-    - rm -rf "${PD_PATH}"; mkdir -p "${PD_PATH}"
-    - unzip -q Pd.zip -d "${PD_PATH}"
-    - mv -v "${PD_PATH}"/*/* "${PD_PATH}"
-    - export CC=gcc; export CXX=g++;
-    - *script_deps
+    - git submodule update --init
+    - *script_sc
+    - *script_pd_app
     - *script_cmake
 
 .build:w64: &build_w64
