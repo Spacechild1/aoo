@@ -1142,10 +1142,13 @@ source_desc::~source_desc() {
 
 bool source_desc::check_active(const Sink& s) {
     auto elapsed = s.elapsed_time();
-    // check source idle timeout
-    auto delta = elapsed - last_packet_time_.load(std::memory_order_relaxed);
-    if (delta > s.source_timeout()){
-        return false; // source timeout
+    auto timeout = s.source_timeout();
+    if (timeout > 0) {
+        // check source idle timeout
+        auto delta = elapsed - last_packet_time_.load(std::memory_order_relaxed);
+        if (delta >= timeout) {
+            return false; // source timeout
+        }
     }
     return true;
 }

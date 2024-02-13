@@ -368,7 +368,8 @@ public:
 
     /** \brief Set source timeout (in seconds)
      *
-     * The time to wait before removing inactive sources
+     * The time to wait before removing inactive sources.
+     * 0 means no timeout.
      */
     AooError setSourceTimeout(AooSeconds s) {
         return control(kAooCtlSetSourceTimeout, 0, AOO_ARG(s));
