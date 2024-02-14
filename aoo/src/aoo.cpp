@@ -389,7 +389,6 @@ AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {
 }
 
 AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
-    const AooChar *result;
     switch (type) {
     case kAooDataRaw:
         return "raw";

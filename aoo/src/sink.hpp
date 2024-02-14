@@ -211,6 +211,8 @@ private:
 
     void check_missing_blocks(const Sink& s);
 
+    void flush_packet_queue();
+
     // send messages
     void send_ping(const Sink&s, const sendfn& fn);
 
@@ -264,8 +266,10 @@ private:
     // resampler
     dynamic_resampler resampler_;
     // packet queue and jitter buffer
-    aoo::unbounded_mpsc_queue<net_packet> packetqueue_;
-    jitter_buffer jitterbuffer_;
+    // NB: frame_allocator_ must come *before* jitter_buffer_!
+    data_frame_allocator frame_allocator_;
+    aoo::unbounded_mpsc_queue<net_packet> packet_queue_;
+    jitter_buffer jitter_buffer_{frame_allocator_};
     int32_t latency_blocks_ = 0;
     int32_t latency_samples_ = 0;
     // stream messages
@@ -293,8 +297,6 @@ private:
     event_buffer eventbuffer_;
     void send_event(const Sink& s, event_ptr e, AooThreadLevel level);
     void flush_event_buffer(const Sink& s);
-    // memory
-    aoo::memory_list memory_;
     // thread synchronization
     sync::shared_mutex mutex_; // LATER replace with a spinlock?
 };

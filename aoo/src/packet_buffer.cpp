@@ -12,13 +12,13 @@ namespace aoo {
 void sent_block::set(const data_packet& d, int32_t framesize)
 {
     sequence = d.sequence;
-    message_size = d.msgsize;
+    message_size = d.msg_size;
     samplerate = d.samplerate;
     flags = d.flags;
-    numframes_ = d.nframes;
+    numframes_ = d.num_frames;
     framesize_ = framesize;
-    if (d.totalsize > 0) {
-        buffer_.assign(d.data, d.data + d.totalsize);
+    if (d.total_size > 0) {
+        buffer_.assign(d.data, d.data + d.total_size);
     } else {
         buffer_.clear();
     }
@@ -135,70 +135,48 @@ sent_block * history_buffer::push()
 
 //---------------------- received_block ------------------------//
 
-void received_block::reserve(int32_t size){
-    buffer_.reserve(size);
+void received_block::init(int32_t seq)
+{
+    assert(frames_.size() == 0);
+
+    sequence = seq;
+    total_size = 0;
+    message_size = 0;
+    samplerate = 0;
+    channel = 0;
+    received_frames = -1; // sentinel for placeholder block!
+    num_tries_ = 0;
+    timestamp_ = 0;
 }
 
 void received_block::init(const data_packet& d)
 {
-    assert((d.totalsize > 0) == (d.nframes > 0));
-    // LATER support blocks with arbitrary number of frames
-    assert(d.nframes <= (int32_t)frames_.size());
-    // keep timestamp and numtries if we're actually reiniting
-    if (d.sequence != sequence){
-        timestamp_ = 0;
-        numtries_ = 0;
-    }
+    assert(frames_.size() == 0);
+    assert((d.total_size > 0) == (d.num_frames > 0));
+
+    auto prev_sequence = d.sequence;
     sequence = d.sequence;
+    total_size = d.total_size;
+    message_size = d.msg_size;
+    flags = d.flags;
     tt = d.tt;
     samplerate = d.samplerate;
-    message_size = d.msgsize;
-    flags = d.flags;
     channel = d.channel;
-    buffer_.resize(d.totalsize);
-    numframes_ = d.nframes;
-    frames_.reset();
-    for (int i = 0; i < d.nframes; ++i){
-        frames_[i] = true;
+    received_frames = 0; // !
+    // keep timestamp and numtries if we're actually reiniting
+    if (sequence != prev_sequence) {
+        timestamp_ = 0;
+        num_tries_ = 0;
     }
+    frames_.init(d.num_frames);
 }
 
-void received_block::init(int32_t seq)
-{
-    sequence = seq;
-    samplerate = 0;
-    message_size = 0;
-    channel = 0;
-    buffer_.clear();
-    numframes_ = -1; // sentinel for placeholder block
-    timestamp_ = 0;
-    numtries_ = 0;
-    frames_.set(); // has_frame() always returns false
-}
-
-void received_block::add_frame(int32_t which, const AooByte *data, int32_t n){
-    assert(!buffer_.empty());
-    assert(numframes_ > 0 && which >= 0 && which < numframes_);
-    if (which == numframes_ - 1){
-    #if AOO_DEBUG_JITTER_BUFFER
-        LOG_DEBUG("jitter buffer: copy last frame with " << n << " bytes");
-    #endif
-        std::copy(data, data + n, buffer_.end() - n);
-    } else {
-    #if AOO_DEBUG_JITTER_BUFFER
-        LOG_DEBUG("jitter buffer: copy frame " << which << " with " << n << " bytes");
-    #endif
-        std::copy(data, data + n, buffer_.data() + (which * n));
-    }
-    frames_[which] = false;
-}
-
-bool received_block::update(double time, double interval){
+bool received_block::update(double time, double interval) {
     if (timestamp_ > 0 && (time - timestamp_) < interval){
         return false;
     }
     timestamp_ = time;
-    numtries_++;
+    num_tries_++;
 #if AOO_DEBUG_JITTER_BUFFER
     LOG_DEBUG("jitter buffer: request block " << sequence);
 #endif
@@ -207,20 +185,26 @@ bool received_block::update(double time, double interval){
 
 //----------------------- jitter_buffer ----------------------//
 
-void jitter_buffer::clear(){
+jitter_buffer::~jitter_buffer() {
+    reset();
+    // ~data_frame_allocator will actually release the memory
+}
+
+void jitter_buffer::reset() {
+    // first deallocate all frames!
+    for (auto& b : data_) {
+        b.clear(alloc_);
+    }
+    // but don't release the memory!
     head_ = tail_ = size_ = 0;
     last_popped_ = last_pushed_ = sentinel;
 }
 
-void jitter_buffer::resize(int32_t n, int32_t maxblocksize){
+void jitter_buffer::resize(int32_t n) {
+    // first reset to release frames
+    reset();
+    // finally resize the queue
     data_.resize(n);
-#if 1
-    data_.shrink_to_fit();
-#endif
-    for (auto& b : data_){
-        b.reserve(maxblocksize);
-    }
-    clear();
 }
 
 received_block* jitter_buffer::find(int32_t seq){
@@ -282,18 +266,23 @@ received_block* jitter_buffer::find(int32_t seq){
 
 received_block* jitter_buffer::push(int32_t seq){
     assert(!full());
-    auto old = head_;
+    auto current = head_;
     if (++head_ == capacity()){
         head_ = 0;
     }
     size_++;
     assert((last_pushed_ == sentinel) || ((seq - last_pushed_) == 1));
     last_pushed_ = seq;
-    return &data_[old];
+    auto block = &data_[current];
+#if 0
+    block->clear(alloc_);
+#endif
+    return block;
 }
 
 void jitter_buffer::pop(){
     assert(!empty());
+    data_[tail_].clear(alloc_); // !
     last_popped_ = data_[tail_].sequence;
     if (++tail_ == capacity()){
         tail_ = 0;
@@ -356,7 +345,7 @@ jitter_buffer::const_iterator jitter_buffer::end() const {
 std::ostream& operator<<(std::ostream& os, const jitter_buffer& jb){
     os << "jitterbuffer (" << jb.size() << " / " << jb.capacity() << "): ";
     for (auto& b : jb){
-        os << "\n" << b.sequence << " " << "(" << b.received_frames() << "/" << b.num_frames() << ")";
+        os << "\n" << b.sequence << " " << "(" << b.received_frames << "/" << b.num_frames() << ")";
     }
     return os;
 }

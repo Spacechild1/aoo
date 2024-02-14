@@ -705,6 +705,7 @@ AooError AOO_CALL aoo::Source::process(
         auto elapsed = aoo::time_tag::duration(start_time, t);
         elapsed_time_.store(elapsed, std::memory_order_relaxed);
         // update time DLL, but only if nsamples matches blocksize!
+        // TODO: should we rather require kAooSetupFixedBlockSize?
         if (dynamic_resampling) {
             if (nsamples == blocksize_){
                 dll_.update(elapsed);
@@ -1570,12 +1571,12 @@ AooSize write_bin_data(AooByte *buffer, AooSize size,
     aoo::write_bytes<uint8_t>(d.flags, it);
     aoo::write_bytes<uint16_t>(d.size, it);
     if (d.flags & kAooBinMsgDataFrames) {
-        aoo::write_bytes<uint32_t>(d.totalsize, it);
-        aoo::write_bytes<uint16_t>(d.nframes, it);
-        aoo::write_bytes<uint16_t>(d.frame, it);
+        aoo::write_bytes<uint32_t>(d.total_size, it);
+        aoo::write_bytes<uint16_t>(d.num_frames, it);
+        aoo::write_bytes<uint16_t>(d.frame_index, it);
     }
     if (d.flags & kAooBinMsgDataStreamMessage) {
-        aoo::write_bytes<uint32_t>(d.msgsize, it);
+        aoo::write_bytes<uint32_t>(d.msg_size, it);
     }
     if (d.flags & kAooBinMsgDataSampleRate) {
         aoo::write_bytes<double>(d.samplerate, it);
@@ -1615,14 +1616,14 @@ void send_packet_osc(const endpoint& ep, AooId id, int32_t stream_id,
     } else {
         msg << osc::Nil;
     }
-    msg << d.channel << d.totalsize;
+    msg << d.channel << d.total_size;
     if (d.flags & kAooBinMsgDataStreamMessage) {
-        msg << d.msgsize;
+        msg << d.msg_size;
     } else {
         msg << osc::Nil;
     }
     if (d.flags & kAooBinMsgDataFrames) {
-        msg << d.nframes << d.frame;
+        msg << d.num_frames << d.frame_index;
     } else {
         msg << osc::Nil << osc::Nil;
     }
@@ -1784,10 +1785,10 @@ void Source::send_xruns(const sendfn &fn) {
             d.tt = 0; // omit
             d.samplerate = format_->sampleRate; // use nominal samplerate
             d.channel = 0;
-            d.totalsize = 0;
-            d.msgsize = 0;
-            d.nframes = 0;
-            d.frame = 0;
+            d.total_size = 0;
+            d.msg_size = 0;
+            d.num_frames = 0;
+            d.frame_index = 0;
             d.data = nullptr;
             d.size = 0;
             // omit all other flags!
@@ -1931,9 +1932,9 @@ void Source::send_data(const sendfn& fn){
         d.samplerate = ptr->sr;
         d.channel = 0;
         d.flags = 0;
-        d.msgsize = sendbuffer_.size();
+        d.msg_size = sendbuffer_.size();
         // message size must be aligned to 4 byte boundary!
-        assert((d.msgsize & 3) == 0);
+        assert((d.msg_size & 3) == 0);
 
         // copy and convert audio samples to blob data
         auto nchannels = format_->numChannels;
@@ -1947,11 +1948,11 @@ void Source::send_data(const sendfn& fn){
     #endif
 
         int32_t audio_size = sizeof(double) * nsamples; // overallocate
-        sendbuffer_.resize(d.msgsize + audio_size);
+        sendbuffer_.resize(d.msg_size + audio_size);
 
         auto err = AooEncoder_encode(encoder_.get(), ptr->data, nsamples,
-            sendbuffer_.data() + d.msgsize, &audio_size);
-        d.totalsize = d.msgsize + audio_size;
+            sendbuffer_.data() + d.msg_size, &audio_size);
+        d.total_size = d.msg_size + audio_size;
 
         audioqueue_.read_commit(); // always commit!
 
@@ -1973,17 +1974,17 @@ void Source::send_data(const sendfn& fn){
         auto packetsize = packetsize_.load();
         auto maxpacketsize = packetsize -
                 (binary ? kBinDataHeaderSize : kDataHeaderSize);
-        auto dv = std::div(d.totalsize, maxpacketsize);
-        d.nframes = dv.quot + (dv.rem != 0);
+        auto dv = std::div(d.total_size, maxpacketsize);
+        d.num_frames = dv.quot + (dv.rem != 0);
 
         // make flags
         if (d.samplerate != 0){
             d.flags |= kAooBinMsgDataSampleRate;
         }
-        if (d.nframes > 1){
+        if (d.num_frames > 1){
             d.flags |= kAooBinMsgDataFrames;
         }
-        if (d.msgsize > 0){
+        if (d.msg_size > 0){
             d.flags |= kAooBinMsgDataStreamMessage;
         }
         if (!d.tt.is_empty()) {
@@ -2005,7 +2006,7 @@ void Source::send_data(const sendfn& fn){
         // /aoo/<sink>/data <src> <stream_id> <seq> <sr> <channel_onset>
         // <totalsize> <msgsize> <numframes> <frame> <data>
         auto dosend = [&](int32_t frame, const AooByte* data, auto n){
-            d.frame = frame;
+            d.frame_index = frame;
             d.data = data;
             d.size = n;
             // send block to all sinks
@@ -2021,7 +2022,7 @@ void Source::send_data(const sendfn& fn){
             }
             // send remaining bytes as a single frame (might be the only one!)
             // also make sure to send frames encoded with null codec.
-            if (dv.rem || d.totalsize == 0){
+            if (dv.rem || d.total_size == 0){
                 dosend(dv.quot, ptr, dv.rem);
             }
         }
@@ -2055,17 +2056,17 @@ void Source::resend_data(const sendfn &fn){
 
                 data_packet d;
                 d.sequence = block->sequence;
-                d.msgsize = block->message_size;
+                d.msg_size = block->message_size;
                 d.samplerate = block->samplerate;
                 d.channel = s.channel();
-                d.totalsize = block->size();
-                d.nframes = block->num_frames();
+                d.total_size = block->size();
+                d.num_frames = block->num_frames();
                 d.flags = block->flags;
                 // We need to copy all (requested) frames before sending
                 // because we temporarily release the update lock!
                 // We use a buffer on the heap because blocks and even frames
                 // can be quite large and we don't want them to sit on the stack.
-                sendbuffer_.resize(d.totalsize);
+                sendbuffer_.resize(d.total_size);
                 AooByte *buf = sendbuffer_.data();
                 // Keep track of the frames we will eventually send.
                 struct frame_data {
@@ -2073,15 +2074,15 @@ void Source::resend_data(const sendfn &fn){
                     int32_t size;
                     AooByte *data;
                 };
-                auto framevec = (frame_data *)alloca(std::max<int>(d.nframes, 1) * sizeof(frame_data));
+                auto framevec = (frame_data *)alloca(std::max<int>(d.num_frames, 1) * sizeof(frame_data));
                 int32_t numframes = 0;
                 int32_t buf_offset = 0;
 
-                if (d.nframes > 0) {
+                if (d.num_frames > 0) {
                     // copy and send frames
                     auto copy_frame = [&](int32_t index) {
                         auto nbytes = block->get_frame(index, buf + buf_offset,
-                                                       d.totalsize - buf_offset);
+                                                       d.total_size - buf_offset);
                         if (nbytes > 0) {
                             auto& frame = framevec[numframes];
                             frame.index = index;
@@ -2097,7 +2098,7 @@ void Source::resend_data(const sendfn &fn){
 
                     if (r.offset < 0) {
                         // a) whole block: copy all frames
-                        for (int i = 0; i < d.nframes; ++i){
+                        for (int i = 0; i < d.num_frames; ++i){
                             copy_frame(i);
                         }
                     } else {
@@ -2106,7 +2107,7 @@ void Source::resend_data(const sendfn &fn){
                         for (int i = 0; bitset != 0; ++i, bitset >>= 1) {
                             if (bitset & 1) {
                                 auto index = r.offset + i;
-                                if (index < d.nframes) {
+                                if (index < d.num_frames) {
                                     copy_frame(index);
                                 } else {
                                     LOG_ERROR("AooSource: frame number " << index << " out of range!");
@@ -2128,7 +2129,7 @@ void Source::resend_data(const sendfn &fn){
                 // send frames to sink
                 for (int i = 0; i < numframes; ++i) {
                     auto& frame = framevec[i];
-                    d.frame = frame.index;
+                    d.frame_index = frame.index;
                     d.size = frame.size;
                     d.data = frame.data;
                 #if AOO_DEBUG_RESEND
