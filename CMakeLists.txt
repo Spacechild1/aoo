@@ -104,9 +104,9 @@ if (WIN32)
     set(LOCALAPPDATA $ENV{LOCALAPPDATA})
 endif()
 
-# use C++17 if possible, otherwise fallback to C++14
+# C++17 required
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # feature tests
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
