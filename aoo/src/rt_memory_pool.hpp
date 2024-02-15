@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common/bit_utils.hpp"
 #include "common/utils.hpp"
 
 #include <limits.h>
@@ -16,23 +17,7 @@
 #include <math.h>
 #include <atomic>
 
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
-
 namespace aoo {
-
-inline uint32_t clz(uint32_t i) {
-#if defined(_MSC_VER)
-    unsigned long msb = 0;
-    _BitScanReverse(&msb, i);
-    return 31 - msb;
-#elif defined(__GNUC__)
-    return __builtin_clz(i);
-#else
-#error "compiler not supported"
-#endif
-}
 
 void * allocate(size_t size);
 void deallocate(void *ptr, size_t);
@@ -393,9 +378,9 @@ private:
             // auto mask = pow2 - 1;
             // auto rem = size & mask;
             const auto k = large_bucket_offset - small_alloc_limit_bits * 16;
-            // a) return (ilog2 + rem / pow2 - small_alloc_limit_bits) * 16 + large_bucket_offset;
-            // b) return ilog2 * 16 + rem * 16 / pow2 + k;
-            // c) return (ilog2 << 4) + ((size & ((1 << ilog2) - 1)) >> (ilog2 - 4)) + k;
+            // 1. return (ilog2 + rem / pow2 - small_alloc_limit_bits) * 16 + large_bucket_offset;
+            // 2. return ilog2 * 16 + rem * 16 / pow2 + k;
+            // 3. return (ilog2 << 4) + ((size & ((1 << ilog2) - 1)) >> (ilog2 - 4)) + k;
             auto index = (ilog2 << 4) + ((size >> (ilog2 - 4)) & 15) + k;
             assert(index >= 64 && index < 128);
             return index;
@@ -428,6 +413,10 @@ private:
             }
             // iterate over bits (in reverse)
             for (int i = bitset.highest_bit(); i >= 0; --i) {
+            #if 0
+                // reload bitset
+                bitset = bitset_[k].load(std::memory_order_relaxed);
+            #endif
                 if (bitset.get(i)) {
                     auto block_index = k * bitset::width + i;
                     if (block_index > start_index) {
@@ -438,6 +427,7 @@ private:
                             }
                             return ptr;
                         }
+                        // try next bit
                     } else {
                         return nullptr;
                     }
@@ -496,6 +486,8 @@ private:
         auto i = index & (bitset::width - 1);
         // set bit atomically with ABA protection.
         // this guarantees that the most recent caller writes the correct state.
+        // NB: we need to load the bitset with memory_order_acquire so that the
+        // bucket check cannot be moved across!
         auto bs = bitset_[k].load(std::memory_order_acquire);
         for (;;) {
             bitset bs_new(bs.bits, bs.tag + 1);
