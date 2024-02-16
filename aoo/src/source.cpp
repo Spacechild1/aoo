@@ -2060,7 +2060,7 @@ void Source::resend_data(const sendfn &fn){
                 d.samplerate = block->samplerate;
                 d.channel = s.channel();
                 d.total_size = block->size();
-                d.num_frames = block->num_frames();
+                d.num_frames = block->num_frames;
                 d.flags = block->flags;
                 // We need to copy all (requested) frames before sending
                 // because we temporarily release the update lock!

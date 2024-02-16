@@ -9,14 +9,14 @@ namespace aoo {
 
 //-------------------------- sent_block -----------------------------//
 
-void sent_block::set(const data_packet& d, int32_t framesize)
+void sent_block::set(const data_packet& d, int16_t frame_size_)
 {
     sequence = d.sequence;
     message_size = d.msg_size;
     samplerate = d.samplerate;
     flags = d.flags;
-    numframes_ = d.num_frames;
-    framesize_ = framesize;
+    num_frames = d.num_frames;
+    frame_size = frame_size_;
     if (d.total_size > 0) {
         buffer_.assign(d.data, d.data + d.total_size);
     } else {
@@ -24,27 +24,18 @@ void sent_block::set(const data_packet& d, int32_t framesize)
     }
 }
 
-int32_t sent_block::get_frame(int32_t which, AooByte *data, int32_t n) const {
-    assert((framesize_ > 0) == (numframes_ > 0));
-    assert(which >= 0 && which < numframes_);
-    auto onset = which * framesize_;
-    auto size = (which == numframes_ - 1) ? buffer_.size() - onset : framesize_;
-    if (n >= size){
+int32_t sent_block::get_frame(int32_t index, AooByte *data, int32_t count) const {
+    assert((frame_size > 0) == (num_frames > 0));
+    assert(index >= 0 && index < num_frames);
+    auto onset = index * frame_size;
+    auto size = (index == num_frames - 1) ? buffer_.size() - onset : frame_size;
+    if (count >= size){
         auto ptr = buffer_.data() + onset;
         std::copy(ptr, ptr + size, data);
         return size;
     } else {
         LOG_ERROR("sent_block::get_frame(): buffer too small!");
         return 0;
-    }
-}
-
-int32_t sent_block::frame_size(int32_t which) const {
-    assert(which < numframes_);
-    if (which == numframes_ - 1){ // last frame
-        return size() - which * framesize_;
-    } else {
-        return framesize_;
     }
 }
 

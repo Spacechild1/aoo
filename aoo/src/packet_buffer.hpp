@@ -26,27 +26,27 @@ struct data_packet {
 
 //---------------------- sent_block ---------------------------//
 
+// NB: unlike received_block, we can use a continuous buffer,
+// as we are in control of how blocks are devided into frames.
 class sent_block {
 public:
     // methods
-    void set(const data_packet& d, int32_t framesize);
+    void set(const data_packet& d, int16_t frame_size_);
 
     const AooByte* data() const { return buffer_.data(); }
     int32_t size() const { return buffer_.size(); }
 
-    int32_t num_frames() const { return numframes_; }
-    int32_t frame_size(int32_t which) const;
-    int32_t get_frame(int32_t which, AooByte * data, int32_t n) const;
+    int32_t get_frame(int32_t index, AooByte* data, int32_t count) const;
 
     // data
     int32_t sequence = -1;
     int32_t message_size = 0;
     double samplerate = 0;
     uint32_t flags = 0;
+    int16_t num_frames = 0;
+    int16_t frame_size = 0;
 protected:
     aoo::vector<AooByte> buffer_;
-    int32_t numframes_ = 0;
-    int32_t framesize_ = 0;
 };
 
 //---------------------------- history_buffer ------------------------------//
@@ -102,7 +102,7 @@ public:
     }
 
     void add_frame(int32_t index, data_frame* frame) {
-        assert(received_frames >= 0);
+        assert(!placeholder() && !complete());
     #if AOO_DEBUG_JITTER_BUFFER
         LOG_DEBUG("jitter buffer: add frame " << index << " with " << frame->size << " bytes");
     #endif
