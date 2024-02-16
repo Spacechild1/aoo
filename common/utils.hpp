@@ -108,6 +108,25 @@ private:
     char buffer_[buffer_size];
 };
 
+// simple scope guard class that relies on CTAD (since C++17)
+template<typename T>
+class scope_guard {
+public:
+    scope_guard(const T& fn)
+        : fn_(fn) {
+        static_assert(noexcept(fn()), "scope_guard function must be noexcept!");
+    }
+
+    ~scope_guard() {
+        if (active_) fn_();
+    }
+
+    void dismiss() { active_ = false; }
+private:
+    T fn_;
+    bool active_ = true;
+};
+
 template<typename T>
 constexpr bool is_pow2(T i){
     return (i & (i - 1)) == 0;
