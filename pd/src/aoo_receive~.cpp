@@ -248,6 +248,11 @@ static void aoo_receive_packetsize(t_aoo_receive *x, t_floatarg f)
     x->x_sink->setPacketSize(f);
 }
 
+static void aoo_receive_ping(t_aoo_receive *x, t_floatarg f)
+{
+    x->x_sink->setPingInterval(f * 0.001);
+}
+
 static void aoo_receive_reset(t_aoo_receive *x, t_symbol *s, int argc, t_atom *argv)
 {
     if (argc){
@@ -874,6 +879,8 @@ void aoo_receive_tilde_setup(void)
                     gensym("dll_bandwidth"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_packetsize,
                     gensym("packetsize"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_receive_class, (t_method)aoo_receive_ping,
+                    gensym("ping"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_resend,
                     gensym("resend"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_resend_limit,
