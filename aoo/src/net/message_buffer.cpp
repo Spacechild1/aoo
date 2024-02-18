@@ -8,6 +8,17 @@ namespace net {
 #define AOO_MAX_RESEND_INTERVAL 1.0
 #define AOO_RESEND_INTERVAL_BACKOFF 2.0
 
+sent_message::sent_message(const metadata& data, aoo::time_tag tt, int32_t sequence,
+                          int32_t num_frames, int32_t frame_size, float resend_interval)
+    : data_(data), tt_(tt), sequence_(sequence), num_frames_(num_frames),
+      frame_size_(frame_size), resend_interval_(resend_interval) {
+    // LATER support messages with arbitrary number of frames
+    assert(num_frames <= (int32_t)frames_.size());
+    for (int i = 0; i < num_frames; ++i){
+        frames_[i] = true;
+    }
+}
+
 bool sent_message::need_resend(aoo::time_tag now) {
     if (next_time_.is_empty()) {
         next_time_ = now + aoo::time_tag::from_seconds(resend_interval_);
@@ -22,6 +33,25 @@ bool sent_message::need_resend(aoo::time_tag now) {
         }
     }
     return false;
+}
+
+void sent_message::get_frame(int32_t index, const AooByte *& data, int32_t& size) {
+    if (num_frames_ == 1) {
+        // single-frame message
+        data = data_.data();
+        size = data_.size();
+    } else {
+        // multi-frame message
+        if (index == (num_frames_ - 1)) {
+            // last frame
+            auto onset = (index - 1) * frame_size_;
+            data = data_.data() + onset;
+            size = data_.size() - onset;
+        } else {
+            data = data_.data() + index * frame_size_;
+            size = frame_size_;
+        }
+    }
 }
 
 //------------------------ message_send_buffer ----------------------//
@@ -47,16 +77,52 @@ sent_message* message_send_buffer::find(int32_t seq) {
 
 //------------------------ received_message ------------------------//
 
-void received_message::add_frame(int32_t which, const AooByte *data, int32_t n) {
-    assert(!buffer_.empty());
-    assert(which < nframes_);
-    if (which == nframes_ - 1){
-        std::copy(data, data + n, buffer_.end() - n);
-    } else {
-        std::copy(data, data + n, buffer_.data() + (which * n));
-        framesize_ = n; // LATER allow varying framesizes
+received_message::received_message(received_message&& other) noexcept
+    : sequence_(other.sequence_), size_(other.size_),
+      tt_(other.tt_), data_(other.data_), type_(other.type_),
+      num_frames_(other.num_frames_), frames_(other.frames_) {
+    other.data_ = nullptr;
+    other.size_ = 0;
+}
+
+received_message& received_message::operator=(received_message&& other) noexcept {
+    sequence_ = other.sequence_;
+    size_ = other.size_;
+    tt_ = other.tt_;
+    data_ = other.data_;
+    type_ = other.type_;
+    num_frames_ = other.num_frames_;
+    frames_ = other.frames_;
+    other.data_ = nullptr;
+    other.size_ = 0;
+    return *this;
+}
+
+void received_message::init(AooDataType type, time_tag tt,
+                            int32_t num_frames, int32_t size) {
+    assert(data_ == nullptr);
+    tt_ = tt;
+    size_ = size;
+    data_ = (AooByte*)aoo::allocate(size);
+    type_ = type;
+    num_frames_ = num_frames;
+    // TODO: support messages with arbitrary number of frames
+    assert(num_frames <= frames_.size());
+    for (int i = 0; i < num_frames; ++i){
+        frames_[i] = true;
     }
-    frames_[which] = 0;
+}
+
+void received_message::add_frame(int32_t index, const AooByte *data, int32_t n) {
+    assert(data_ != nullptr && !complete());
+    assert(index < num_frames_);
+    // TODO: allow varying frame sizes!
+    if (index == num_frames_ - 1){
+        std::copy(data, data + n, data_ + size_ - n);
+    } else {
+        std::copy(data, data + n, data_ + (index * n));
+    }
+    frames_[index] = 0;
 }
 
 //------------------------- message_receive_buffer ------------------//

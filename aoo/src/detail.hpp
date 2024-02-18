@@ -169,6 +169,8 @@ struct rt_format_deleter {
 
 struct metadata {
     metadata() = default;
+    metadata(AooDataType type, const AooByte *data, AooSize size)
+        : type_(type), data_(data, data + size) {}
     metadata(const AooData* md) {
         if (md) {
             type_ = md->type;

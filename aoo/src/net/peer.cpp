@@ -263,17 +263,17 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
     }
     // 4) handle incoming acks
     while (received_acks_.try_pop(ack)) {
-        if (auto msg = send_buffer_.find(ack.seq)) {
-            if (ack.frame >= 0) {
-                msg->ack_frame(ack.frame);
+        if (auto msg = send_buffer_.find(ack.sequence)) {
+            if (ack.frame_index >= 0) {
+                msg->ack_frame(ack.frame_index);
             } else {
                 // negative -> all frames
                 msg->ack_all();
             }
         } else {
         #if AOO_DEBUG_CLIENT_MESSAGE
-            LOG_DEBUG("AooClient: got outdated ack (seq: " << ack.seq
-                      << ", frame: " << ack.frame << ") from " << *this);
+            LOG_DEBUG("AooClient: got outdated ack (seq: " << ack.sequence
+                      << ", frame: " << ack.frame_index << ") from " << *this);
         #endif
         }
     }
@@ -301,13 +301,13 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
                 p.size = 0;
                 p.tt = msg.tt_;
                 p.sequence = msg.sequence_;
-                p.totalsize = msg.data_.size();
-                p.nframes = msg.nframes_;
-                p.frame = 0;
+                p.total_size = msg.data_.size();
+                p.num_frames = msg.num_frames_;
+                p.frame_index = 0;
                 p.reliable = true;
-                for (int i = 0; i < p.nframes; ++i) {
+                for (int i = 0; i < p.num_frames; ++i) {
                     if (!msg.has_frame(i)) {
-                        p.frame = i;
+                        p.frame_index = i;
                         msg.get_frame(i, p.data, p.size);
                     #if AOO_DEBUG_CLIENT_MESSAGE
                         LOG_DEBUG("AooClient: resend message (seq: " << msg.sequence_
@@ -354,13 +354,13 @@ void peer::send_message(const message& m, const sendfn& fn, bool binary) {
 
     message_packet p;
     p.type = m.data_.type();
-    p.data = nullptr;
     p.size = 0;
+    p.data = nullptr;
     p.tt = m.tt_;
     // p.sequence =
-    p.totalsize = m.data_.size();
-    p.nframes = d.quot + (d.rem != 0);
-    p.frame = 0;
+    p.total_size = m.data_.size();
+    p.num_frames = d.quot + (d.rem != 0);
+    p.frame_index = 0;
     p.reliable = m.reliable_;
 
     if (p.reliable) {
@@ -369,18 +369,18 @@ void peer::send_message(const message& m, const sendfn& fn, bool binary) {
         // wait twice the average RTT before resending
         auto rtt = average_rtt_.load(std::memory_order_relaxed);
         auto interval = std::max<float>(rtt * 2, AOO_CLIENT_MIN_RESEND_TIME);
-        sent_message sm(m.data_, m.tt_, p.sequence, p.nframes, framesize, interval);
+        sent_message sm(m.data_, m.tt_, p.sequence, p.num_frames, framesize, interval);
         send_buffer_.push(std::move(sm));
     } else {
         // NB: use different sequences for reliable and unreliable messages!
         p.sequence = next_sequence_unreliable_++;
     }
 
-    if (p.nframes > 1) {
+    if (p.num_frames > 1) {
         // multi-frame message
-        for (int32_t i = 0; i < p.nframes; ++i) {
-            p.frame = i;
-            if (i == (p.nframes - 1)) {
+        for (int32_t i = 0; i < p.num_frames; ++i) {
+            p.frame_index = i;
+            if (i == (p.num_frames - 1)) {
                 p.size = d.rem;
                 p.data = m.data_.data() + m.data_.size() - d.rem;
             } else {
@@ -412,10 +412,10 @@ void peer::send_packet_osc(const message_packet& p, const sendfn& fn) const {
     // NB: we send *our* ID (= the sender)
     msg << osc::BeginMessage(kAooMsgPeerMessage)
         << group_id() << local_id() << (int32_t)flags
-        << p.sequence << p.totalsize;
+        << p.sequence << p.total_size;
     // frames
-    if (p.nframes > 1) {
-        msg << p.nframes << p.frame;
+    if (p.num_frames > 1) {
+        msg << p.num_frames << p.frame_index;
     } else {
         msg << osc::Nil << osc::Nil;
     }
@@ -437,7 +437,7 @@ void peer::send_packet_bin(const message_packet& p, const sendfn& fn) const {
     if (p.reliable) {
         flags |= kAooBinMsgMessageReliable;
     }
-    if (p.nframes > 1) {
+    if (p.num_frames > 1) {
         flags |= kAooBinMsgMessageFrames;
     }
     if (!p.tt.is_empty()) {
@@ -453,9 +453,9 @@ void peer::send_packet_bin(const message_packet& p, const sendfn& fn) const {
     aoo::write_bytes<uint16_t>(flags, ptr);
     aoo::write_bytes<uint16_t>(p.size, ptr);
     if (flags & kAooBinMsgMessageFrames) {
-        aoo::write_bytes<int32_t>(p.totalsize, ptr);
-        aoo::write_bytes<int32_t>(p.nframes, ptr);
-        aoo::write_bytes<int32_t>(p.frame, ptr);
+        aoo::write_bytes<int32_t>(p.total_size, ptr);
+        aoo::write_bytes<int32_t>(p.num_frames, ptr);
+        aoo::write_bytes<int32_t>(p.frame_index, ptr);
     }
     if (flags & kAooBinMsgMessageTimestamp) {
         aoo::write_bytes<uint64_t>(p.tt, ptr);
@@ -475,7 +475,7 @@ void peer::send_packet_bin(const message_packet& p, const sendfn& fn) const {
 // header, count (int32), seq1 (int32), frame1 (int32), seq2 (int32), frame2 (int32), etc. // frame < 0 -> all
 void peer::send_ack(const message_ack &ack, const sendfn& fn) {
 #if AOO_DEBUG_CLIENT_MESSAGE
-    LOG_DEBUG("AooClient: send ack (seq: " << ack.seq << ", frame: " << ack.frame
+    LOG_DEBUG("AooClient: send ack (seq: " << ack.sequence << ", frame: " << ack.frame_index
               << ") to " << *this);
 #endif
     if (binary_.load(std::memory_order_relaxed)) {
@@ -484,8 +484,8 @@ void peer::send_ack(const message_ack &ack, const sendfn& fn) {
                                          kAooBinMsgCmdAck, group_id_, local_id_);
         auto ptr = buf + onset;
         aoo::write_bytes<int32_t>(1, ptr);
-        aoo::write_bytes<int32_t>(ack.seq, ptr);
-        aoo::write_bytes<int32_t>(ack.frame, ptr);
+        aoo::write_bytes<int32_t>(ack.sequence, ptr);
+        aoo::write_bytes<int32_t>(ack.frame_index, ptr);
 
         send(buf, ptr - buf, fn);
     } else {
@@ -493,7 +493,7 @@ void peer::send_ack(const message_ack &ack, const sendfn& fn) {
         osc::OutboundPacketStream msg(buf, sizeof(buf));
         msg << osc::BeginMessage(kAooMsgPeerAck)
             << group_id_ << local_id_
-            << ack.seq << ack.frame
+            << ack.sequence << ack.frame_index
             << osc::EndMessage;
 
         send(msg, fn);
@@ -643,14 +643,14 @@ void peer::handle_client_message(Client &client, osc::ReceivedMessageArgumentIte
 
     message_packet p;
     p.sequence = (it++)->AsInt32();
-    p.totalsize = (it++)->AsInt32();
+    p.total_size = (it++)->AsInt32();
     // frames
     if (!it->IsNil()) {
-        p.nframes = (it++)->AsInt32();
-        p.frame = (it++)->AsInt32();
+        p.num_frames = (it++)->AsInt32();
+        p.frame_index = (it++)->AsInt32();
     } else {
-        p.nframes = 1; it++;
-        p.frame = 0; it++;
+        p.num_frames = 1; it++;
+        p.frame_index = 0; it++;
     }
     if (!it->IsNil()) {
         p.tt = (it++)->AsTimeTag();
@@ -690,14 +690,14 @@ void peer::handle_client_message(Client &client, const AooByte *data, AooSize si
         if (remaining < 12) {
             goto bad_message;
         }
-        p.totalsize = aoo::read_bytes<int32_t>(ptr);
-        p.nframes = aoo::read_bytes<int32_t>(ptr);
-        p.frame = aoo::read_bytes<int32_t>(ptr);
+        p.total_size = aoo::read_bytes<int32_t>(ptr);
+        p.num_frames = aoo::read_bytes<int32_t>(ptr);
+        p.frame_index = aoo::read_bytes<int32_t>(ptr);
         remaining -= 12;
     } else {
-        p.totalsize = p.size;
-        p.nframes = 1;
-        p.frame = 0;
+        p.total_size = p.size;
+        p.num_frames = 1;
+        p.frame_index = 0;
     }
     if (flags & kAooBinMsgMessageTimestamp) {
         if (remaining < 8) {
@@ -736,10 +736,10 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
             // outdated message
         #if AOO_DEBUG_CLIENT_MESSAGE
             LOG_DEBUG("AooClient: ignore outdated message (seq: "
-                      << p.sequence << ", frame: " << p.frame << ") from " << *this);
+                      << p.sequence << ", frame: " << p.frame_index  << ") from " << *this);
         #endif
             // don't forget to acknowledge!
-            send_acks_.push(p.sequence, p.frame);
+            send_acks_.push(p.sequence, p.frame_index);
             return;
         }
         if (p.sequence > last_pushed) {
@@ -759,27 +759,27 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
             // add new message
         #if AOO_DEBUG_CLIENT_MESSAGE
             LOG_DEBUG("AooClient: add new message (seq: " << p.sequence
-                      << ", frame: " << p.frame << ") from " << *this);
+                      << ", frame: " << p.frame_index << ") from " << *this);
         #endif
             auto& msg = receive_buffer_.push(received_message(p.sequence));
-            msg.init(p.type, p.tt, p.nframes, p.totalsize);
-            msg.add_frame(p.frame, p.data, p.size);
+            msg.init(p.type, p.tt, p.num_frames, p.total_size);
+            msg.add_frame(p.frame_index, p.data, p.size);
         } else {
             // add to existing message
         #if AOO_DEBUG_CLIENT_MESSAGE
             LOG_DEBUG("AooClient: add to existing message (seq: " << p.sequence
-                      << ", frame: " << p.frame << ") from " << *this);
+                      << ", frame: " << p.frame_index << ") from " << *this);
         #endif
             if (auto msg = receive_buffer_.find(p.sequence)) {
-                if (!msg->initialized()) {
-                    msg->init(p.type, p.tt, p.nframes, p.totalsize);
+                if (msg->placeholder()) {
+                    msg->init(p.type, p.tt, p.num_frames, p.total_size);
                 }
-                if (!msg->has_frame(p.frame)) {
-                    msg->add_frame(p.frame, p.data, p.size);
+                if (!msg->has_frame(p.frame_index)) {
+                    msg->add_frame(p.frame_index, p.data, p.size);
                 } else {
                 #if AOO_DEBUG_CLIENT_MESSAGE
                     LOG_DEBUG("AooClient: ignore duplicate message (seq: " << p.sequence
-                              << ", frame: " << p.frame << ") from " << *this);
+                              << ", frame: " << p.frame_index << ") from " << *this);
                 #endif
                 }
             } else {
@@ -791,7 +791,7 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
         while (!receive_buffer_.empty()) {
             auto& msg = receive_buffer_.front();
             if (msg.complete()) {
-                AooData md { msg.type(), msg.data(), (AooSize)msg.size() };
+                AooData md { msg.type_, msg.data_, (AooSize)msg.size_ };
                 auto e = std::make_unique<peer_message_event>(
                             group_id(), user_id(), msg.tt_, md);
                 client.send_event(std::move(e));
@@ -802,21 +802,22 @@ void peer::do_handle_client_message(Client& client, const message_packet& p, Aoo
             }
         }
         // schedule acknowledgement
-        send_acks_.push(p.sequence, p.frame);
+        send_acks_.push(p.sequence, p.frame_index);
     } else {
         // *** unreliable message ***
-        if (p.nframes > 1) {
+        if (p.num_frames > 1) {
             // try to reassemble message
             if (current_msg_.sequence_ != p.sequence) {
             #if AOO_DEBUG_CLIENT_MESSAGE
                 LOG_DEBUG("AooClient: new multi-frame message from " << *this);
             #endif
                 // start new message (any incomplete previous message is discarded!)
-                current_msg_.init(p.sequence, p.type, p.tt, p.nframes, p.totalsize);
+                current_msg_ = received_message(p.sequence);
+                current_msg_.init(p.type, p.tt, p.num_frames, p.total_size);
             }
-            current_msg_.add_frame(p.frame, p.data, p.size);
+            current_msg_.add_frame(p.frame_index, p.data, p.size);
             if (current_msg_.complete()) {
-                AooData d { current_msg_.type(), current_msg_.data(), (AooSize)current_msg_.size() };
+                AooData d { current_msg_.type_, current_msg_.data_, (AooSize)current_msg_.size_ };
                 auto e = std::make_unique<peer_message_event>(
                             group_id(), user_id(), p.tt, d);
                 client.send_event(std::move(e));

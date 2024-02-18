@@ -11,44 +11,19 @@ namespace net {
 //-------------------------- sent_message -----------------------------//
 
 struct sent_message {
-    sent_message(const metadata& data, aoo::time_tag tt, int32_t seq,
-                 int32_t nframes, int32_t framesize, float resend_interval)
-        : data_(data), tt_(tt), sequence_(seq), nframes_(nframes),
-          framesize_(framesize), resend_interval_(resend_interval) {
-        // LATER support messages with arbitrary number of frames
-        assert(nframes <= (int32_t)frames_.size());
-        for (int i = 0; i < nframes; ++i){
-            frames_[i] = true;
-        }
-    }
+    sent_message(const metadata& data, aoo::time_tag tt, int32_t sequence,
+                 int32_t num_frames, int32_t frame_size, float resend_interval);
     // methods
     bool need_resend(aoo::time_tag now);
 
-    bool has_frame(int32_t which) const {
-        return !frames_[which];
+    bool has_frame(int32_t index) const {
+        return !frames_[index];
     }
 
-    void get_frame(int32_t which, const AooByte *& data, int32_t& size) {
-        if (nframes_ == 1) {
-            // single-frame message
-            data = data_.data();
-            size = data_.size();
-        } else {
-            // multi-frame message
-            if (which == (nframes_ - 1)) {
-                // last frame
-                auto onset = (which - 1) * framesize_;
-                data = data_.data() + onset;
-                size = data_.size() - onset;
-            } else {
-                data = data_.data() + which * framesize_;
-                size = framesize_;
-            }
-        }
-    }
+    void get_frame(int32_t index, const AooByte *& data, int32_t& size);
 
-    void ack_frame(int32_t which) {
-        frames_[which] = false;
+    void ack_frame(int32_t index) {
+        frames_[index] = false;
     }
 
     void ack_all() {
@@ -61,9 +36,8 @@ struct sent_message {
     aoo::metadata data_;
     aoo::time_tag tt_;
     int32_t sequence_;
-    int32_t nframes_;
-    int32_t framesize_;
-    int32_t remainder_;
+    int32_t num_frames_;
+    int32_t frame_size_;
 private:
     aoo::time_tag next_time_;
     double resend_interval_;
@@ -119,51 +93,43 @@ private:
 class received_message {
 public:
     received_message(int32_t seq = kAooIdInvalid)
-        : sequence_(seq) {
-        // so that complete() will return false
-        frames_.set();
-    }
-    void init(int32_t seq, AooDataType type, time_tag tt,
-              int32_t nframes, int32_t size) {
-        sequence_ = seq;
-        init(type, tt, nframes, size);
-    }
-    void init(AooDataType type, time_tag tt,
-              int32_t nframes, int32_t size) {
-        type_ = type;
-        tt_ = tt;
-        buffer_.resize(size);
-        nframes_ = nframes;
-        frames_.reset();
-        // LATER support messages with arbitrary number of frames
-        assert(nframes <= frames_.size());
-        for (int i = 0; i < nframes; ++i){
-            frames_[i] = true;
+        : sequence_(seq) {}
+
+    received_message(received_message&& other) noexcept;
+
+    ~received_message() {
+        if (data_) {
+            aoo::deallocate(data_, size_);
         }
     }
-    bool initialized() const {
-        return nframes_ > 0;
-    }
-    // methods
-    AooDataType type() const { return type_; }
-    const AooByte* data() const { return buffer_.data(); }
-    int32_t size() const { return buffer_.size(); }
 
-    int32_t num_frames() const { return nframes_; }
-    bool has_frame(int32_t which) const {
-        return !frames_[which];
+    received_message& operator=(received_message&& other) noexcept;
+
+    void init(AooDataType type, time_tag tt, int32_t num_frames,
+              int32_t size);
+
+    bool placeholder() const {
+        return data_ == nullptr;
     }
-    void add_frame(int32_t which, const AooByte *data, int32_t n);
-    bool complete() const { return frames_.none(); }
+
+    // methods
+    bool has_frame(int32_t index) const {
+        assert(!placeholder());
+        return !frames_[index];
+    }
+
+    void add_frame(int32_t index, const AooByte *data, int32_t n);
+
+    bool complete() const { return data_ && frames_.none(); }
 
     // data
     int32_t sequence_ = -1;
+    int32_t size_ = 0;
     aoo::time_tag tt_;
-protected:
-    aoo::vector<AooByte> buffer_;
+    AooByte* data_ = nullptr;
     AooDataType type_;
-    int32_t nframes_ = 0;
-    int32_t framesize_ = 0;
+    int32_t num_frames_ = 0;
+protected:
     std::bitset<256> frames_ = 0;
 };
 
@@ -205,8 +171,10 @@ public:
     bool empty() const { return data_.empty(); }
     bool full() const { return false; }
     int32_t size() const { return data_.size(); }
+
     received_message& push(received_message&& msg);
     void pop();
+
     received_message *find(int32_t seq);
 
     int32_t last_pushed() const {

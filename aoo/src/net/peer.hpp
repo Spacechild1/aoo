@@ -12,20 +12,20 @@ class Client;
 struct message;
 
 struct message_packet {
-    int32_t type;
+    AooDataType type;
     int32_t size;
     const AooByte *data;
     time_tag tt;
     int32_t sequence;
-    int32_t totalsize;
-    int32_t nframes;
-    int32_t frame;
+    int32_t total_size;
+    int32_t num_frames;
+    int32_t frame_index;
     bool reliable;
 };
 
 struct message_ack {
-    int32_t seq;
-    int32_t frame;
+    int32_t sequence;
+    int32_t frame_index;
 };
 
 class peer {
