@@ -1,5 +1,10 @@
 cmake_minimum_required (VERSION 3.5)
 
+# minimum macOS deployment target; must come before project()!
+if (APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OSX deployment version")
+endif()
+
 message(STATUS "Project: aoo")
 project(aoo)
 

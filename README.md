@@ -212,6 +212,7 @@ a) Link with the system wide `opus` library
   * Windows -> Msys2: `pacman -S mingw32/mingw-w64-i686-opus` (32 bit) resp.
                       `pacman -S mingw64/mingw-w64-x86_64-opus` (64 bit)
   * Linux -> apt: `sudo apt-get install libopus-dev`
+
 2. Set the `AOO_SYSTEM_OPUS` CMake variable to `ON` (see below).
    **NOTE**: You can override the `AOO_OPUS_LDFLAGS` variable if you need special linker commands.
 
@@ -224,6 +225,11 @@ b) Use local Opus library
 
 **NOTE**: by default, a) will link dynamically with the Opus library and b) will link statically.
 For local builds, a) is more convenient. If you want to ship it to other people, b) might be preferred.
+
+
+#### macOS
+
+By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
 
 
 #### Build
