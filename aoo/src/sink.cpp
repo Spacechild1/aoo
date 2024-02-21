@@ -107,11 +107,12 @@ AooError AOO_CALL aoo::Sink::setup(
         // since the individual source_descs are protected with a mutex.
         // However, setup() must not be called concurrently with process()!
         if (nchannels != nchannels_ || samplerate != samplerate_ ||
-            blocksize != blocksize_)
+            blocksize != blocksize_ || flags != flags_)
         {
+            flags_ = flags;
             nchannels_ = nchannels;
-            samplerate_ = samplerate;
             blocksize_ = blocksize;
+            samplerate_ = samplerate;
 
             realsr_.store(samplerate);
 
@@ -479,6 +480,8 @@ AOO_API AooError AOO_CALL AooSink_process(
 AooError AOO_CALL aoo::Sink::process(
         AooSample **data, AooInt32 nsamples, AooNtpTime t,
         AooStreamMessageHandler messageHandler, void *user) {
+    // check nsamples
+    assert(fixed_blocksize() ? nsamples == blocksize_ : nsamples <= blocksize_);
     // Always update timer and DLL, even if there are no sinks.
     // Do it *before* trying to lock the mutex.
     // (The DLL is only ever touched in this method.)
@@ -1197,9 +1200,9 @@ void source_desc::update(const Sink& s){
         auto min_latency_blocks = std::ceil(reblock / resample);
         latency_blocks_ = std::max<int32_t>(latency_blocks, min_latency_blocks);
         // latency samples are not quantized!
-        auto min_latency_samples = min_latency_blocks / convert * (double)s.samplerate() + 0.5;
-        latency_samples_ = latency * (double)s.samplerate() + 0.5;
-        latency_samples_ = std::max<int32_t>(latency_samples_, min_latency_samples);
+        int32_t min_latency_samples = min_latency_blocks / convert * (double)s.samplerate() + 0.5;
+        int32_t latency_samples = latency * (double)s.samplerate() + 0.5;
+        latency_samples_ = std::max<int32_t>(latency_samples, min_latency_samples);
         // calculate jitter buffer size
         auto buffersize = s.buffersize();
         if (buffersize <= 0) {
@@ -1233,9 +1236,12 @@ void source_desc::update(const Sink& s){
         reset_stream();
 
         // setup resampler
-        resampler_.setup(format_->blockSize, s.blocksize(),
-                         format_->sampleRate, s.samplerate(),
+        resampler_.setup(format_->blockSize, s.blocksize(), s.fixed_blocksize(),
+                         format_->sampleRate, s.samplerate(), !s.dynamic_resampling(),
                          format_->numChannels);
+        if (resampler_.bypass()) {
+            LOG_DEBUG("AooSink: bypass resampler");
+        }
 
         channel_ = 0;
         underrun_ = false;
@@ -1293,12 +1299,11 @@ float source_desc::get_buffer_fill_ratio(){
     scoped_shared_lock lock(mutex_);
     if (decoder_){
         // consider samples in resampler!
-        auto nsamples = format_->numChannels * format_->blockSize;
-        auto available = (double)jitter_buffer_.size() +
-                (double)resampler_.size() / (double)nsamples;
+        auto resampler_available = (double)resampler_.balance() / (double)format_->blockSize;
+        auto available = jitter_buffer_.size() + resampler_available;
         auto ratio = available / (double)jitter_buffer_.capacity();
-        LOG_DEBUG("AooSink: fill ratio: " << ratio << ", jitter buffer: " << jitter_buffer_.size()
-                  << ", resampler: " << (double)resampler_.size() / (double)nsamples);
+        LOG_DEBUG("AooSink: fill ratio: " << ratio << ", jitter buffer: "
+                  << jitter_buffer_.size() << ", resampler: " << resampler_available);
         return std::min<float>(1.0, ratio);
     } else {
         return 0.0;
@@ -1805,7 +1810,8 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     auto nchannels = format_->numChannels;
     auto outsize = nsamples * nchannels;
     assert(outsize > 0);
-    // TODO: reuse stack buffer in try_decode_block()
+    // allocate a temporary buffer for reading from the resampler
+    // or directly decoding block data.
     auto buf = (AooSample *)alloca(outsize * sizeof(AooSample));
 #if AOO_DEBUG_STREAM_MESSAGE && 0
     LOG_DEBUG("AooSink: process samples: " << process_samples_
@@ -1813,11 +1819,20 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
               << ", diff: " << (stream_samples_ - (double)process_samples_)
               << ", resampler size: " << resampler_.size());
 #endif
-    // try to read samples from resampler
-    // TODO: optimize for need_resampling() == false; in this case,
-    // try_decode_block() would directly write into the stack buffer above.
-    for (;;) {
-        if (resampler_.read(buf, outsize)){
+    if (resampler_.bypass()) {
+        // bypass the resampler;
+        // try_decode_block() writes directly into the stack buffer.
+        for (;;) {
+            if (!try_decode_block(s, buf, stats)) {
+                on_underrun(s);
+
+                lock.unlock(); // unlock before sending event!
+
+                flush_event_buffer(s);
+
+                return false;
+            }
+
             // if there have been xruns, skip one block of audio and try again.
             if (xrunblocks_ > XRUN_THRESHOLD){
                 LOG_DEBUG("AooSink: skip process block for xrun");
@@ -1828,53 +1843,31 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 // got samples
                 break;
             }
-        } else if (!try_decode_block(s, stats)) {
-            // buffer ran out -> "inactive"
-            // TODO: delay "inactive" and "stop" event by codec delay (if non-zero)
-            // and read remaining data from decoder.
-            if (stream_state_ != stream_state::inactive) {
-                stream_state_ = stream_state::inactive;
-                LOG_DEBUG("AooSink: stream inactive");
-                // TODO: read out partial data from resampler and set sample offset
-                auto e = make_event<stream_state_event>(ep, kAooStreamStateInactive, 0);
-                eventbuffer_.push_back(std::move(e));
-            }
-
-            if (stopped_) {
-                // we received a /stop message
-                auto e = make_event<stream_stop_event>(ep);
-                eventbuffer_.push_back(std::move(e));
-
-                // try to change source state to idle (if still running!)
-                auto expected = source_state::run;
-                state_.compare_exchange_strong(expected, source_state::idle);
-                LOG_DEBUG("AooSink: run -> idle");
-            }
-
-            underrun_ = true;
-            // check if we should send a stop request
-            if (last_stop_time_ > 0) {
-                auto now = s.elapsed_time();
-                auto delta = now - last_stop_time_;
-                if (delta >= STOP_INTERVAL) {
-                    request r(request_type::stop);
-                    r.stop.stream = stream_id_;
-                    push_request(r);
-                    last_stop_time_ = now;
+        }
+    } else {
+        // resample/reblock;
+        // try to read from the resampler and only decode blocks if necessary.
+        for (;;) {
+            if (resampler_.read(buf, nsamples)){
+                // if there have been xruns, skip one block of audio and try again.
+                if (xrunblocks_ > XRUN_THRESHOLD){
+                    LOG_DEBUG("AooSink: skip process block for xrun");
+                    // decrement xrun counter and advance process time
+                    xrunblocks_ -= 1.0;
+                    process_samples_ += nsamples;
+                } else {
+                    // got samples
+                    break;
                 }
-            } else {
-                // initialize stop request timer.
-                // underruns are often temporary and may happen in short succession,
-                // so we don't want to immediately send a stop request; instead we
-                // we wait one interval as a simple debouncing mechanism.
-                last_stop_time_ = s.elapsed_time();
+            } else if (!try_decode_block(s, nullptr, stats)) {
+                on_underrun(s);
+
+                lock.unlock(); // unlock before sending event!
+
+                flush_event_buffer(s);
+
+                return false;
             }
-
-            lock.unlock(); // unlock before sending event!
-
-            flush_event_buffer(s);
-
-            return false;
         }
     }
 
@@ -1968,6 +1961,49 @@ int32_t source_desc::poll_events(Sink& s, AooEventHandler fn, void *user){
     return count;
 }
 
+void source_desc::on_underrun(const Sink &s) {
+    // buffer ran out -> "inactive"
+    // TODO: delay "inactive" and "stop" event by codec delay (if non-zero)
+    // and read remaining data from decoder.
+    if (stream_state_ != stream_state::inactive) {
+        stream_state_ = stream_state::inactive;
+        LOG_DEBUG("AooSink: stream inactive");
+        // TODO: read out partial data from resampler and set sample offset
+        auto e = make_event<stream_state_event>(ep, kAooStreamStateInactive, 0);
+        eventbuffer_.push_back(std::move(e));
+    }
+
+    if (stopped_) {
+        // we received a /stop message
+        auto e = make_event<stream_stop_event>(ep);
+        eventbuffer_.push_back(std::move(e));
+
+        // try to change source state to idle (if still running!)
+        auto expected = source_state::run;
+        state_.compare_exchange_strong(expected, source_state::idle);
+        LOG_DEBUG("AooSink: run -> idle");
+    }
+
+    underrun_ = true;
+    // check if we should send a stop request
+    if (last_stop_time_ > 0) {
+        auto now = s.elapsed_time();
+        auto delta = now - last_stop_time_;
+        if (delta >= STOP_INTERVAL) {
+            request r(request_type::stop);
+            r.stop.stream = stream_id_;
+            push_request(r);
+            last_stop_time_ = now;
+        }
+    } else {
+        // initialize stop request timer.
+        // underruns are often temporary and may happen in short succession,
+        // so we don't want to immediately send a stop request; instead we
+        // we wait one interval as a simple debouncing mechanism.
+        last_stop_time_ = s.elapsed_time();
+    }
+}
+
 void source_desc::handle_underrun(const Sink& s){
     LOG_VERBOSE("AooSink: jitter buffer underrun");
 
@@ -2050,7 +2086,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             return false;
         }
     #endif
-        if (newest != jitter_buffer::sentinel){
+        if (newest != jitter_buffer::sentinel) {
             auto numblocks = d.sequence - newest;
 
             // notify for gap
@@ -2071,7 +2107,8 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
                 // remove one extra block to make space for new block
                 auto discard_stored = std::min(jitter_buffer_.size(), latency_blocks_ + 1);
                 if (discard_stored > 0) {
-                    LOG_DEBUG("AooSink: discard " << discard_stored << " stored blocks");
+                    LOG_DEBUG("AooSink: discard " << discard_stored << " of "
+                              << jitter_buffer_.size() << " stored blocks");
                     // TODO: consider popping blocks from the back of the queue
                     for (int32_t i = 0; i < discard_stored; ++i) {
                         jitter_buffer_.pop();
@@ -2093,7 +2130,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
                 eventbuffer_.push_back(std::move(e));
             }
             // fill gaps with placeholder blocks
-            for (int32_t i = newest + 1; i < d.sequence; ++i){
+            for (int32_t i = newest + 1; i < d.sequence; ++i) {
                 jitter_buffer_.push(i)->init(i);
             }
         }
@@ -2142,7 +2179,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
 // try to decode a block, write audio data into resampler, push any
 // stream messages into the priority queue and advances the stream time.
 // This method also handles buffering.
-bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
+bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stats& stats){
     // first handle buffering.
     if (stream_state_ == stream_state::buffering) {
         // if stopped during buffering, just fake a buffer underrun.
@@ -2176,37 +2213,57 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
                       << " blocks, " << elapsed << " / " << latency_samples_ << " samples elapsed)");
 
             // use nominal sample rate
-            resampler_.update(format_->sampleRate, s.samplerate());
+            if (!resampler_.fixed_sr()) {
+                resampler_.update(format_->sampleRate, s.samplerate());
+            }
 
             double resample = (double)s.samplerate() / (double)format_->sampleRate;
         #if BUFFER_PLC
             // use format blocksize
-            auto nsamples = format_->blockSize * format_->numChannels;
-            auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
+            auto nframes = format_->blockSize;
+            auto bufsize = nframes * format_->numChannels;
+            if (!resampler_.bypass()) {
+                assert(buffer == nullptr);
+                buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
+            }
             // use packet loss concealment
-            AooInt32 n = nsamples;
-            if (AooDecoder_decode(decoder_.get(), nullptr, 0, buffer, &n) != kAooOk) {
+            AooInt32 count = bufsize;
+            if (AooDecoder_decode(decoder_.get(), nullptr, 0, buffer, &count) != kAooOk) {
                 LOG_WARNING("AooSink: couldn't decode block!");
                 // fill with zeros
-                std::fill(buffer, buffer + nsamples, 0);
+                std::fill(buffer, buffer + bufsize, 0);
             }
             // advance stream time! use nominal sample rate.
-            stream_samples_ += (double)format_->blockSize * resample;
+            stream_samples_ += (double)nframes * resample;
         #else
             // use process blocksize!
-            int32_t nsamples = (double)s.blocksize() * (double)format_->numChannels / resample + 0.5;
-            auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
-            std::fill(buffer, buffer + nsamples, 0);
+            int32_t nframes;
+            int32_t bufsize;
+            if (resampler_.bypass()) {
+                assert(buffer != nullptr && format_->blockSize == s.blocksize());
+                nframes = format_->blockSize;
+                bufsize = nframes * format_->numChannels;
+            } else {
+                assert(buffer == nullptr);
+                int32_t nframes = (double)s.blocksize() / resample + 0.5;
+                bufsize = nframes * format_->numChannels;
+                buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
+            }
+            std::fill(buffer, buffer + bufsize, 0);
             // advance stream time! (use nominal sample rate)
-            stream_samples_ += s.blocksize();
+            stream_samples_ += nframes;
         #endif
 
-            if (resampler_.write(buffer, nsamples)) {
+            if (resampler_.bypass()) {
                 return true;
             } else {
-                LOG_ERROR("AooSink: bug: couldn't write to resampler");
-                // let the buffer run out
-                return false;
+                if (resampler_.write(buffer, nframes)) {
+                    return true;
+                } else {
+                    LOG_ERROR("AooSink: bug: couldn't write to resampler");
+                    // let the buffer run out
+                    return false;
+                }
             }
         } else {
             LOG_DEBUG("AooSink: buffering done (" << jitter_buffer_.size() << " / " << latency_blocks_
@@ -2229,7 +2286,6 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
     int32_t size;
     int32_t msgsize;
     double sr;
-    int32_t channel;
 
     auto& b = jitter_buffer_.front();
     if (b.complete()){
@@ -2249,7 +2305,7 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
             msgsize = 0;
         }
         sr = b.samplerate;
-        channel = b.channel;
+        channel_ = b.channel; // set current channel
     #if AOO_DEBUG_JITTER_BUFFER
         LOG_DEBUG("jitter buffer: write samples for block ("
                   << b.sequence << ")");
@@ -2259,42 +2315,45 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         data = nullptr;
         size = msgsize = 0;
         sr = format_->sampleRate; // nominal samplerate
-        channel = -1; // current channel
+        // keep current channel
         stats.dropped++;
         LOG_VERBOSE("AooSink: dropped block " << b.sequence);
         LOG_DEBUG("AooSink: remaining blocks: " << jitter_buffer_.size() - 1);
     }
 
     // decode and push audio data to resampler
-    auto nsamples = format_->blockSize * format_->numChannels;
-    AooInt32 n = nsamples;
-    auto buffer = (AooSample *)alloca(nsamples * sizeof(AooSample));
-    if (AooDecoder_decode(decoder_.get(), data + msgsize, size - msgsize, buffer, &n) != kAooOk) {
+    auto bufsize = format_->blockSize * format_->numChannels;
+    AooInt32 count = bufsize;
+    if (!resampler_.bypass()) {
+        assert(buffer == nullptr);
+        buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
+    }
+
+    if (AooDecoder_decode(decoder_.get(), data + msgsize, size - msgsize, buffer, &count) != kAooOk) {
         LOG_WARNING("AooSink: couldn't decode block!");
         // decoder failed - fill with zeros
-        std::fill(buffer, buffer + nsamples, 0);
+        std::fill(buffer, buffer + bufsize, 0);
     }
-    assert(n == nsamples);
+    assert(count == bufsize);
 
-    if (resampler_.write(buffer, nsamples)){
-        // update resampler
-        // real_samplerate() is our real samplerate, sr is the real source samplerate.
-        // This will dynamically adjust the resampler so that it corrects the clock
-        // difference between source and sink.
-        // NB: If dynamic resampling is disabled, the nominal samplerate will be used.
-        resampler_.update(sr, s.real_samplerate());
-        // set channel; negative = current
-        if (channel >= 0){
-            channel_ = channel;
+    if (!resampler_.bypass()) {
+        if (resampler_.write(buffer, format_->blockSize)) {
+            if (!resampler_.fixed_sr()) {
+                // update resampler
+                // real_samplerate() is our real samplerate, sr is the real source samplerate.
+                // This will dynamically adjust the resampler so that it corrects the clock
+                // difference between source and sink.
+                // NB: we only do this if dynamic resampling is enabled here on this sink,
+                // regardless whether the source sends its real samplerate or not!
+                resampler_.update(sr, s.real_samplerate());
+            }
+        } else {
+            LOG_ERROR("AooSink: bug: couldn't write to resampler");
+            // let the buffer run out
+            jitter_buffer_.pop(); // !
+            return false;
         }
-    } else {
-        LOG_ERROR("AooSink: bug: couldn't write to resampler");
-        // let the buffer run out
-        jitter_buffer_.pop(); // !
-        return false;
     }
-
-    double resample = (double)s.samplerate() / sr;
 
     // schedule stream time message  (if present)
     if (b.tt > 0) {
@@ -2314,6 +2373,8 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
     #endif
         sched_stream_message(&msg->header);
     }
+
+    double resample = (double)s.samplerate() / sr;
 
     // schedule stream messages
     if (msgsize > 0) {

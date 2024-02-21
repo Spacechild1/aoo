@@ -263,7 +263,7 @@ AooError AOO_CALL aoo::Source::control(
         if (buffersize_.exchange(bufsize) != bufsize){
             scoped_lock lock(update_mutex_); // writer lock!
             update_audio_queue();
-            if (need_resampling()){
+            if (!resampler_.bypass()) {
                 // reset resampler, see process()!
                 resampler_.reset();
             }
@@ -305,7 +305,9 @@ AooError AOO_CALL aoo::Source::control(
     {
         CHECKARG(AooBool);
         bool b = as<AooBool>(ptr);
+        scoped_lock lock(update_mutex_); // writer lock!
         dynamic_resampling_.store(b);
+        update_resampler();
         reset_timer();
         break;
     }
@@ -435,20 +437,19 @@ AooError AOO_CALL aoo::Source::setup(
     if (nchannels >= 0 && samplerate > 0 && blocksize > 0)
     {
         if (nchannels != nchannels_ || samplerate != samplerate_ ||
-            blocksize != blocksize_)
+            blocksize != blocksize_ || flags != flags_)
         {
+            flags_ = flags;
             nchannels_ = nchannels;
-            samplerate_ = samplerate;
             blocksize_ = blocksize;
+            samplerate_ = samplerate;
 
             realsr_.store(samplerate);
 
             if (encoder_) {
                 update_audio_queue();
 
-                if (need_resampling()){
-                    update_resampler();
-                }
+                update_resampler();
 
                 update_historybuffer();
 
@@ -643,6 +644,10 @@ AOO_API AooError AOO_CALL AooSource_process(
 
 AooError AOO_CALL aoo::Source::process(
         AooSample **data, AooInt32 nsamples, AooNtpTime t) {
+    // check nsamples
+    assert((flags_ & kAooFixedBlockSize) ? nsamples == blocksize_
+                                         : nsamples <= blocksize_);
+
     auto state = state_.load();
     if (state == stream_state::idle){
         if (!requests_.empty()) {
@@ -747,9 +752,9 @@ AooError AOO_CALL aoo::Source::process(
     // non-interleaved -> interleaved
     // only as many channels as current format needs
     auto nfchannels = format_->numChannels;
-    auto insize = nsamples * nfchannels;
-    assert(insize > 0);
-    auto buf = (AooSample *)alloca(insize * sizeof(AooSample));
+    auto bufsize = nsamples * nfchannels;
+    assert(bufsize > 0);
+    auto buf = (AooSample *)alloca(bufsize * sizeof(AooSample));
     if (data) {
         for (int i = 0; i < nfchannels; ++i){
             if (i < nchannels_){
@@ -765,7 +770,7 @@ AooError AOO_CALL aoo::Source::process(
         }
     } else {
         // no buffers -> fill with zeros
-        std::fill(buf, buf + insize, 0);
+        std::fill(buf, buf + bufsize, 0);
     }
 
     double sr;
@@ -775,40 +780,20 @@ AooError AOO_CALL aoo::Source::process(
         sr = 0; // don't send samplerate! see send_data()
     }
 
-    auto outsize = nfchannels * format_->blockSize;
 #if AOO_DEBUG_AUDIO_BUFFER
-    auto resampler_size = resampler_.size() / (double)(nfchannels * blocksize_);
+    auto resampler_available = resampler_.balance() / (double)blocksize_;
     LOG_DEBUG("AooSource: audio_queue: " << audio_queue_.read_available() / resampler_.ratio()
               << ", resampler: " << resampler_size / resampler_.ratio()
               << ", capacity: " << audio_queue_.capacity() / resampler_.ratio());
 #endif
     process_samples_ += nsamples;
-    if (need_resampling()){
-        // try to write to resampler
-        if (!resampler_.write(buf, insize)){
-            LOG_WARNING("AooSource: send buffer overflow");
-            add_xrun(nsamples);
-            // NB: clients are still supposed to call send() to drain the buffer
-            return kAooErrorOverflow;
-        }
-        // try to move samples from resampler to audiobuffer
-        while (audio_queue_.write_available()){
-            // copy audio samples
-            auto ptr = (block_data *)audio_queue_.write_data();
-            if (!resampler_.read(ptr->data, outsize)){
-                break;
-            }
-            // push samplerate
-            ptr->sr = sr;
-
-            audio_queue_.write_commit();
-        }
-    } else {
+    if (resampler_.bypass()) {
+        assert(nsamples == format_->blockSize);
         // bypass resampler
         if (audio_queue_.write_available()){
             auto ptr = (block_data *)audio_queue_.write_data();
             // copy audio samples
-            std::copy(buf, buf + outsize, ptr->data);
+            std::copy(buf, buf + bufsize, ptr->data);
             // push samplerate
             ptr->sr = sr;
 
@@ -818,6 +803,26 @@ AooError AOO_CALL aoo::Source::process(
             add_xrun(nsamples);
             // NB: clients are still supposed to call send() to drain the buffer
             return kAooErrorOverflow;
+        }
+    } else {
+        // try to write to resampler
+        if (!resampler_.write(buf, nsamples)) {
+            LOG_WARNING("AooSource: send buffer overflow");
+            add_xrun(nsamples);
+            // NB: clients are still supposed to call send() to drain the buffer
+            return kAooErrorOverflow;
+        }
+        // try to move samples from resampler to audiobuffer
+        while (audio_queue_.write_available()){
+            // copy audio samples
+            auto ptr = (block_data *)audio_queue_.write_data();
+            if (!resampler_.read(ptr->data, format_->blockSize)) {
+                break;
+            }
+            // push samplerate
+            ptr->sr = sr;
+
+            audio_queue_.write_commit();
         }
     }
     return kAooOk;
@@ -1163,9 +1168,7 @@ AooError Source::set_format(AooFormat &f){
 
     update_audio_queue();
 
-    if (need_resampling()){
-        update_resampler();
-    }
+    update_resampler();
 
     update_historybuffer();
 
@@ -1189,16 +1192,6 @@ AooError Source::get_format(AooFormat &fmt, size_t size){
     } else {
         return kAooErrorNotInitialized;
     }
-}
-
-bool Source::need_resampling() const {
-#if 1
-    // always go through resampler, so we can use a variable block size
-    // LATER add an option for fixed block sizes
-    return true;
-#else
-    return blocksize_ != format_->blockSize || samplerate_ != format_->sampleRate;
-#endif
 }
 
 void Source::push_request(const sink_request &r){
@@ -1318,11 +1311,14 @@ void Source::update_audio_queue(){
     }
 }
 
-void Source::update_resampler(){
-    if (encoder_ && samplerate_ > 0){
-        resampler_.setup(blocksize_, format_->blockSize,
-                         samplerate_, format_->sampleRate,
+void Source::update_resampler() {
+    if (format_ && samplerate_ > 0) {
+        resampler_.setup(blocksize_, format_->blockSize, flags_ & kAooFixedBlockSize,
+                         samplerate_, format_->sampleRate, !dynamic_resampling_.load(),
                          format_->numChannels);
+        if (resampler_.bypass()) {
+            LOG_DEBUG("AooSource: bypass resampler");
+        }
     }
 }
 

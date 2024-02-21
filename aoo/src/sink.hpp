@@ -101,7 +101,7 @@ enum class source_state {
     timeout
 };
 
-enum class stream_state {
+enum class stream_state : uint8_t {
     active,
     inactive,
     buffering
@@ -202,12 +202,14 @@ private:
 
     void update(const Sink& s);
 
+    void on_underrun(const Sink& s);
+
     void handle_underrun(const Sink& s);
 
     bool add_packet(const Sink& s, const net_packet& d,
                     stream_stats& stats);
 
-    bool try_decode_block(const Sink& s, stream_stats& stats);
+    bool try_decode_block(const Sink& s, AooSample* buffer, stream_stats& stats);
 
     void check_missing_blocks(const Sink& s);
 
@@ -352,6 +354,8 @@ public:
 
     int32_t blocksize() const { return blocksize_.load(std::memory_order_relaxed); }
 
+    bool fixed_blocksize() const { return flags_.load(std::memory_order_relaxed) & kAooFixedBlockSize; }
+
     float elapsed_time() const { return elapsed_time_.load(std::memory_order_relaxed); }
 
     AooSampleRate real_samplerate() const { return realsr_.load(); }
@@ -384,9 +388,10 @@ public:
 private:
     // settings
     parameter<AooId> id_;
-    std::atomic<int32_t> nchannels_{0};
+    std::atomic<uint32_t> flags_{0};
+    std::atomic<int16_t> nchannels_{0};
+    std::atomic<int16_t> blocksize_{0};
     std::atomic<int32_t> samplerate_{0};
-    std::atomic<int32_t> blocksize_{0};
 #if AOO_NET
     AooClient *client_ = nullptr;
 #endif

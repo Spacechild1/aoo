@@ -78,8 +78,8 @@
 #endif
 
 /** \brief debug the state of the dynamic resampler */
-#ifndef AOO_DEBUG_RESAMPLING
-# define AOO_DEBUG_RESAMPLING 0
+#ifndef AOO_DEBUG_RESAMPLER
+# define AOO_DEBUG_RESAMPLER 0
 #endif
 
 /** \brief debug the state of the jitter buffer */

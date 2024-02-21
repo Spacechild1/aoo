@@ -688,7 +688,7 @@ static void aoo_receive_dsp(t_aoo_receive *x, t_signal **sp)
 
     if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
             || channels_changed) {
-        x->x_sink->setup(nchannels, samplerate, blocksize, 0);
+        x->x_sink->setup(nchannels, samplerate, blocksize, kAooFixedBlockSize);
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
     }

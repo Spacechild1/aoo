@@ -897,7 +897,7 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
 
     if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
             || nchannels != x->x_nchannels) {
-        x->x_source->setup(nchannels, samplerate, blocksize, 0);
+        x->x_source->setup(nchannels, samplerate, blocksize, kAooFixedBlockSize);
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
         x->x_nchannels = nchannels;

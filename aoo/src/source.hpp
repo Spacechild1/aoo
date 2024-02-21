@@ -268,8 +268,9 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     // settings
     parameter<AooId> id_;
-    int32_t nchannels_ = 0;
-    int32_t blocksize_ = 0;
+    uint32_t flags_ = 0;
+    int16_t nchannels_ = 0;
+    int16_t blocksize_ = 0;
     int32_t samplerate_ = 0;
 #if AOO_NET
     AooClient *client_ = nullptr;
