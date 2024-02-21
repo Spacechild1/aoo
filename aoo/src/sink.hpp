@@ -211,6 +211,11 @@ private:
 
     void check_missing_blocks(const Sink& s);
 
+    void sched_stream_message(stream_message_header *msg);
+
+    void dispatch_stream_messages(const Sink& s, int nsamples,
+                                  AooStreamMessageHandler fn, void *user);
+
     void flush_packet_queue();
 
     // send messages

@@ -1912,69 +1912,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
         }
     }
 
-    // dispatch stream messages
-    auto deadline = process_samples_ + nsamples;
-    while (stream_messages_) {
-        auto it = stream_messages_;
-        if (it->time < deadline) {
-            int32_t offset = it->time - process_samples_ + 0.5;
-            if (offset >= nsamples) {
-                break;
-            }
-            if (it->type == kAooDataStreamTime) {
-                // a) stream time event
-                if (offset >= 0) {
-                    auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
-                    auto e = make_event<stream_time_event>(ep, tt, offset);
-                    eventbuffer_.push_back(std::move(e));
-                #if AOO_DEBUG_STREAM_MESSAGE
-                    LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
-                              << ", offset: " << offset << ")");
-                #endif
-                } else {
-                    // this may happen with xruns
-                    LOG_VERBOSE("AooSink: skip stream time event (offset: " << offset << ")");
-                }
-            } else {
-                // b) stream message
-                if (offset >= 0) {
-                    AooStreamMessage msg;
-                    msg.sampleOffset = offset;
-                    msg.channel = it->channel;
-                    msg.type = it->type;
-                    msg.size = it->size;
-                    msg.data = (const AooByte *)reinterpret_cast<flat_stream_message *>(it)->data;
-
-                    AooEndpoint ep;
-                    ep.address = this->ep.address.address();
-                    ep.addrlen = this->ep.address.length();
-                    ep.id = this->ep.id;
-
-                #if AOO_DEBUG_STREAM_MESSAGE
-                    LOG_DEBUG("AooSink: dispatch stream message "
-                              << "(type: " << aoo_dataTypeToString(msg.type)
-                              << ", channel: " << msg.channel << ", size: " << msg.size
-                              << ", offset: " << msg.sampleOffset << ")");
-                #endif
-
-                    // NB: the stream message handler is called with the mutex locked!
-                    // See the documentation of AooStreamMessageHandler.
-                    handler(user, &msg, &ep);
-                } else {
-                    // this may happen with xruns
-                    LOG_VERBOSE("AooSink: skip stream message (offset: " << offset << ")");
-                }
-            }
-
-            auto next = it->next;
-            auto alloc_size = sizeof(stream_message_header) + it->size;
-            aoo::rt_deallocate(it, alloc_size);
-            stream_messages_ = next;
-        } else {
-            break;
-        }
-    }
-    process_samples_ = deadline;
+    dispatch_stream_messages(s, nsamples, handler, user);
 
     // sum source into sink (interleaved -> non-interleaved),
     // starting at the desired sink channel offset.
@@ -2373,16 +2311,7 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
         LOG_DEBUG("AooSink: schedule stream time message (tt: "
                   << aoo::time_tag(b.tt) << ", time: " << (int64_t)time << ")");
     #endif
-        // insert in list (keep sorted!)
-        if (stream_messages_) {
-            auto it = stream_messages_;
-            while (it->next && time >= it->time) {
-                it = it->next;
-            }
-            it->next = &msg->header;
-        } else {
-            stream_messages_ = &msg->header;
-        }
+        sched_stream_message(&msg->header);
     }
 
     // schedule stream messages
@@ -2415,16 +2344,9 @@ bool source_desc::try_decode_block(const Sink& s, stream_stats& stats){
                       << ", offset: " << offset << ", time: " << (int64_t)time << ")");
         #endif
             memcpy(msg->data, msgptr, size);
-            // insert in list (keep sorted!)
-            if (stream_messages_) {
-                auto it = stream_messages_;
-                while (it->next && time >= it->time) {
-                    it = it->next;
-                }
-                it->next = &msg->header;
-            } else {
-                stream_messages_ = &msg->header;
-            }
+
+            sched_stream_message(&msg->header);
+
             msgptr += aligned_size;
         }
     }
@@ -2509,6 +2431,90 @@ resend_done:
     if (resent > 0){
         LOG_DEBUG("AooSink: requested " << resent << " frames");
     }
+}
+
+void source_desc::sched_stream_message(stream_message_header *msg) {
+    // keep sorted!
+    if (stream_messages_ && msg->time >= stream_messages_->time) {
+        // a) insert
+        auto it = stream_messages_;
+        while (it->next && msg->time >= it->next->time) {
+            it = it->next;
+        }
+        msg->next = it->next;
+        it->next = msg;
+    } else {
+        // b) prepend
+        msg->next = stream_messages_;
+        stream_messages_ = msg;
+    }
+}
+
+void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
+                                           AooStreamMessageHandler fn, void *user) {
+    // dispatch stream messages
+    auto deadline = process_samples_ + nsamples;
+    while (stream_messages_) {
+        auto it = stream_messages_;
+        if (it->time < deadline) {
+            int32_t offset = it->time - process_samples_ + 0.5;
+            if (offset >= nsamples) {
+                break;
+            }
+            if (it->type == kAooDataStreamTime) {
+                // a) stream time event
+                if (offset >= 0) {
+                    auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
+                    auto e = make_event<stream_time_event>(ep, tt, offset);
+                    eventbuffer_.push_back(std::move(e));
+                #if AOO_DEBUG_STREAM_MESSAGE
+                    LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
+                                                                            << ", offset: " << offset << ")");
+                #endif
+                } else {
+                    // this may happen with xruns
+                    LOG_VERBOSE("AooSink: skip stream time event (offset: " << offset << ")");
+                }
+            } else {
+                // b) stream message
+                if (offset >= 0) {
+                    AooStreamMessage msg;
+                    msg.sampleOffset = offset;
+                    msg.channel = it->channel;
+                    msg.type = it->type;
+                    msg.size = it->size;
+                    msg.data = (const AooByte *)reinterpret_cast<flat_stream_message *>(it)->data;
+
+                    AooEndpoint ep;
+                    ep.address = this->ep.address.address();
+                    ep.addrlen = this->ep.address.length();
+                    ep.id = this->ep.id;
+
+                #if AOO_DEBUG_STREAM_MESSAGE
+                    LOG_DEBUG("AooSink: dispatch stream message "
+                              << "(type: " << aoo_dataTypeToString(msg.type)
+                              << ", channel: " << msg.channel << ", size: " << msg.size
+                              << ", offset: " << msg.sampleOffset << ")");
+                #endif
+
+                    // NB: the stream message handler is called with the mutex locked!
+                    // See the documentation of AooStreamMessageHandler.
+                    fn(user, &msg, &ep);
+                } else {
+                    // this may happen with xruns
+                    LOG_VERBOSE("AooSink: skip stream message (offset: " << offset << ")");
+                }
+            }
+
+            auto next = it->next;
+            auto alloc_size = sizeof(stream_message_header) + it->size;
+            aoo::rt_deallocate(it, alloc_size);
+            stream_messages_ = next;
+        } else {
+            break;
+        }
+    }
+    process_samples_ = deadline;
 }
 
 void source_desc::flush_packet_queue() {
