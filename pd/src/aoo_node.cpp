@@ -339,7 +339,7 @@ t_node * t_node::get(t_pd *obj, int port, void *x, AooId id)
 }
 
 t_node_imp::t_node_imp(t_symbol *s, int port)
-    : x_proxy(this), x_bindsym(s)
+    : x_proxy(this), x_bindsym(s), x_port(port)
 {
     LOG_DEBUG("create AooClient on port " << port);
     auto client = AooClient::create(nullptr);
