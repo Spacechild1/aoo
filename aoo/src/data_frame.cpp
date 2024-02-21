@@ -170,30 +170,26 @@ void data_frame_storage::add_frame(int32_t index, data_frame* frame) {
     frame->header.frame_index = index;
     if (size_ > small_frame_limit) {
         // add to linked list
-        if (auto tail = data_.l.tail; tail && tail->header.frame_index < index) {
+        if (auto tail = &data_.l.tail->header; tail && index > tail->frame_index) {
             // a) append (this is the typical pattern!)
             frame->header.next = nullptr;
-            tail->header.next = &frame->header;
+            tail->next = &frame->header;
             data_.l.tail = frame;
         } else {
-            auto ptr = data_.l.head;
-            if (ptr == nullptr || ptr->header.frame_index > index) {
+            auto ptr = &data_.l.head->header;
+            if (ptr == nullptr || index < ptr->frame_index) {
                 // b) prepend
-                frame->header.next = (data_frame_header*)ptr;
+                frame->header.next = ptr;
                 data_.l.head = frame;
             } else {
                 // c) insert
-                for (;;) {
-                    assert(ptr->header.frame_index != index);
-                    auto next = ptr->header.next;
-                    if (!next || next->frame_index > index) {
-                        // insert
-                        frame->header.next = next;
-                        ptr->header.next = &frame->header;
-                        break;
-                    }
-                    ptr = (data_frame*)ptr->header.next;
+                assert(ptr->frame_index != index);
+                while (ptr->next && index > ptr->next->frame_index) {
+                    assert(ptr->next->frame_index != index);
+                    ptr = ptr->next;
                 }
+                frame->header.next = ptr->next;
+                ptr->next = &frame->header;
             }
             if (frame->header.next == nullptr) {
                 // update tail!
