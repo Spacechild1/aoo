@@ -772,7 +772,7 @@ AooError AOO_CALL aoo::Source::process(
     if (dynamic_resampling){
         sr = realsr_.load() / (double)samplerate_ * (double)format_->sampleRate;
     } else {
-        sr = format_->sampleRate;
+        sr = 0; // don't send samplerate! see send_data()
     }
 
     auto outsize = nfchannels * format_->blockSize;
@@ -1783,7 +1783,7 @@ void Source::send_xruns(const sendfn &fn) {
             data_packet d;
             d.sequence = sequence_++;
             d.tt = 0; // omit
-            d.samplerate = format_->sampleRate; // use nominal samplerate
+            d.samplerate = 0; // use nominal samplerate
             d.channel = 0;
             d.total_size = 0;
             d.msg_size = 0;
