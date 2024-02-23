@@ -1294,7 +1294,7 @@ void Source::update_audio_queue(){
     if (encoder_ && samplerate_ > 0){
         // convert buffersize from seconds to samples
         auto buffersize = buffersize_.load();
-        int32_t buffersamples = buffersize * (double)format_->sampleRate;
+        int32_t buffersamples = buffersize * (double)samplerate_;
         auto d = std::div(buffersamples, format_->blockSize);
         int32_t nbuffers = d.quot + (d.rem != 0); // round up
         // minimum buffer size depends on resampling and reblocking!
