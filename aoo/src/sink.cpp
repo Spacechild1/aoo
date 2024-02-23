@@ -927,6 +927,7 @@ AooError Sink::handle_data_message(const osc::ReceivedMessage& msg,
 
     auto id = (it++)->AsInt32();
 
+    // TODO: sanity checks
     net_packet d;
     d.flags = 0;
     d.stream_id = (it++)->AsInt32();
@@ -1579,7 +1580,7 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
 #endif
     // check and fix up samplerate
     if (d.samplerate == 0){
-        assert(d.flags & kAooBinMsgDataSampleRate);
+        assert(!(d.flags & kAooBinMsgDataSampleRate));
         // no dynamic resampling, just use nominal samplerate
         d.samplerate = format_->sampleRate;
     }
