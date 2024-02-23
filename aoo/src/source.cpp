@@ -247,7 +247,7 @@ AooError AOO_CALL aoo::Source::control(
         // TODO: what should this do exactly?
         scoped_lock lock(update_mutex_); // writer lock!
         resampler_.reset();
-        audioqueue_.reset();
+        audio_queue_.reset();
         if (encoder_) {
             AooEncoder_reset(encoder_.get());
         }
@@ -262,7 +262,7 @@ AooError AOO_CALL aoo::Source::control(
         auto bufsize = std::max<AooSeconds>(as<AooSeconds>(ptr), 0);
         if (buffersize_.exchange(bufsize) != bufsize){
             scoped_lock lock(update_mutex_); // writer lock!
-            update_audioqueue();
+            update_audio_queue();
             if (need_resampling()){
                 // reset resampler, see process()!
                 resampler_.reset();
@@ -443,8 +443,8 @@ AooError AOO_CALL aoo::Source::setup(
 
             realsr_.store(samplerate);
 
-            if (encoder_){
-                update_audioqueue();
+            if (encoder_) {
+                update_audio_queue();
 
                 if (need_resampling()){
                     update_resampler();
@@ -778,9 +778,9 @@ AooError AOO_CALL aoo::Source::process(
     auto outsize = nfchannels * format_->blockSize;
 #if AOO_DEBUG_AUDIO_BUFFER
     auto resampler_size = resampler_.size() / (double)(nfchannels * blocksize_);
-    LOG_DEBUG("AooSource: audioqueue: " << audioqueue_.read_available() / resampler_.ratio()
+    LOG_DEBUG("AooSource: audio_queue: " << audio_queue_.read_available() / resampler_.ratio()
               << ", resampler: " << resampler_size / resampler_.ratio()
-              << ", capacity: " << audioqueue_.capacity() / resampler_.ratio());
+              << ", capacity: " << audio_queue_.capacity() / resampler_.ratio());
 #endif
     process_samples_ += nsamples;
     if (need_resampling()){
@@ -792,27 +792,27 @@ AooError AOO_CALL aoo::Source::process(
             return kAooErrorOverflow;
         }
         // try to move samples from resampler to audiobuffer
-        while (audioqueue_.write_available()){
+        while (audio_queue_.write_available()){
             // copy audio samples
-            auto ptr = (block_data *)audioqueue_.write_data();
+            auto ptr = (block_data *)audio_queue_.write_data();
             if (!resampler_.read(ptr->data, outsize)){
                 break;
             }
             // push samplerate
             ptr->sr = sr;
 
-            audioqueue_.write_commit();
+            audio_queue_.write_commit();
         }
     } else {
         // bypass resampler
-        if (audioqueue_.write_available()){
-            auto ptr = (block_data *)audioqueue_.write_data();
+        if (audio_queue_.write_available()){
+            auto ptr = (block_data *)audio_queue_.write_data();
             // copy audio samples
             std::copy(buf, buf + outsize, ptr->data);
             // push samplerate
             ptr->sr = sr;
 
-            audioqueue_.write_commit();
+            audio_queue_.write_commit();
         } else {
             LOG_WARNING("AooSource: send buffer overflow");
             add_xrun(nsamples);
@@ -1071,7 +1071,7 @@ sink_desc * Source::do_add_sink(const ip_address& addr, AooId id, AooId stream_i
     if (sinks_.empty()) {
         scoped_lock lock(update_mutex_); // writer lock!
         resampler_.reset();
-        audioqueue_.reset();
+        audio_queue_.reset();
         if (encoder_) {
             AooEncoder_reset(encoder_.get());
         }
@@ -1156,12 +1156,12 @@ AooError Source::set_format(AooFormat &f){
     }
 
     // save validated format
-    auto fmt = aoo::allocate(f.structSize);
+    auto fmt = (AooFormat*)aoo::allocate(f.structSize);
     memcpy(fmt, &f, f.structSize);
-    format_.reset((AooFormat *)fmt);
+    format_.reset(fmt);
     format_id_ = get_random_id();
 
-    update_audioqueue();
+    update_audio_queue();
 
     if (need_resampling()){
         update_resampler();
@@ -1242,7 +1242,7 @@ void Source::make_new_stream(aoo::time_tag tt, bool notify){
     // remove audio from previous stream
     resampler_.reset();
 
-    audioqueue_.reset();
+    audio_queue_.reset();
 
     history_.clear(); // !
 
@@ -1290,7 +1290,7 @@ void Source::handle_xrun(int32_t nsamples) {
     reset_timer();
 }
 
-void Source::update_audioqueue(){
+void Source::update_audio_queue(){
     if (encoder_ && samplerate_ > 0){
         // convert buffersize from seconds to samples
         auto buffersize = buffersize_.load();
@@ -1311,9 +1311,9 @@ void Source::update_audioqueue(){
         auto nbytes = block_data::header_size + nsamples * sizeof(AooSample);
         // align to 8 bytes
         nbytes = (nbytes + 7) & ~7;
-        audioqueue_.resize(nbytes, nbuffers);
+        audio_queue_.resize(nbytes, nbuffers);
     #if 1
-        audioqueue_.shrink_to_fit();
+        audio_queue_.shrink_to_fit();
     #endif
     }
 }
@@ -1472,7 +1472,7 @@ void Source::send_start(const sendfn& fn){
     shared_lock updatelock(update_mutex_); // reader lock!
 
     // wait until we have data to send
-    if (audioqueue_.read_available() == 0) {
+    if (audio_queue_.read_available() == 0) {
         return;
     }
 
@@ -1823,7 +1823,7 @@ void Source::send_data(const sendfn& fn){
 
     // then send audio
     shared_lock updatelock(update_mutex_); // reader lock
-    while (audioqueue_.read_available()) {
+    while (audio_queue_.read_available()) {
         // NB: recheck one every iteration because we temporarily release the lock!
         if (!encoder_ || sequence_ == invalid_stream) {
             return;
@@ -1921,11 +1921,11 @@ void Source::send_data(const sendfn& fn){
         // if we don't have any (active) sinks, we do not actually need
         // to encode and send the data!
         if (cached_sinks_.empty()) {
-            audioqueue_.read_commit(); // !
+            audio_queue_.read_commit(); // !
             continue;
         }
 
-        auto ptr = (block_data *)audioqueue_.read_data();
+        auto ptr = (block_data *)audio_queue_.read_data();
 
         data_packet d;
         d.tt = tt;
@@ -1954,7 +1954,7 @@ void Source::send_data(const sendfn& fn){
             sendbuffer_.data() + d.msg_size, &audio_size);
         d.total_size = d.msg_size + audio_size;
 
-        audioqueue_.read_commit(); // always commit!
+        audio_queue_.read_commit(); // always commit!
 
         if (err != kAooOk){
             LOG_WARNING("AooSource: couldn't encode audio data!");

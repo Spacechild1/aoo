@@ -313,7 +313,7 @@ class Source final : public AooSource, rt_memory_pool_client {
         double sr;
         AooSample data[1];
     };
-    aoo::spsc_queue<char> audioqueue_;
+    aoo::spsc_queue<char> audio_queue_;
     history_buffer history_;
     using message_queue = lockfree::unbounded_mpsc_queue<rt_stream_message, aoo::rt_allocator<rt_stream_message>>;
     message_queue message_queue_;
@@ -369,7 +369,7 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     void handle_xrun(int32_t nsamples);
 
-    void update_audioqueue();
+    void update_audio_queue();
 
     void update_resampler();
 
