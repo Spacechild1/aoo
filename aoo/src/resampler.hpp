@@ -42,6 +42,8 @@ private:
 
     static constexpr int32_t latency_linear = 1;
     static constexpr int32_t latency_cubic = 2;
+    static constexpr size_t buffer_shift = 1;
+    static constexpr size_t extra_space = 3;
 
     AooSample *buffer_ = nullptr;
     int32_t size_ = 0;

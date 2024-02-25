@@ -7,8 +7,10 @@ namespace aoo {
 
 void dynamic_resampler::free_buffer() {
     if (buffer_) {
-        auto alloc_size = (size_ * nchannels_) * sizeof(AooSample);
-        aoo::deallocate(buffer_, alloc_size);
+        auto alloc_size = (size_ + extra_space) * nchannels_ * sizeof(AooSample);
+        // undo buffer shift! see setup()
+        void *ptr = buffer_ - buffer_shift * nchannels_;
+        aoo::deallocate(ptr, alloc_size);
         buffer_ = nullptr;
         size_ = 0;
     }
@@ -86,15 +88,20 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
                   << " to " << srto << (fixed_sr ? " (fixed)" : "") << ", method: "
                   << method_to_string(method_) << ", capacity: " << size);
     #endif
-        auto old_nsamples = size_ * nchannels_;
-        auto nsamples = size * nchannels;
+        // Add extra frames and shift buffer by one frame to avoid index bound
+        // checks in linear and cubic interpolation. These extra frames mirror
+        // the first two frames resp. the last frame. See read() and write().
+        auto old_nsamples = buffer_ ? (size_ + extra_space) * nchannels_ : 0;
+        auto nsamples = (size + extra_space) * nchannels;
         if (old_nsamples != nsamples) {
+            // reallocate buffer
             free_buffer();
-            buffer_ = (AooSample*)aoo::allocate(nsamples * sizeof(AooSample));
+            auto buf = (AooSample*)aoo::allocate(nsamples * sizeof(AooSample));
+        #if 1
+            std::fill(buf, buf + nsamples, 0);
+        #endif
+            buffer_ = buf + buffer_shift * nchannels;
         }
-    #if 1
-        std::fill(buffer_, buffer_ + nsamples, 0);
-    #endif
         size_ = size;
     }
     nchannels_ = nchannels;
@@ -109,10 +116,12 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
 void dynamic_resampler::reset() {
     if (method_ == resample_method::cubic) {
         assert(buffer_ != nullptr);
-        // write two frame of zero(s) and set the last frame to zero.
+        // write two frames of zero(s)
         std::fill(buffer_, buffer_ + latency_cubic * nchannels_, 0);
+        // set last frame to zero and mirror
         auto end = buffer_ + size_ * nchannels_;
         std::fill(end - nchannels_, end, 0);
+        std::fill(buffer_ - buffer_shift * nchannels_, buffer_, 0);
         wrpos_ = latency_cubic;
         rdpos_ = 0.0;
         balance_ = latency_cubic;
@@ -146,8 +155,7 @@ void dynamic_resampler::update(double srfrom, double srto) {
 }
 
 bool dynamic_resampler::write(const AooSample *data, int32_t nframes) {
-    auto balance = balance_;
-    auto space = (int32_t)((double)size_ - balance);
+    auto space = (int32_t)((double)size_ - balance_);
     // leave extra space for cubic interpolation
     if ((space - 1) < nframes) {
         return false;
@@ -163,7 +171,19 @@ bool dynamic_resampler::write(const AooSample *data, int32_t nframes) {
         std::copy(data, data + (nframes * nchannels_), buffer_ + (pos * nchannels_));
         wrpos_ = (end == size_) ? 0 : end;
     }
-    balance_ = balance + nframes;
+    if (method_ != resample_method::none) {
+        auto bufstart = buffer_ - buffer_shift * nchannels_;
+        auto bufend = buffer_ + size_ * nchannels_;
+        if (pos < 2 || end > size_) {
+            // mirror first two samples (if either one has been written)
+            std::copy(buffer_, buffer_ + 2 * nchannels_, bufend);
+        }
+        if (end >= size_) {
+            // mirror last sample
+            std::copy(bufend - nchannels_, bufend, bufstart);
+        }
+    }
+    balance_ += nframes;
     return true;
 }
 
@@ -186,25 +206,17 @@ bool dynamic_resampler::read(AooSample *data, int32_t nframes) {
         const AooSample one_over_six = 1./6.;
 
         for (int i = 0; i < nsamples; i += nchannels) {
-            auto index1 = (int32_t)pos;
-            auto index0 = index1 - 1;
-            if (index0 < 0) {
-                index0 += size;
-            }
-            auto index2 = index1 + 1;
-            if (index2 >= size) {
-                index2 -= size;
-            }
-            auto index3 = index1 + 2;
-            if (index3 >= size) {
-                index3 -= size;
-            }
-            auto fract = (AooSample)(pos - (double)index1);
+            auto ipos = (int32_t)pos;
+            auto fract = (AooSample)(pos - (double)ipos);
+            auto ia = (ipos - 1) * nchannels;
+            auto ib = (ipos) * nchannels;
+            auto ic = (ipos + 1) * nchannels;
+            auto id = (ipos + 2) * nchannels;
             for (int j = 0; j < nchannels; ++j) {
-                auto a = buffer_[index0 * nchannels + j];
-                auto b = buffer_[index1 * nchannels + j];
-                auto c = buffer_[index2 * nchannels + j];
-                auto d = buffer_[index3 * nchannels + j];
+                auto a = buffer_[ia + j];
+                auto b = buffer_[ib + j];
+                auto c = buffer_[ic + j];
+                auto d = buffer_[id + j];
                 // taken from Pd's [tabread4~]
                 auto cminusb = c - b;
                 data[i + j] = b + fract * (
@@ -245,15 +257,13 @@ bool dynamic_resampler::read(AooSample *data, int32_t nframes) {
         auto limit = (double)size;
         auto nsamples = nframes * nchannels;
         for (int i = 0; i < nsamples; i += nchannels) {
-            auto index = (int32_t)pos;
-            auto index2 = index + 1;
-            if (index2 >= size) {
-                index2 -= size;
-            }
-            auto fract = (AooSample)(pos - (double)index);
+            auto ipos = (int32_t)pos;
+            auto fract = (AooSample)(pos - (double)ipos);
+            auto index0 = ipos * nchannels;
+            auto index1 = (ipos + 1) * nchannels;
             for (int j = 0; j < nchannels; ++j) {
-                auto a = buffer_[index * nchannels + j];
-                auto b = buffer_[index2 * nchannels + j];
+                auto a = buffer_[index0 + j];
+                auto b = buffer_[index1 + j];
                 data[i + j] = a + (b - a) * fract;
             }
             pos += fadvance;
