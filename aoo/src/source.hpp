@@ -346,6 +346,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     parameter<float> tt_interval_{ AOO_STREAM_TIME_SEND_INTERVAL };
     parameter<bool> dynamic_resampling_{ AOO_DYNAMIC_RESAMPLING };
     parameter<bool> binary_{ AOO_BINARY_DATA_MSG };
+    parameter<char> resample_method_{ AOO_RESAMPLE_MODE };
 
     // helper methods
     sink_desc * do_add_sink(const ip_address& addr, AooId id, AooId stream_id);

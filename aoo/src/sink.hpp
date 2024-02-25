@@ -360,7 +360,9 @@ public:
 
     AooSampleRate real_samplerate() const { return realsr_.load(); }
 
-    bool dynamic_resampling() const { return dynamic_resampling_.load();}
+    bool dynamic_resampling() const { return dynamic_resampling_.load(); }
+
+    AooResampleMethod resample_method() const { return resample_method_.load(); }
 
     AooSeconds latency() const { return latency_.load(); }
 
@@ -418,8 +420,10 @@ private:
     parameter<float> source_timeout_{ AOO_SOURCE_TIMEOUT };
     parameter<float> invite_timeout_{ AOO_INVITE_TIMEOUT };
     parameter<float> dll_bandwidth_{ AOO_DLL_BANDWIDTH };
-    parameter<bool> resend_{AOO_RESEND_DATA};
+    parameter<bool> resend_{ AOO_RESEND_DATA };
     parameter<bool> dynamic_resampling_{ AOO_DYNAMIC_RESAMPLING };
+    parameter<char> resample_method_{ AOO_RESAMPLE_MODE };
+
     // events
     using event_queue = lockfree::unbounded_mpsc_queue<event_ptr, aoo::rt_allocator<event_ptr>>;
     mutable event_queue eventqueue_;

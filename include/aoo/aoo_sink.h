@@ -130,6 +130,18 @@ AOO_INLINE AooError AooSink_reportXRun(AooSink *sink, AooInt32 numSamples)
     return AooSink_control(sink, kAooCtlReportXRun, 0, AOO_ARG(numSamples));
 }
 
+/** \copydoc AooSink::setResampleMethod() */
+AOO_INLINE AooError AooSink_setResampleMethod(AooSink *sink, AooResampleMethod mode)
+{
+    return AooSink_control(sink, kAooCtlSetResampleMethod, 0, AOO_ARG(mode));
+}
+
+/** \copydoc AooSink::getResampleMethod() */
+AOO_INLINE AooError AooSink_getResampleMethod(AooSink *sink, AooResampleMethod *mode)
+{
+    return AooSink_control(sink, kAooCtlGetResampleMethod, 0, AOO_ARG(*mode));
+}
+
 /** \copydoc AooSink::setDynamicResampling() */
 AOO_INLINE AooError AooSink_setDynamicResampling(AooSink *sink, AooBool b)
 {

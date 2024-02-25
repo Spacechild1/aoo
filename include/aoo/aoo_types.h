@@ -263,8 +263,23 @@ AOO_FLAG(AooSetupFlags)
 
 /*------------------------------------------------------------------*/
 
-/** \brief flags for AooClient_setup / AooClient::setup and
- *         AooServer_setup / AooServer::setup
+/** \brief resample modes for AooSource::setResampleMethod() and
+ *  AooSink::setResampleMethod */
+AOO_ENUM(AooResampleMethod)
+{
+    /** sample and hold */
+    kAooResampleHold = 0,
+    /** linear interpolation */
+    kAooResampleLinear,
+    /** cubic interpolation */
+    kAooResampleCubic,
+    /** sentinel */
+    kAooResampleMethodEnd
+};
+
+/*------------------------------------------------------------------*/
+
+/** \brief flags for AooClient::setup and AooServer::setup
  *
  * Possible combinations:
  *   - `kAooSocketIPv4` IPv4 only

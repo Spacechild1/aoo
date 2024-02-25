@@ -35,6 +35,8 @@ enum
     kAooCtlSetBufferSize,
     kAooCtlGetBufferSize,
     kAooCtlReportXRun,
+    kAooCtlSetResampleMethod,
+    kAooCtlGetResampleMethod,
     kAooCtlSetDynamicResampling,
     kAooCtlGetDynamicResampling,
     kAooCtlGetRealSampleRate,
@@ -106,6 +108,11 @@ enum
 /** \brief stream time send interval in seconds (0 = disabled) */
 #ifndef AOO_STREAM_TIME_SEND_INTERVAL
 #define AOO_STREAM_TIME_SEND_INTERVAL 1.0
+#endif
+
+/** \brief default resample mode*/
+#ifndef AOO_RESAMPLE_MODE
+#define AOO_RESAMPLE_MODE kAooResampleCubic
 #endif
 
 /** \brief enable/disable dynamic resampling by default */

@@ -159,6 +159,18 @@ AOO_INLINE AooError AooSource_reportXRun(AooSource *source, AooInt32 numSamples)
     return AooSource_control(source, kAooCtlReportXRun, 0, AOO_ARG(numSamples));
 }
 
+/** \copydoc AooSource::setResampleMethod() */
+AOO_INLINE AooError AooSource_setResampleMethod(AooSource *source, AooResampleMethod mode)
+{
+    return AooSource_control(source, kAooCtlSetResampleMethod, 0, AOO_ARG(mode));
+}
+
+/** \copydoc AooSource::getResampleMethod() */
+AOO_INLINE AooError AooSource_getResampleMethod(AooSource *source, AooResampleMethod *mode)
+{
+    return AooSource_control(source, kAooCtlGetResampleMethod, 0, AOO_ARG(*mode));
+}
+
 /** \copydoc AooSource::setDynamicResampling() */
 AOO_INLINE AooError AooSource_setDynamicResampling(AooSource *source, AooBool b)
 {

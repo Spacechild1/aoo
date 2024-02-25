@@ -300,14 +300,34 @@ AooError AOO_CALL aoo::Source::control(
         CHECKARG(int32_t);
         handle_xrun(as<int32_t>(ptr));
         break;
+    // set/get resample mode
+    case kAooCtlSetResampleMethod:
+    {
+        CHECKARG(AooResampleMethod);
+        auto method = as<AooResampleMethod>(ptr);
+        if (method < 0) {
+            return kAooErrorBadArgument;
+        } else if (method >= kAooResampleMethodEnd) {
+            return kAooErrorNotImplemented;
+        }
+        scoped_lock lock(update_mutex_); // writer lock!
+        resample_method_.store(method);
+        // update resampler! otherwise we would have to
+        // wait for the next setup or format change.
+        update_resampler();
+        reset_timer(); // ?
+        break;
+    }
+    case kAooCtlGetResampleMethod:
+        CHECKARG(AooResampleMethod);
+        as<AooResampleMethod>(ptr) = resample_method_.load();
+        break;
     // set/get dynamic resampling
     case kAooCtlSetDynamicResampling:
     {
         CHECKARG(AooBool);
         bool b = as<AooBool>(ptr);
-        scoped_lock lock(update_mutex_); // writer lock!
         dynamic_resampling_.store(b);
-        update_resampler();
         reset_timer();
         break;
     }
@@ -1314,8 +1334,8 @@ void Source::update_audio_queue(){
 void Source::update_resampler() {
     if (format_ && samplerate_ > 0) {
         resampler_.setup(blocksize_, format_->blockSize, flags_ & kAooFixedBlockSize,
-                         samplerate_, format_->sampleRate, !dynamic_resampling_.load(),
-                         format_->numChannels);
+                         samplerate_, format_->sampleRate, true, // always fixed sr!
+                         format_->numChannels, resample_method_.load());
         if (resampler_.bypass()) {
             LOG_DEBUG("AooSource: bypass resampler");
         }

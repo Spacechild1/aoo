@@ -12,7 +12,7 @@ public:
 
     void setup(int32_t nfrom, int32_t nto, bool fixed_n,
                int32_t srfrom, int32_t srto, bool fixed_sr,
-               int32_t nchannels);
+               int32_t nchannels, AooResampleMethod mode);
     void reset();
     void update(double srfrom, double srto);
 
@@ -34,10 +34,14 @@ private:
         none,
         skip,
         hold,
-        linear
+        linear,
+        cubic
     };
 
     static const char* method_to_string(resample_method method);
+
+    static constexpr int32_t latency_linear = 1;
+    static constexpr int32_t latency_cubic = 2;
 
     AooSample *buffer_ = nullptr;
     int32_t size_ = 0;

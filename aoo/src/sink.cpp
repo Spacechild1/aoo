@@ -228,11 +228,31 @@ AooError AOO_CALL aoo::Sink::control(
         CHECKARG(int32_t);
         handle_xrun(as<int32_t>(ptr));
         break;
+    // set/get resample mode
+    case kAooCtlSetResampleMethod:
+    {
+        CHECKARG(AooResampleMethod);
+        auto method = as<AooResampleMethod>(ptr);
+        if (method < 0) {
+            return kAooErrorBadArgument;
+        } else if (method >= kAooResampleMethodEnd) {
+            return kAooErrorNotImplemented;
+        }
+        if (resample_method_.exchange(method) != method) {
+            reset_sources();
+        }
+        break;
+    }
+    case kAooCtlGetResampleMethod:
+        CHECKARG(AooResampleMethod);
+        as<AooResampleMethod>(ptr) = resample_method_.load();
+        break;
     // set/get dynamic resampling
     case kAooCtlSetDynamicResampling:
     {
         CHECKARG(AooBool);
         bool b = as<AooBool>(ptr);
+        // only takes effect on subsequent streams
         dynamic_resampling_.store(b);
         reset_timer();
         break;
@@ -1238,7 +1258,7 @@ void source_desc::update(const Sink& s){
         // setup resampler
         resampler_.setup(format_->blockSize, s.blocksize(), s.fixed_blocksize(),
                          format_->sampleRate, s.samplerate(), !s.dynamic_resampling(),
-                         format_->numChannels);
+                         format_->numChannels, s.resample_method());
         if (resampler_.bypass()) {
             LOG_DEBUG("AooSink: bypass resampler");
         }

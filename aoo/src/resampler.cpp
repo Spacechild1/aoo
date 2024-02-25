@@ -35,7 +35,7 @@ const char* dynamic_resampler::method_to_string(resample_method method) {
 
 void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
                               int32_t srfrom, int32_t srto, bool fixed_sr,
-                              int32_t nchannels) {
+                              int32_t nchannels, AooResampleMethod mode) {
     ideal_ratio_ = (double)srto / (double)srfrom;
     if (fixed_sr) {
         if (srfrom == srto) {
@@ -44,7 +44,20 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
             // downsampling with (fixed) integer ratio
             method_ = resample_method::skip;
         } else {
-            method_ = resample_method::linear;
+            switch (mode) {
+            case kAooResampleHold:
+                method_ = resample_method::hold;
+                break;
+            case kAooResampleLinear:
+                method_ = resample_method::linear;
+                break;
+            case kAooResampleCubic:
+                method_ = resample_method::cubic;
+                break;
+            default:
+                LOG_ERROR("bad resample method");
+                method_ = resample_method::linear;
+            }
         }
     } else {
         method_ = resample_method::linear;
@@ -94,17 +107,27 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
 }
 
 void dynamic_resampler::reset() {
-    if (method_ == resample_method::linear) {
+    if (method_ == resample_method::cubic) {
+        assert(buffer_ != nullptr);
+        // write two frame of zero(s) and set the last frame to zero.
+        std::fill(buffer_, buffer_ + latency_cubic * nchannels_, 0);
+        auto end = buffer_ + size_ * nchannels_;
+        std::fill(end - nchannels_, end, 0);
+        wrpos_ = latency_cubic;
+        rdpos_ = 0.0;
+        balance_ = latency_cubic;
+        latency_ = latency_cubic;
+    } else if (method_ == resample_method::linear) {
         assert(buffer_ != nullptr);
         // write one frame of zero(s)
         // TODO: the latency could be reduced further.
         // For example, with a (fixed?) upsampling factor of 2
         // we can actually start reading at 0.5.
-        std::fill(buffer_, buffer_ + nchannels_, 0);
-        wrpos_ = 1.0;
+        std::fill(buffer_, buffer_ + latency_linear * nchannels_, 0);
+        wrpos_ = latency_linear;
         rdpos_ = 0.0;
-        balance_ = 1.0;
-        latency_ = 1;
+        balance_ = latency_linear;
+        latency_ = latency_linear;
     } else {
         wrpos_ = 0;
         rdpos_ = 0;
@@ -125,7 +148,8 @@ void dynamic_resampler::update(double srfrom, double srto) {
 bool dynamic_resampler::write(const AooSample *data, int32_t nframes) {
     auto balance = balance_;
     auto space = (int32_t)((double)size_ - balance);
-    if (space < nframes) {
+    // leave extra space for cubic interpolation
+    if ((space - 1) < nframes) {
         return false;
     }
     auto pos = wrpos_;
@@ -145,13 +169,73 @@ bool dynamic_resampler::write(const AooSample *data, int32_t nframes) {
 
 bool dynamic_resampler::read(AooSample *data, int32_t nframes) {
     switch (method_) {
+    case resample_method::cubic: {
+        // linear interpolation
+        auto fadvance = advance_;
+        auto balance = balance_;
+        auto readframes = (double)nframes * fadvance;
+        if ((balance - (double)latency_cubic) < readframes) {
+            return false;
+        }
+        auto size = size_;
+        auto nchannels = (int32_t)nchannels_;
+        auto pos = rdpos_;
+        auto start = pos;
+        auto limit = (double)size;
+        auto nsamples = nframes * nchannels;
+        const AooSample one_over_six = 1./6.;
+
+        for (int i = 0; i < nsamples; i += nchannels) {
+            auto index1 = (int32_t)pos;
+            auto index0 = index1 - 1;
+            if (index0 < 0) {
+                index0 += size;
+            }
+            auto index2 = index1 + 1;
+            if (index2 >= size) {
+                index2 -= size;
+            }
+            auto index3 = index1 + 2;
+            if (index3 >= size) {
+                index3 -= size;
+            }
+            auto fract = (AooSample)(pos - (double)index1);
+            for (int j = 0; j < nchannels; ++j) {
+                auto a = buffer_[index0 * nchannels + j];
+                auto b = buffer_[index1 * nchannels + j];
+                auto c = buffer_[index2 * nchannels + j];
+                auto d = buffer_[index3 * nchannels + j];
+                // taken from Pd's [tabread4~]
+                auto cminusb = c - b;
+                data[i + j] = b + fract * (
+                    cminusb - one_over_six * ((AooSample)1.0 - fract) * (
+                        (d - a - (AooSample)3.0 * cminusb) * fract +
+                        (d + a * (AooSample)2.0 - b * (AooSample)3.0)
+                    )
+                );
+            }
+            pos += fadvance;
+            if (pos >= limit) {
+                pos -= limit;
+            }
+        }
+#if 1
+        // avoid cumulative floating point error
+        pos = start + readframes;
+        if (pos >= limit) {
+            pos -= limit;
+        }
+#endif
+        rdpos_ = pos;
+        balance_ = balance - readframes;
+        break;
+    }
     case resample_method::linear: {
         // linear interpolation
         auto fadvance = advance_;
         auto balance = balance_;
         auto readframes = (double)nframes * fadvance;
-        // we need at least one extra sample at the front for interpolation!
-        if ((balance - 1.0) < readframes) {
+        if ((balance - (double)latency_linear) < readframes) {
             return false;
         }
         auto size = size_;
@@ -166,7 +250,7 @@ bool dynamic_resampler::read(AooSample *data, int32_t nframes) {
             if (index2 >= size) {
                 index2 -= size;
             }
-            auto fract = static_cast<AooSample>(pos - (double)index);
+            auto fract = (AooSample)(pos - (double)index);
             for (int j = 0; j < nchannels; ++j) {
                 auto a = buffer_[index * nchannels + j];
                 auto b = buffer_[index2 * nchannels + j];

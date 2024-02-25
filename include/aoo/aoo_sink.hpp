@@ -254,6 +254,18 @@ public:
         return control(kAooCtlReportXRun, 0, AOO_ARG(numSamples));
     }
 
+    /** \brief Set the resample mode */
+    AOO_INLINE AooError setResampleMethod(AooResampleMethod mode)
+    {
+        return control(kAooCtlSetResampleMethod, 0, AOO_ARG(mode));
+    }
+
+    /** \brief Get the resample mode */
+    AOO_INLINE AooError getResampleMethod(AooResampleMethod& mode)
+    {
+        return control(kAooCtlGetResampleMethod, 0, AOO_ARG(mode));
+    }
+
     /** \brief Enable/disable dynamic resampling
      *
      * Dynamic resampling attempts to mitigate timing differences

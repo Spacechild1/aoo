@@ -660,6 +660,26 @@ static void aoo_send_redundancy(t_aoo_send *x, t_floatarg f)
     x->x_source->setRedundancy(f);
 }
 
+static void aoo_send_resample_method(t_aoo_send *x, t_symbol *s)
+{
+    AooResampleMethod method;
+    if (!strcmp(s->s_name, "hold")) {
+        method = kAooResampleHold;
+    } else if (!strcmp(s->s_name, "linear")) {
+        method = kAooResampleLinear;
+    } else if (!strcmp(s->s_name, "cubic")) {
+        method = kAooResampleCubic;
+    } else {
+        pd_error(x, "%s: bad resample method '%s'",
+                 classname(x), s->s_name);
+        return;
+    }
+    if (x->x_source->setResampleMethod(method) != kAooOk) {
+        pd_error(x, "%s: resample method '%s' not supported",
+                 classname(x), s->s_name);
+    }
+}
+
 static void aoo_send_dynamic_resampling(t_aoo_send *x, t_floatarg f)
 {
     x->x_source->setDynamicResampling(f);
@@ -1122,6 +1142,8 @@ void aoo_send_tilde_setup(void)
                     gensym("resend"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_redundancy,
                     gensym("redundancy"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_resample_method,
+                    gensym("resample_method"), A_SYMBOL, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_dynamic_resampling,
                     gensym("dynamic_resampling"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_dll_bandwidth,
