@@ -137,6 +137,7 @@ void received_block::init(int32_t seq)
     channel = 0;
     received_frames = -1; // sentinel for placeholder block!
     num_tries_ = 0;
+    resent_ = false;
     timestamp_ = 0;
 }
 
@@ -159,6 +160,7 @@ void received_block::init(const data_packet& d)
         timestamp_ = 0;
         num_tries_ = 0;
     }
+    resent_ = false;
     frames_.init(d.num_frames);
 }
 

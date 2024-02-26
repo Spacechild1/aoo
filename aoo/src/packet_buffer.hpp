@@ -125,6 +125,8 @@ public:
 
     bool update(double time, double interval);
 
+    bool set_resent() { return !std::exchange(resent_, true); }
+
     // data
     int32_t sequence = -1;
     int32_t total_size = 0;
@@ -137,7 +139,8 @@ public:
 #ifndef NDEBUG
 private:
 #endif
-    int32_t num_tries_ = 0;
+    int16_t num_tries_ = 0;
+    bool resent_ = false;
     double timestamp_ = 0;
     data_frame_storage frames_;
 };

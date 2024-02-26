@@ -2177,7 +2177,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             if (block->resend_count() > 0){
                 LOG_DEBUG("AooSink: resent frame " << d.frame_index << " of block " << d.sequence);
                 // only record first resent frame!
-                if (block->received_frames == 0) {
+                if (block->set_resent()) {
                     stats.resent++;
                 }
             } else {
