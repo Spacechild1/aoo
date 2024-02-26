@@ -349,7 +349,10 @@ AooError AOO_CALL aoo::Sink::control(
     case kAooCtlSetSourceTimeout:
     {
         CHECKARG(AooSeconds);
-        auto timeout = std::max<AooSeconds>(0, as<AooSeconds>(ptr));
+        auto timeout = as<AooSeconds>(ptr);
+        if (timeout < 0) {
+            timeout = kAooInfinite;
+        }
         source_timeout_.store(timeout);
         break;
     }
@@ -1162,7 +1165,7 @@ source_desc::~source_desc() {
 bool source_desc::check_active(const Sink& s) {
     auto elapsed = s.elapsed_time();
     auto timeout = s.source_timeout();
-    if (timeout > 0) {
+    if (timeout >= 0) {
         // check source idle timeout
         auto delta = elapsed - last_packet_time_.load(std::memory_order_relaxed);
         if (delta >= timeout) {

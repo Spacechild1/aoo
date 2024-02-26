@@ -108,6 +108,8 @@ typedef AooUInt64 AooNtpTime;
 /** \brief time point/interval in seconds */
 typedef double AooSeconds;
 
+#define kAooInfinite -1.0
+
 /** \brief sample rate type */
 typedef double AooSampleRate;
 
