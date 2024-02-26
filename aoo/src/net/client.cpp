@@ -273,11 +273,11 @@ AooError AOO_CALL aoo::net::Client::send(AooBool nonBlocking)
         // dispatch delayed packets - *before* replacing the send function!
         // - unless we want to simulate jitter
         if (!jitter) {
-            while (!packetqueue_.empty()) {
-                auto& p = packetqueue_.top();
+            while (!packet_queue_.empty()) {
+                auto& p = packet_queue_.top();
                 if (p.tt <= now) {
                     reply(p.data.data(), p.data.size(), p.addr);
-                    packetqueue_.pop();
+                    packet_queue_.pop();
                 } else {
                     break;
                 }
@@ -320,9 +320,8 @@ AooError AOO_CALL aoo::net::Client::send(AooBool nonBlocking)
                     auto delay = dist(gen) * state->reorder;
                     p.tt += time_tag::from_seconds(delay);
                 }
-                p.sequence = state->client->packet_sequence_++;
                 // LOG_DEBUG("AooClient: delay packet (tt: " << p.tt << ")");
-                state->client->packetqueue_.push(std::move(p));
+                state->client->packet_queue_.push(std::move(p));
             } else {
                 // send immediately
                 state->reply(data, size, addr);

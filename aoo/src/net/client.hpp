@@ -73,7 +73,7 @@
 #include <vector>
 #include <unordered_map>
 #if AOO_CLIENT_SIMULATE
-# include <queue>
+# include "common/priority_queue.hpp"
 #endif
 
 struct AooSource;
@@ -452,20 +452,13 @@ private:
         std::vector<AooByte> data;
         aoo::ip_address addr;
         time_tag tt;
-        uint64_t sequence;
 
-        bool operator>(const netpacket& other) const {
-            // preserve FIFO ordering for packets with the same timestamp
-            if (tt == other.tt) {
-                return sequence > other.sequence;
-            } else {
-                return tt > other.tt;
-            }
+        bool operator> (const netpacket& other) const {
+            return tt > other.tt;
         }
     };
-    using packet_queue = std::priority_queue<netpacket, std::vector<netpacket>, std::greater<netpacket>>;
-    packet_queue packetqueue_;
-    uint64_t packet_sequence_ = 0;
+    using packet_queue = aoo::priority_queue<netpacket, std::greater<netpacket>>;
+    packet_queue packet_queue_;
 #endif
 
     // methods
