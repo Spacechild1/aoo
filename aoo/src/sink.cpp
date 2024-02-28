@@ -299,18 +299,18 @@ AooError AOO_CALL aoo::Sink::control(
         auto packetsize = as<int32_t>(ptr);
         if (packetsize < minpacketsize){
             LOG_WARNING("AooSink: packet size too small! setting to " << minpacketsize);
-            packetsize_.store(minpacketsize);
+            packet_size_.store(minpacketsize);
         } else if (packetsize > AOO_MAX_PACKET_SIZE){
             LOG_WARNING("AooSink: packet size too large! setting to " << AOO_MAX_PACKET_SIZE);
-            packetsize_.store(AOO_MAX_PACKET_SIZE);
+            packet_size_.store(AOO_MAX_PACKET_SIZE);
         } else {
-            packetsize_.store(packetsize);
+            packet_size_.store(packetsize);
         }
         break;
     }
     case kAooCtlGetPacketSize:
         CHECKARG(int32_t);
-        as<int32_t>(ptr) = packetsize_.load();
+        as<int32_t>(ptr) = packet_size_.load();
         break;
     // resend data
     case kAooCtlSetResendData:
@@ -2750,7 +2750,7 @@ void source_desc::send_data_requests(const Sink& s, const sendfn& fn){
 
     if (binary_.load(std::memory_order_relaxed)){
         // --- binary version ---
-        const int32_t maxdatasize = s.packetsize() - kBinDataHeaderSize;
+        const int32_t maxdatasize = s.packet_size() - kBinDataHeaderSize;
         const int32_t maxrequests = maxdatasize / 8; // 2 * int32
 
         // write header
@@ -2801,7 +2801,7 @@ void source_desc::send_data_requests(const Sink& s, const sendfn& fn){
         snprintf(pattern, sizeof(pattern), "%s/%d%s",
                  kAooMsgDomain kAooMsgSource, (int)ep.id, kAooMsgData);
 
-        const int32_t maxdatasize = s.packetsize() - kDataHeaderSize;
+        const int32_t maxdatasize = s.packet_size() - kDataHeaderSize;
         const int32_t maxrequests = maxdatasize / 10; // 2 * (int32_t + typetag + padding)
         int32_t numrequests = 0;
 

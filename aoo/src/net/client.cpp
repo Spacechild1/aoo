@@ -899,7 +899,28 @@ T& as(void *p){
 AooError AOO_CALL aoo::net::Client::control(
         AooCtl ctl, AooIntPtr index, void *ptr, AooSize size)
 {
-    switch(ctl){
+    switch(ctl) {
+    // packetsize
+    case kAooCtlSetPacketSize:
+    {
+        CHECKARG(int32_t);
+        const int32_t minpacketsize = kMessageHeaderSize + 64;
+        auto packetsize = as<int32_t>(ptr);
+        if (packetsize < minpacketsize){
+            LOG_WARNING("AooSink: packet size too small! setting to " << minpacketsize);
+            packet_size_.store(minpacketsize);
+        } else if (packetsize > AOO_MAX_PACKET_SIZE){
+            LOG_WARNING("AooSink: packet size too large! setting to " << AOO_MAX_PACKET_SIZE);
+            packet_size_.store(AOO_MAX_PACKET_SIZE);
+        } else {
+            packet_size_.store(packetsize);
+        }
+        break;
+    }
+    case kAooCtlGetPacketSize:
+        CHECKARG(int32_t);
+        as<int32_t>(ptr) = packet_size_.load();
+        break;
     case kAooCtlSetBinaryClientMsg:
         CHECKARG(AooBool);
         binary_.store(as<AooBool>(ptr));
@@ -1530,12 +1551,13 @@ void Client::perform(const custom_request_cmd& cmd) {
 }
 
 void Client::perform(const message& m, const sendfn& fn) {
-    bool binary = binary_.load();
+    auto packet_size = packet_size_.load();
+    auto binary = binary_.load();
     // LATER optimize this by overwriting the group ID and local user ID
     peer_lock lock(peers_);
     for (auto& peer : peers_) {
         if (peer.connected() && peer.match_wildcard(m.group_, m.user_)) {
-            peer.send_message(m, fn, binary);
+            peer.send_message(m, fn, packet_size, binary);
         }
     }
 }

@@ -351,6 +351,13 @@ static void aoo_client_dejitter(t_aoo_client *x, t_floatarg f)
     }
 }
 
+static void aoo_client_packetsize(t_aoo_client *x, t_floatarg f)
+{
+    if (!x->check("packetsize")) return;
+
+    x->x_node->client()->setPacketSize(f);
+}
+
 static void aoo_client_binary(t_aoo_client *x, t_floatarg f)
 {
     if (!x->check("binary")) return;
@@ -968,6 +975,8 @@ void aoo_client_setup(void)
                     gensym("dejitter"), A_FLOAT, A_NULL);
     class_addmethod(aoo_client_class, (t_method)aoo_client_port,
                     gensym("port"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_client_class, (t_method)aoo_client_packetsize,
+                    gensym("packetsize"), A_FLOAT, A_NULL);
     class_addmethod(aoo_client_class, (t_method)aoo_client_binary,
                     gensym("binary"), A_FLOAT, A_NULL);
     // debug/simulate

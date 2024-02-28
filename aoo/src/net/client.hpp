@@ -360,6 +360,8 @@ public:
 
     double query_timeout() const { return query_timeout_.load(); }
 
+    int32_t packet_size() const { return packet_size_.load(); }
+
     bool binary() const { return binary_.load(); }
 
     void send_event(event_ptr e);
@@ -442,6 +444,7 @@ private:
     parameter<AooSeconds> ping_interval_{AOO_CLIENT_PING_INTERVAL};
     parameter<AooSeconds> query_interval_{AOO_CLIENT_QUERY_INTERVAL};
     parameter<AooSeconds> query_timeout_{AOO_CLIENT_QUERY_TIMEOUT};
+    parameter<int32_t> packet_size_{ AOO_PACKET_SIZE };
     parameter<bool> binary_{AOO_CLIENT_BINARY_MSG};
 #if AOO_CLIENT_SIMULATE
     parameter<float> sim_packet_loss_{0};

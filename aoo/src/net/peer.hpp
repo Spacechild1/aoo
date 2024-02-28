@@ -7,6 +7,17 @@
 namespace aoo {
 namespace net {
 
+// OSC peer message:
+const int32_t kMessageMaxAddrSize = kAooMsgDomainLen + kAooMsgPeerLen + 16 + kAooMsgDataLen;
+// address pattern string: max 16 bytes
+// typetag string: max. 12 bytes
+// args (including type + blob size): max. 44 bytes
+const int32_t kMessageHeaderSize = kMessageMaxAddrSize + 56;
+
+// binary peer message:
+// args: 28 bytes (max.)
+const int32_t kBinMessageHeaderSize = kAooBinMsgLargeHeaderSize + 28;
+
 class Client;
 
 struct message;
@@ -83,7 +94,7 @@ public:
     void send(Client& client, const sendfn& fn, time_tag now,
               const AooPingSettings& settings);
 
-    void send_message(const message& msg, const sendfn& fn, bool binary);
+    void send_message(const message& msg, const sendfn& fn, int32_t packet_size, bool binary);
 
     void handle_osc_message(Client& client, const char *pattern,
                             osc::ReceivedMessageArgumentIterator it,

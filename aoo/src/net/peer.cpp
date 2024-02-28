@@ -14,17 +14,6 @@
 namespace aoo {
 namespace net {
 
-// OSC peer message:
-const int32_t kMessageMaxAddrSize = kAooMsgDomainLen + kAooMsgPeerLen + 16 + kAooMsgDataLen;
-// address pattern string: max 16 bytes
-// typetag string: max. 12 bytes
-// args (including type + blob size): max. 44 bytes
-const int32_t kMessageHeaderSize = kMessageMaxAddrSize + 56;
-
-// binary peer message:
-// args: 28 bytes (max.)
-const int32_t kBinMessageHeaderSize = kAooBinMsgLargeHeaderSize + 28;
-
 //------------------------- peer ------------------------------//
 
 peer::peer(const std::string& group_name, AooId group_id,
@@ -347,9 +336,9 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
 // prevent excessive resending in low-latency networks
 #define AOO_CLIENT_MIN_RESEND_TIME 0.02
 
-void peer::send_message(const message& m, const sendfn& fn, bool binary) {
+void peer::send_message(const message& m, const sendfn& fn, int32_t packet_size, bool binary) {
     // LATER make packet size settable at runtime, see AooSource::send_data()
-    const int32_t maxsize = AOO_PACKET_SIZE - (binary ? kBinMessageHeaderSize : kMessageHeaderSize);
+    const int32_t maxsize = packet_size - (binary ? kBinMessageHeaderSize : kMessageHeaderSize);
     auto d = std::div((int32_t)m.data_.size(), maxsize);
 
     message_packet p;

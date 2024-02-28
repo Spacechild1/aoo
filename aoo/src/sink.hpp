@@ -368,7 +368,7 @@ public:
 
     AooSeconds buffersize() const { return buffersize_.load(); }
 
-    int32_t packetsize() const { return packetsize_.load(); }
+    int32_t packet_size() const { return packet_size_.load(); }
 
     bool resend_enabled() const { return resend_.load(); }
 
@@ -415,7 +415,7 @@ private:
     parameter<float> buffersize_{ 0 };
     parameter<float> resend_interval_{ AOO_RESEND_INTERVAL };
     parameter<float> ping_interval_{ AOO_PING_INTERVAL };
-    parameter<int32_t> packetsize_{ AOO_PACKET_SIZE };
+    parameter<int32_t> packet_size_{ AOO_PACKET_SIZE };
     parameter<int32_t> resend_limit_{ AOO_RESEND_LIMIT };
     parameter<float> source_timeout_{ AOO_SOURCE_TIMEOUT };
     parameter<float> invite_timeout_{ AOO_INVITE_TIMEOUT };

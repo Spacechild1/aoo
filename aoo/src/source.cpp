@@ -282,18 +282,18 @@ AooError AOO_CALL aoo::Source::control(
         auto packetsize = as<int32_t>(ptr);
         if (packetsize < minpacketsize){
             LOG_WARNING("AooSource: packet size too small! setting to " << minpacketsize);
-            packetsize_.store(minpacketsize);
+            packet_size_.store(minpacketsize);
         } else if (packetsize > AOO_MAX_PACKET_SIZE){
             LOG_WARNING("AooSource: packet size too large! setting to " << AOO_MAX_PACKET_SIZE);
-            packetsize_.store(AOO_MAX_PACKET_SIZE);
+            packet_size_.store(AOO_MAX_PACKET_SIZE);
         } else {
-            packetsize_.store(packetsize);
+            packet_size_.store(packetsize);
         }
         break;
     }
     case kAooCtlGetPacketSize:
         CHECKARG(int32_t);
-        as<int32_t>(ptr) = packetsize_.load();
+        as<int32_t>(ptr) = packet_size_.load();
         break;
     // report xruns
     case kAooCtlReportXRun:
@@ -1987,7 +1987,7 @@ void Source::send_data(const sendfn& fn){
 
         // calculate number of frames
         bool binary = binary_.load();
-        auto packetsize = packetsize_.load();
+        auto packetsize = packet_size_.load();
         auto maxpacketsize = packetsize -
                 (binary ? kBinDataHeaderSize : kDataHeaderSize);
         auto dv = std::div(d.total_size, maxpacketsize);

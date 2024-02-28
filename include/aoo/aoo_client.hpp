@@ -399,6 +399,23 @@ public:
     /*         type-safe control functions        */
     /*--------------------------------------------*/
 
+    /** \brief Set the max. UDP packet size in bytes
+     *
+     * The default value should be fine for most networks (including the internet),
+     * but you might want to increase this value for local networks because larger
+     * packet sizes have less overhead. If a peer message, for example, exceeds the
+     * max. UDP packet size, it will be automatically broken up into several "frames"
+     * and then reassembled on the other end.
+     */
+    AooError setPacketSize(AooInt32 n) {
+        return control(kAooCtlSetPacketSize, 0, AOO_ARG(n));
+    }
+
+    /** \brief Get the max. UDP packet size */
+    AooError getPacketSize(AooInt32& n) {
+        return control(kAooCtlGetPacketSize, 0, AOO_ARG(n));
+    }
+
     /** \brief Enable/disable binary messages
      *
      * Use a more compact (and faster) binary format for peer messages

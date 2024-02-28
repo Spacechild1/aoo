@@ -168,6 +168,18 @@ AOO_API AooError AOO_CALL AooClient_control(
 /*         type-safe control functions        */
 /*--------------------------------------------*/
 
+/** \copydoc AooClient::setPacketSize() */
+AOO_INLINE AooError AooClient_setPacketSize(AooClient *client, AooInt32 n)
+{
+    return AooClient_control(client, kAooCtlSetPacketSize, 0, AOO_ARG(n));
+}
+
+/** \copydoc AooClient::getPacketSize() */
+AOO_INLINE AooError AooClient_getPacketSize(AooClient *client, AooInt32 *n)
+{
+    return AooClient_control(client, kAooCtlGetPacketSize, 0, AOO_ARG(*n));
+}
+
 /** \copydoc AooClient::setBinaryMsg() */
 AOO_INLINE AooError AooClient_setBinaryMsg(AooClient *client, AooBool b)
 {

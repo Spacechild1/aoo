@@ -1215,7 +1215,7 @@ AooError Server::do_group_join(client_endpoint &client, AooId token,
             relay_addr = global_relay_addr_;
         } else if (internal_relay_.load()) {
             // internal UDP server
-            relay_addr.name = "";
+            relay_addr.name = ""; // empty string -> server IP
             relay_addr.port = port_;
         }
     }

@@ -339,7 +339,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     // options
     parameter<float> buffersize_{ AOO_SOURCE_BUFFER_SIZE };
     parameter<float> resend_buffersize_{ AOO_RESEND_BUFFER_SIZE };
-    parameter<int32_t> packetsize_{ AOO_PACKET_SIZE };
+    parameter<int32_t> packet_size_{ AOO_PACKET_SIZE };
     parameter<int32_t> redundancy_{ AOO_SEND_REDUNDANCY };
     parameter<float> ping_interval_{ AOO_PING_INTERVAL };
     parameter<float> dll_bandwidth_{ AOO_DLL_BANDWIDTH };
