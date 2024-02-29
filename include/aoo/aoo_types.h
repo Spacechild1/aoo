@@ -118,9 +118,6 @@ typedef AooInt32 AooCtl;
 
 /*------------------------------------------------------------------*/
 
-/** \brief AOO socket handle type */
-typedef AooInt32 AooSocket;
-
 /** \brief socket address size type */
 typedef AooUInt32 AooAddrSize;
 

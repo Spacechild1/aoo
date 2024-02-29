@@ -39,13 +39,13 @@ class tcp_server
 {
 public:
 #ifdef _WIN32
-    static const AooSocket invalid_socket = (AooSocket)INVALID_SOCKET;
+    static const int invalid_socket = (int)INVALID_SOCKET;
 #else
-    static const AooSocket invalid_socket = -1;
+    static const int invalid_socket = -1;
 #endif
 
     tcp_server() {}
-    ~tcp_server();
+    ~tcp_server() { do_close(); }
 
     tcp_server(const tcp_server&) = delete;
     tcp_server& operator=(const tcp_server&) = delete;
@@ -70,7 +70,7 @@ public:
 private:
     struct client {
         ip_address address;
-        AooSocket socket;
+        int socket;
         AooId id;
     };
 

@@ -147,10 +147,6 @@ void tcp_server::do_close() {
     client_count_ = 0;
 }
 
-tcp_server::~tcp_server() {
-    do_close();
-}
-
 int tcp_server::send(AooId client, const AooByte *data, AooSize size) {
     // LATER optimize look up
     for (auto& c : clients_) {
@@ -302,7 +298,7 @@ void tcp_server::accept_client() {
     }
 
     ip_address addr(ip_address::max_length);
-    auto sock = (AooSocket)::accept(listen_socket_, addr.address_ptr(), addr.length_ptr());
+    int sock = ::accept(listen_socket_, addr.address_ptr(), addr.length_ptr());
     if (sock != invalid_socket) {
     #if 1
         // disable Nagle's algorithm
