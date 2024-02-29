@@ -259,8 +259,13 @@ AOO_ENUM(AooError)
 /** \brief flags for AooSource/AooSink setup */
 AOO_FLAG(AooSetupFlags)
 {
-    /** the block size will not vary between process() calls */
-    kAooFixedBlockSize = 0x01
+    /** the number of samples passed to the process() function
+     * will always equal the block size. */
+    kAooFixedBlockSize = 0x01,
+    /** assume that the timestamps are sufficiently precise;
+     * for example, they come from a very precise network clock
+     * or they have already been filtered. */
+    kAooPreciseTimestamp = 0x02
 };
 
 /*------------------------------------------------------------------*/

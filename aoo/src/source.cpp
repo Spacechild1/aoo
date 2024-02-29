@@ -711,7 +711,8 @@ AooError AOO_CALL aoo::Source::process(
     // Always update DLL filter, even if there are no sinks.
     // Do it *before* trying to lock the mutex.
     // (The DLL is only ever touched in this method.)
-    bool dynamic_resampling = dynamic_resampling_.load();
+    // NB: dynamic resampling requires fixed blocksize!
+    bool dynamic_resampling = dynamic_resampling_.load() && (flags_ & kAooFixedBlockSize);
     AooNtpTime start_time = 0;
     if (start_time_.compare_exchange_strong(start_time, t)) {
         LOG_DEBUG("AooSource: start timer");
@@ -728,22 +729,20 @@ AooError AOO_CALL aoo::Source::process(
         // advance timer
         // NB: start_time has been updated by the CAS above!
         auto elapsed = aoo::time_tag::duration(start_time, t);
-        elapsed_time_.store(elapsed, std::memory_order_relaxed);
-        // update time DLL, but only if nsamples matches blocksize!
-        // TODO: should we rather require kAooSetupFixedBlockSize?
+        auto prev_elapsed = elapsed_time_.exchange(elapsed, std::memory_order_relaxed);
         if (dynamic_resampling) {
-            if (nsamples == blocksize_){
-                dll_.update(elapsed);
-            #if AOO_DEBUG_DLL
-                LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
-                          << dll_.period() << ", samplerate: " << dll_.samplerate());
-            #endif
-            } else {
-                // reset time DLL with nominal samplerate
-                auto bw = dll_bandwidth_.load();
-                dll_.setup(samplerate_, blocksize_, bw, elapsed);
-            }
+            // update time DLL
+            assert(nsamples == blocksize_);
+            dll_.update(elapsed);
+        #if AOO_DEBUG_DLL
+            LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
+                      << dll_.period() << ", samplerate: " << dll_.samplerate());
+        #endif
             realsr_.store(dll_.samplerate());
+        } else {
+            // directly calculate samplerate from timestamp
+            auto realsr = blocksize_ / (elapsed - prev_elapsed);
+            realsr_.store(realsr);
         }
     }
 
