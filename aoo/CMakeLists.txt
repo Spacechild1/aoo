@@ -3,29 +3,9 @@ option(AOO_CUSTOM_ALLOCATOR "build with custom allocator support" OFF)
 mark_as_advanced(AOO_CUSTOM_ALLOCATOR)
 message(STATUS "Use custom allocator: ${AOO_CUSTOM_ALLOCATOR}")
 
-set(AOO_PACKET_SIZE 512 CACHE STRING "default UDP packet size")
-mark_as_advanced(AOO_PACKET_SIZE)
-message(STATUS "Default UDP packet size: ${AOO_PACKET_SIZE}")
-
 set(AOO_MAX_PACKET_SIZE 4096 CACHE STRING "max. UDP packet size")
 mark_as_advanced(AOO_MAX_PACKET_SIZE)
 message(STATUS "Max. UDP packet size: ${AOO_MAX_PACKET_SIZE}")
-
-if (AOO_PACKET_SIZE GREATER AOO_MAX_PACKET_SIZE)
-    message(FATAL_ERROR "AOO_PACKET_SIZE must not exceed AOO_MAX_PACKET_SIZE")
-endif()
-
-option(AOO_DYNAMIC_RESAMPLING "enable/disable dynamic resampling" OFF)
-mark_as_advanced(AOO_DYNAMIC_RESAMPLING)
-message(STATUS "Use dynamic resampling: ${AOO_DYNAMIC_RESAMPLING}")
-
-set(AOO_DLL_BANDWIDTH 0.001 CACHE STRING "default DLL filter bandwidth")
-mark_as_advanced(AOO_DLL_BANDWIDTH)
-message(STATUS "Default DLL filter bandwidth: ${AOO_DLL_BANDWIDTH}")
-
-option(AOO_BINARY_FORMAT "use binary message format" ON)
-mark_as_advanced(AOO_BINARY_FORMAT)
-message(STATUS "Use binary data message: ${AOO_BINARY_FORMAT}")
 
 # compile time debugging options
 option(AOO_DEBUG_MEMORY "debug memory usage" OFF)
@@ -39,9 +19,6 @@ mark_as_advanced(AOO_DEBUG_RESEND)
 
 option(AOO_DEBUG_DLL "debug time DLL filter" OFF)
 mark_as_advanced(AOO_DEBUG_DLL)
-
-option(AOO_DEBUG_TIMER "debug timer" OFF)
-mark_as_advanced(AOO_DEBUG_TIMER)
 
 option(AOO_DEBUG_RESAMPLER "debug resampler" OFF)
 mark_as_advanced(AOO_DEBUG_RESAMPLER)
@@ -63,16 +40,11 @@ mark_as_advanced(AOO_CLIENT_SIMULATE)
 
 set(OPTIONS
     -DAOO_CUSTOM_ALLOCATOR=$<BOOL:${AOO_CUSTOM_ALLOCATOR}>
-    -DAOO_PACKET_SIZE=${AOO_PACKET_SIZE}
     -DAOO_MAX_PACKET_SIZE=${AOO_MAX_PACKET_SIZE}
-    -DAOO_DYNAMIC_RESAMPLING=$<BOOL:${AOO_DYNAMIC_RESAMPLING}>
-    -DAOO_DLL_BANDWIDTH=${AOO_DLL_BANDWIDTH}
-    -DAOO_BINARY_FORMAT=$<BOOL:${AOO_BINARY_FORMAT}>
     -DAOO_DEBUG_MEMORY=$<BOOL:${AOO_DEBUG_MEMORY}>
     -DAOO_DEBUG_DATA=$<BOOL:${AOO_DEBUG_DATA}>
     -DAOO_DEBUG_RESEND=$<BOOL:${AOO_DEBUG_RESEND}>
     -DAOO_DEBUG_DLL=$<BOOL:${AOO_DEBUG_DLL}>
-    -DAOO_DEBUG_TIMER=$<BOOL:${AOO_DEBUG_TIMER}>
     -DAOO_DEBUG_RESAMPLER=$<BOOL:${AOO_DEBUG_RESAMPLER}>
     -DAOO_DEBUG_STREAM_MESSAGE=$<BOOL:${AOO_DEBUG_STREAM_MESSAGE}>
     -DAOO_DEBUG_JITTER_BUFFER=$<BOOL:${AOO_DEBUG_JITTER_BUFFER}>

@@ -115,7 +115,7 @@ enum
 
 /** \brief enable/disable dynamic resampling by default */
 #ifndef AOO_DYNAMIC_RESAMPLING
- #define AOO_DYNAMIC_RESAMPLING 1
+ #define AOO_DYNAMIC_RESAMPLING 0
 #endif
 
 /** \brief default time DLL filter bandwidth */

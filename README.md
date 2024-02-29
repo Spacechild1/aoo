@@ -122,10 +122,10 @@ The library features 4 object classes:
 `AooServer` - AOO UDP hole punching server, see `aoo_server.h` resp. `aoo_server.hpp` in `include/aoo`.
 
 **NOTE**:
-By following particular conventions (no virtual destructors, no method overloading, only simple
+By following COM conventions (no virtual destructors, no method overloading, only simple
 function parameters and return types), we achieve portable C++ interfaces on Windows and all other
-platforms with a stable vtable layout (generally true for Linux and macOS, in my experience).
-This means you can take a pre-build version of the AOO shared library, that might have been built
+platforms with a stable vtable layout (generally true for Linux and macOS in my experience).
+This means you can take a pre-build version of the AOO shared library, which might have been built
 with another compiler (version), and directly use it in your C++ project.
 
 The C interface is meant to be used in C projects and for creating bindings to other languages.
