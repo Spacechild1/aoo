@@ -58,20 +58,16 @@ int32_t get_random_id(){
     return esp_random() & 0x7fffffff;
 #else
     // software PRNG
-#if defined(__i386__) || defined(_M_IX86) || \
-        defined(__x86_64__) || defined(_M_X64) || \
-        defined(__arm__) || defined(__aarch64__)
-    // Don't use on embedded platforms because it can cause issues,
-    // e.g. ESP-IDF stores thread_local variables on the stack!
-    thread_local std::mt19937 mt(std::random_device{}());
+    static std::random_device rd;
+#if 0
+    // WARNING: needs lots of memory!
+    thread_local std::mt19937 eng(rd());
 #else
-    // fallback for embedded platforms
-    static sync::padded_spinlock spinlock;
-    static std::mt19937 mt(std::random_device{}());
-    sync::scoped_lock<sync::padded_spinlock> lock(spinlock);
+    // good enough for our purposes
+    thread_local std::minstd_rand eng(rd());
 #endif
     std::uniform_int_distribution<int32_t> dist;
-    return dist(mt);
+    return dist(eng);
 #endif
 }
 
