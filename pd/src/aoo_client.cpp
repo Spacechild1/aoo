@@ -362,7 +362,7 @@ static void aoo_client_binary(t_aoo_client *x, t_floatarg f)
 {
     if (!x->check("binary")) return;
 
-    x->x_node->client()->setBinaryMsg(f != 0);
+    x->x_node->client()->setBinaryFormat(f != 0);
 }
 
 static void aoo_client_port(t_aoo_client *x, t_floatarg f)

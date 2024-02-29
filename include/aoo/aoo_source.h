@@ -255,16 +255,16 @@ AOO_INLINE AooError AooSource_getRedundancy(AooSource *source, AooInt32 *n)
     return AooSource_control(source, kAooCtlGetRedundancy, 0, AOO_ARG(*n));
 }
 
-/** \copydoc AooSource::setBinaryDataMsg() */
-AOO_INLINE AooError AooSource_setBinaryDataMsg(AooSource *source, AooBool b)
+/** \copydoc AooSource::setBinaryFormat() */
+AOO_INLINE AooError AooSource_setBinaryFormat(AooSource *source, AooBool b)
 {
-    return AooSource_control(source, kAooCtlSetBinaryDataMsg, 0, AOO_ARG(b));
+    return AooSource_control(source, kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
 }
 
-/** \copydoc AooSource::getBinaryDataMsg() */
-AOO_INLINE AooError AooSource_getBinaryDataMsg(AooSource *source, AooBool *b)
+/** \copydoc AooSource::getBinaryFormat() */
+AOO_INLINE AooError AooSource_getBinaryFormat(AooSource *source, AooBool *b)
 {
-    return AooSource_control(source, kAooCtlGetBinaryDataMsg, 0, AOO_ARG(*b));
+    return AooSource_control(source, kAooCtlGetBinaryFormat, 0, AOO_ARG(*b));
 }
 
 /** \copydoc AooSource::setStreamTimeSendInterval() */

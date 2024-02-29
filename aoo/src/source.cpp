@@ -397,11 +397,11 @@ AooError AOO_CALL aoo::Source::control(
         CHECKARG(int32_t);
         as<int32_t>(ptr) = redundancy_.load();
         break;
-    case kAooCtlSetBinaryDataMsg:
+    case kAooCtlSetBinaryFormat:
         CHECKARG(AooBool);
         binary_.store(as<AooBool>(ptr));
         break;
-    case kAooCtlGetBinaryDataMsg:
+    case kAooCtlGetBinaryFormat:
         CHECKARG(AooBool);
         as<AooBool>(ptr) = binary_.load();
         break;

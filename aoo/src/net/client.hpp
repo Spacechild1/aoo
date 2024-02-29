@@ -444,8 +444,8 @@ private:
     parameter<AooSeconds> ping_interval_{AOO_CLIENT_PING_INTERVAL};
     parameter<AooSeconds> query_interval_{AOO_CLIENT_QUERY_INTERVAL};
     parameter<AooSeconds> query_timeout_{AOO_CLIENT_QUERY_TIMEOUT};
-    parameter<int32_t> packet_size_{ AOO_PACKET_SIZE };
-    parameter<bool> binary_{AOO_CLIENT_BINARY_MSG};
+    parameter<int32_t> packet_size_{AOO_PACKET_SIZE};
+    parameter<bool> binary_{AOO_BINARY_FORMAT};
 #if AOO_CLIENT_SIMULATE
     parameter<float> sim_packet_loss_{0};
     parameter<float> sim_packet_reorder_{0};

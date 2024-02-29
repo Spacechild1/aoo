@@ -399,17 +399,17 @@ public:
         return control(kAooCtlGetRedundancy, 0, AOO_ARG(n));
     }
 
-    /** \brief Enable/disable binary data messages
+    /** \brief Enable/disable binary message format
      *
      * Use a more compact (and faster) binary format for the audio data message
      */
-    AooError setBinaryDataMsg(AooBool b) {
-        return control(kAooCtlSetBinaryDataMsg, 0, AOO_ARG(b));
+    AooError setBinaryFormat(AooBool b) {
+        return control(kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
     }
 
-    /** \brief Check if binary data messages are enabled */
-    AooError getBinaryDataMsg(AooBool& b) {
-        return control(kAooCtlGetBinaryDataMsg, 0, AOO_ARG(b));
+    /** \brief Check if binary message format is enabled */
+    AooError getBinaryFormat(AooBool& b) {
+        return control(kAooCtlGetBinaryFormat, 0, AOO_ARG(b));
     }
 
     /** \brief Stream time send interval (in seconds)

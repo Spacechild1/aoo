@@ -692,7 +692,7 @@ static void aoo_send_dll_bandwidth(t_aoo_send *x, t_floatarg f)
 
 static void aoo_send_binary(t_aoo_send *x, t_floatarg f)
 {
-    x->x_source->setBinaryDataMsg(f);
+    x->x_source->setBinaryFormat(f);
 }
 
 static void aoo_send_buffersize(t_aoo_send *x, t_floatarg f)

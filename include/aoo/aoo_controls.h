@@ -64,8 +64,8 @@ enum
     kAooCtlSetInviteTimeout,
     kAooCtlGetInviteTimeout,
     kAooCtlGetBufferFillRatio,
-    kAooCtlSetBinaryDataMsg,
-    kAooCtlGetBinaryDataMsg,
+    kAooCtlSetBinaryFormat,
+    kAooCtlGetBinaryFormat,
     kAooCtlSetStreamTimeSendInterval,
     kAooCtlGetStreamTimeSendInterval,
 #if AOO_NET
@@ -75,8 +75,6 @@ enum
     kAooCtlGetUseInternalRelay,
     kAooCtlSetGroupAutoCreate,
     kAooCtlGetGroupAutoCreate,
-    kAooCtlSetBinaryClientMsg,
-    kAooCtlGetBinaryClientMsg,
     kAooCtlSetPingSettings,
     kAooCtlGetPingSettings,
     kAooCtlAddInterfaceAddress,
@@ -101,8 +99,8 @@ enum
 #endif
 
 /** \brief use binary data message format by default */
-#ifndef AOO_BINARY_DATA_MSG
- #define AOO_BINARY_DATA_MSG 1
+#ifndef AOO_BINARY_FORMAT
+ #define AOO_BINARY_FORMAT 1
 #endif
 
 /** \brief stream time send interval in seconds (0 = disabled) */
@@ -178,11 +176,6 @@ enum
 /** \brief enable/disable automatic user creation by default */
 #ifndef AOO_USER_AUTO_CREATE
 #define AOO_USER_AUTO_CREATE 1
-#endif
-
-/** \brief enable/disable binary format for client messages */
-#ifndef AOO_CLIENT_BINARY_MSG
- #define AOO_CLIENT_BINARY_MSG 1
 #endif
 
 /*------------------------------------------------------*/

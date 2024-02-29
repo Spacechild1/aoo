@@ -180,16 +180,16 @@ AOO_INLINE AooError AooClient_getPacketSize(AooClient *client, AooInt32 *n)
     return AooClient_control(client, kAooCtlGetPacketSize, 0, AOO_ARG(*n));
 }
 
-/** \copydoc AooClient::setBinaryMsg() */
-AOO_INLINE AooError AooClient_setBinaryMsg(AooClient *client, AooBool b)
+/** \copydoc AooClient::setBinaryFormat() */
+AOO_INLINE AooError AooClient_setBinaryFormat(AooClient *client, AooBool b)
 {
-    return AooClient_control(client, kAooCtlSetBinaryClientMsg, 0, AOO_ARG(b));
+    return AooClient_control(client, kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
 }
 
-/** \copydoc AooClient::getBinaryMsg() */
-AOO_INLINE AooError AooClient_getBinaryMsg(AooClient *client, AooBool *b)
+/** \copydoc AooClient::getBinaryFormat() */
+AOO_INLINE AooError AooClient_getBinaryFormat(AooClient *client, AooBool *b)
 {
-    return AooClient_control(client, kAooCtlGetBinaryClientMsg, 0, AOO_ARG(*b));
+    return AooClient_control(client, kAooCtlGetBinaryFormat, 0, AOO_ARG(*b));
 }
 
 /** \copydoc AooClient::setPeerPingInterval() */

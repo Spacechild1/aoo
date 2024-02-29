@@ -921,11 +921,11 @@ AooError AOO_CALL aoo::net::Client::control(
         CHECKARG(int32_t);
         as<int32_t>(ptr) = packet_size_.load();
         break;
-    case kAooCtlSetBinaryClientMsg:
+    case kAooCtlSetBinaryFormat:
         CHECKARG(AooBool);
         binary_.store(as<AooBool>(ptr));
         break;
-    case kAooCtlGetBinaryClientMsg:
+    case kAooCtlGetBinaryFormat:
         CHECKARG(AooBool);
         as<AooBool>(ptr) = binary_.load();
         break;

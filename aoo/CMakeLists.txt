@@ -23,9 +23,9 @@ set(AOO_DLL_BANDWIDTH 0.001 CACHE STRING "default DLL filter bandwidth")
 mark_as_advanced(AOO_DLL_BANDWIDTH)
 message(STATUS "Default DLL filter bandwidth: ${AOO_DLL_BANDWIDTH}")
 
-option(AOO_BINARY_DATA_MSG "use binary data messages" ON)
-mark_as_advanced(AOO_BINARY_DATA_MSG)
-message(STATUS "Use binary data message: ${AOO_BINARY_DATA_MSG}")
+option(AOO_BINARY_FORMAT "use binary message format" ON)
+mark_as_advanced(AOO_BINARY_FORMAT)
+message(STATUS "Use binary data message: ${AOO_BINARY_FORMAT}")
 
 # compile time debugging options
 option(AOO_DEBUG_MEMORY "debug memory usage" OFF)
@@ -67,7 +67,7 @@ set(OPTIONS
     -DAOO_MAX_PACKET_SIZE=${AOO_MAX_PACKET_SIZE}
     -DAOO_DYNAMIC_RESAMPLING=$<BOOL:${AOO_DYNAMIC_RESAMPLING}>
     -DAOO_DLL_BANDWIDTH=${AOO_DLL_BANDWIDTH}
-    -DAOO_BINARY_DATA_MSG=$<BOOL:${AOO_BINARY_DATA_MSG}>
+    -DAOO_BINARY_FORMAT=$<BOOL:${AOO_BINARY_FORMAT}>
     -DAOO_DEBUG_MEMORY=$<BOOL:${AOO_DEBUG_MEMORY}>
     -DAOO_DEBUG_DATA=$<BOOL:${AOO_DEBUG_DATA}>
     -DAOO_DEBUG_RESEND=$<BOOL:${AOO_DEBUG_RESEND}>

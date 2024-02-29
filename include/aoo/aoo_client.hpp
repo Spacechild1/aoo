@@ -416,17 +416,17 @@ public:
         return control(kAooCtlGetPacketSize, 0, AOO_ARG(n));
     }
 
-    /** \brief Enable/disable binary messages
+    /** \brief Enable/disable binary message format
      *
      * Use a more compact (and faster) binary format for peer messages
      */
-    AooError setBinaryMsg(AooBool b) {
-        return control(kAooCtlSetBinaryClientMsg, 0, AOO_ARG(b));
+    AooError setBinaryFormat(AooBool b) {
+        return control(kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
     }
 
-    /** \brief Check if binary messages are enabled */
-    AooError getBinaryMsg(AooBool& b) {
-        return control(kAooCtlGetBinaryClientMsg, 0, AOO_ARG(b));
+    /** \brief Check if binary message format is enabled */
+    AooError getBinaryFormat(AooBool& b) {
+        return control(kAooCtlGetBinaryFormat, 0, AOO_ARG(b));
     }
 
     /** \brief Set peer ping interval in seconds */
