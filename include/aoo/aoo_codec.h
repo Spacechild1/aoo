@@ -44,8 +44,8 @@ typedef AooError (AOO_CALL *AooCodecEncodeFunc)(
         AooCodec *encoder,
         /** [in] input samples (interleaved) */
         const AooSample *inSamples,
-        /** [in] number of samples */
-        AooInt32 numSamples,
+        /** [in] frame size (number of sample per-channel) */
+        AooInt32 frameSize,
         /** [out] output buffer */
         AooByte *outData,
         /** [in,out] max. buffer size in bytes
@@ -63,9 +63,9 @@ typedef AooError (AOO_CALL *AooCodecDecodeFunc)(
         AooInt32 numBytes,
         /** [out] output samples (interleaved) */
         AooSample *outSamples,
-        /** [in,out] max. number of samples
+        /** [in,out] max. number of frames
          * (updated to actual number) */
-        AooInt32 *numSamples
+        AooInt32 *numFrames
 );
 
 /** \brief AOO codec controls
@@ -163,10 +163,10 @@ AOO_INLINE AooError AooEncoder_setup(
 /** \brief encode audio samples to bytes
  *  \see AooCodecEncodeFunc */
 AOO_INLINE AooError AooEncoder_encode(
-        AooCodec *enc, const AooSample *input, AooInt32 numSamples,
-        AooByte *output, AooInt32 *numBytes)
+        AooCodec *enc, const AooSample *inSamples, AooInt32 frameSize,
+        AooByte *outData, AooInt32 *size)
 {
-    return enc->cls->encoderEncode(enc, input, numSamples, output, numBytes);
+    return enc->cls->encoderEncode(enc, inSamples, frameSize, outData, size);
 }
 
 /** \brief control encoder instance
@@ -194,10 +194,10 @@ AOO_INLINE AooError AooDecoder_setup(
 /** \brief decode bytes to audio samples
  *  \see AooCodecDecodeFunc */
 AOO_INLINE AooError AooDecoder_decode(
-        AooCodec *dec, const AooByte *input, AooInt32 numBytes,
-        AooSample *output, AooInt32 *numSamples)
+        AooCodec *dec, const AooByte *inData, AooInt32 size,
+        AooSample *outSamples, AooInt32 *frameSize)
 {
-    return dec->cls->decoderDecode(dec, input, numBytes, output, numSamples);
+    return dec->cls->decoderDecode(dec, inData, size, outSamples, frameSize);
 }
 
 /** \brief control decoder instance

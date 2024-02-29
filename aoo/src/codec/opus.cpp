@@ -123,10 +123,8 @@ struct Encoder : AooCodec {
 
     OpusMSEncoder *state_ = nullptr;
     size_t size_ = 0;
-    int numChannels_ = 0;
     int sampleRate_ = 0;
     int applicationType_ = 0;
-
 };
 
 AooCodec * AOO_CALL Encoder_new() {
@@ -178,7 +176,6 @@ AooError AOO_CALL Encoder_setup(AooCodec *c, AooFormat *f) {
 
     enc->state_ = state;
     enc->size_ = size;
-    enc->numChannels_ = nchannels;
     enc->sampleRate_ = fmt->header.sampleRate;
     enc->applicationType_ = fmt->applicationType;
 
@@ -288,15 +285,14 @@ AooError AOO_CALL Encoder_control(
 }
 
 AooError Encoder_encode(
-        AooCodec *c, const AooSample *input, AooInt32 numSamples,
-        AooByte *buf, AooInt32 *size)
+        AooCodec *c, const AooSample *inSamples, AooInt32 frameSize,
+        AooByte *outData, AooInt32 *outSize)
 {
-    auto e = static_cast<Encoder *>(c);
-    auto framesize = numSamples / e->numChannels_;
+    auto enc = static_cast<Encoder*>(c);
     auto result = opus_multistream_encode_float(
-                e->state_, input, framesize, (unsigned char *)buf, *size);
+        enc->state_, inSamples, frameSize, (unsigned char *)outData, *outSize);
     if (result > 0){
-        *size = result;
+        *outSize = result;
         return kAooOk;
     } else {
         LOG_VERBOSE("Opus: opus_encode_float() failed with error code " << result);
@@ -313,7 +309,6 @@ struct Decoder : AooCodec {
 
     OpusMSDecoder *state_ = nullptr;
     size_t size_ = 0;
-    int numChannels_ = 0;
     int sampleRate_ = 0;
     int applicationType_ = 0;
 };
@@ -366,7 +361,6 @@ AooError AOO_CALL Decoder_setup(AooCodec *c, AooFormat *f) {
 
     dec->state_ = state;
     dec->size_ = size;
-    dec->numChannels_ = nchannels;
     dec->sampleRate_ = fmt->header.sampleRate;
     dec->applicationType_ = fmt->applicationType;
 
@@ -397,15 +391,14 @@ AooError Decoder_control(AooCodec *c, AooCtl ctl, void *ptr, AooSize size){
 }
 
 AooError Decoder_decode(
-        AooCodec *c, const AooByte *buf, AooInt32 size,
-        AooSample *output, AooInt32 *numSamples)
+        AooCodec *c, const AooByte *inData, AooInt32 size,
+        AooSample *outSamples, AooInt32 *frameSize)
 {
     auto d = static_cast<Decoder *>(c);
-    auto framesize = *numSamples / d->numChannels_;
     auto result = opus_multistream_decode_float(
-                d->state_, (const unsigned char *)buf, size, output, framesize, 0);
+        d->state_, (const unsigned char *)inData, size, outSamples, *frameSize, 0);
     if (result > 0){
-        *numSamples = result * d->numChannels_;
+        *frameSize = result;
         return kAooOk;
     } else {
         LOG_VERBOSE("Opus: opus_decode_float() failed with error code " << result);

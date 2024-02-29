@@ -61,10 +61,11 @@ bool validate_format(AooFormatNull& f, bool loud = true)
     return true;
 }
 
-//------------------- PCM codec -----------------------------//
+//------------------- null codec -----------------------------//
 
 struct NullCodec : AooCodec {
     NullCodec();
+    int numChannels_ = 0;
 };
 
 AooCodec * AOO_CALL NullCodec_new() {
@@ -80,6 +81,7 @@ AooError AOO_CALL NullCodec_setup(AooCodec *c, AooFormat *f) {
     if (!validate_format(*fmt, true)) {
         return kAooErrorBadArgument;
     }
+    static_cast<NullCodec*>(c)->numChannels_ = fmt->header.numChannels;
 
     print_format(*fmt);
 
@@ -104,8 +106,8 @@ AooError AOO_CALL NullCodec_control(
 }
 
 AooError AOO_CALL NullCodec_encode(
-        AooCodec *enc,const AooSample *s, AooInt32 n,
-        AooByte *buf, AooInt32 *size)
+        AooCodec *c, const AooSample *inSamples, AooInt32 frameSize,
+        AooByte *outData, AooInt32 *size)
 {
     // do nothing
     *size = 0;
@@ -114,12 +116,14 @@ AooError AOO_CALL NullCodec_encode(
 }
 
 AooError AOO_CALL NullCodec_decode(
-        AooCodec *dec, const AooByte *buf, AooInt32 size,
-        AooSample *s, AooInt32 *n)
+        AooCodec *c, const AooByte *inData, AooInt32 size,
+        AooSample *outSamples, AooInt32 *frameSize)
 {
     // just zero
-    for (int i = 0; i < *n; ++i){
-        s[i] = 0;
+    auto dec = static_cast<NullCodec*>(c);
+    auto nsamples = (*frameSize) * dec->numChannels_;
+    for (int i = 0; i < nsamples; ++i) {
+        outSamples[i] = 0;
     }
     return kAooOk;
 }

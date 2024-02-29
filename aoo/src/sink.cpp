@@ -2242,44 +2242,45 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
             double resample = (double)s.samplerate() / (double)format_->sampleRate;
         #if BUFFER_PLC
             // use format blocksize
-            auto nframes = format_->blockSize;
-            auto bufsize = nframes * format_->numChannels;
+            auto framesize = format_->blockSize;
+            auto bufsize = framesize * format_->numChannels;
             if (!resampler_.bypass()) {
                 assert(buffer == nullptr);
                 buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
             }
             // use packet loss concealment
-            AooInt32 count = bufsize;
+            AooInt32 count = framesize;
             if (AooDecoder_decode(decoder_.get(), nullptr, 0, buffer, &count) != kAooOk) {
                 LOG_WARNING("AooSink: couldn't decode block!");
                 // fill with zeros
                 std::fill(buffer, buffer + bufsize, 0);
             }
+            assert(count == framesize);
             // advance stream time! use nominal sample rate.
-            stream_samples_ += (double)nframes * resample;
+            stream_samples_ += (double)framesize * resample;
         #else
             // use process blocksize!
-            int32_t nframes;
+            int32_t framesize;
             int32_t bufsize;
             if (resampler_.bypass()) {
                 assert(buffer != nullptr && format_->blockSize == s.blocksize());
-                nframes = format_->blockSize;
-                bufsize = nframes * format_->numChannels;
+                framesize = format_->blockSize;
+                bufsize = framesize * format_->numChannels;
             } else {
                 assert(buffer == nullptr);
-                int32_t nframes = (double)s.blocksize() / resample + 0.5;
-                bufsize = nframes * format_->numChannels;
+                framesize = (double)s.blocksize() / resample + 0.5;
+                bufsize = framesize * format_->numChannels;
                 buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
             }
             std::fill(buffer, buffer + bufsize, 0);
             // advance stream time! (use nominal sample rate)
-            stream_samples_ += nframes;
+            stream_samples_ += framesize;
         #endif
 
             if (resampler_.bypass()) {
                 return true;
             } else {
-                if (resampler_.write(buffer, nframes)) {
+                if (resampler_.write(buffer, framesize)) {
                     return true;
                 } else {
                     LOG_ERROR("AooSink: bug: couldn't write to resampler");
@@ -2344,8 +2345,9 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
     }
 
     // decode and push audio data to resampler
-    auto bufsize = format_->blockSize * format_->numChannels;
-    AooInt32 count = bufsize;
+    auto framesize = format_->blockSize;
+    auto bufsize = framesize * format_->numChannels;
+    AooInt32 count = framesize;
     if (!resampler_.bypass()) {
         assert(buffer == nullptr);
         buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
@@ -2356,10 +2358,10 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
         // decoder failed - fill with zeros
         std::fill(buffer, buffer + bufsize, 0);
     }
-    assert(count == bufsize);
+    assert(count == framesize);
 
     if (!resampler_.bypass()) {
-        if (resampler_.write(buffer, format_->blockSize)) {
+        if (resampler_.write(buffer, framesize)) {
             if (!resampler_.fixed_sr()) {
                 // update resampler
                 // real_samplerate() is our real samplerate, sr is the real source samplerate.
@@ -2435,7 +2437,7 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
         }
     }
 
-    stream_samples_ += (double)format_->blockSize * resample;
+    stream_samples_ += (double)framesize * resample;
 
     jitter_buffer_.pop();
 

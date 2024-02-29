@@ -1953,8 +1953,8 @@ void Source::send_data(const sendfn& fn){
 
         // copy and convert audio samples to blob data
         auto nchannels = format_->numChannels;
-        auto blocksize = format_->blockSize;
-        auto nsamples = nchannels * blocksize;
+        auto framesize = format_->blockSize;
+        auto nsamples = nchannels * framesize;
     #if 0
         Log log;
         for (int i = 0; i < nsamples; ++i){
@@ -1965,7 +1965,7 @@ void Source::send_data(const sendfn& fn){
         int32_t audio_size = sizeof(double) * nsamples; // overallocate
         sendbuffer_.resize(d.msg_size + audio_size);
 
-        auto err = AooEncoder_encode(encoder_.get(), ptr->data, nsamples,
+        auto err = AooEncoder_encode(encoder_.get(), ptr->data, framesize,
             sendbuffer_.data() + d.msg_size, &audio_size);
         d.total_size = d.msg_size + audio_size;
 
