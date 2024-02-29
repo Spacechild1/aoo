@@ -139,7 +139,7 @@ public:
 #ifndef NDEBUG
 private:
 #endif
-    int16_t num_tries_ = 0;
+    uint16_t num_tries_ = 0;
     bool resent_ = false;
     double timestamp_ = 0;
     data_frame_storage frames_;

@@ -2451,7 +2451,7 @@ void source_desc::check_missing_blocks(const Sink& s){
         return;
     }
     int32_t resent = 0;
-    int32_t maxnumframes = s.resend_limit();
+    int32_t limit = s.resend_limit();
     double interval = s.resend_interval();
     double elapsed = s.elapsed_time();
 
@@ -2459,12 +2459,11 @@ void source_desc::check_missing_blocks(const Sink& s){
     auto n = jitter_buffer_.size() - 1;
     for (auto b = jitter_buffer_.begin(); n--; ++b){
         if (!b->complete() && b->update(elapsed, interval)) {
-            auto nframes = b->num_frames();
-
             if (b->received_frames > 0) {
                 // a) only some frames missing
                 // we use a frame offset + bitset to indicate which frames are missing
-                for (int16_t offset = 0; offset < nframes; offset += 16){
+                auto nframes = b->num_frames();
+                for (int16_t offset = 0; offset < nframes; offset += 16) {
                     uint16_t bitset = 0;
                     // fill the bitset with missing frames
                     for (int i = 0; i < 16; ++i) {
@@ -2472,48 +2471,35 @@ void source_desc::check_missing_blocks(const Sink& s){
                         if (frame >= nframes) {
                             break;
                         }
-                        if (!b->has_frame(frame)){
-                            if (resent < maxnumframes) {
-                            #if AOO_DEBUG_RESEND
-                                LOG_DEBUG("AooSink: request " << b->sequence
-                                          << " (" << frame << " / " << nframes << ")");
-                            #endif
-                                bitset |= (uint16_t)1 << i;
-                                resent++;
-                            } else {
-                                break;
-                            }
+                        if (!b->has_frame(frame)) {
+                            bitset |= (uint16_t)1 << i;
+                        #if AOO_DEBUG_RESEND
+                            LOG_DEBUG("AooSink: request " << b->sequence
+                                      << " (" << frame << " / " << nframes << ")");
+                        #endif
                         }
                     }
                     if (bitset != 0) {
                         push_data_request({ b->sequence, offset, bitset });
                     }
-                    if (resent >= maxnumframes) {
-                        LOG_DEBUG("AooSource: resend limit reached");
-                        goto resend_done;
-                    }
                 }
             } else {
                 // b) all frames missing
-                // TODO: what is the frame count of placeholder blocks!?
-                if (resent + nframes <= maxnumframes){
-                    push_data_request({ b->sequence, -1, 0 }); // whole block
-                #if AOO_DEBUG_RESEND
-                    LOG_DEBUG("AooSink: request " << b->sequence << " (all)");
-                #endif
-                    resent += nframes;
-                } else {
-                    LOG_DEBUG("AooSource: resend limit reached");
-                    goto resend_done;
-                }
+                push_data_request({ b->sequence, -1, 0 }); // whole block
+            #if AOO_DEBUG_RESEND
+                LOG_DEBUG("AooSink: request " << b->sequence << " (all)");
+            #endif
+            }
+
+            if (++resent >= limit) {
+                LOG_DEBUG("AooSource: resend limit reached");
+                break;
             }
         }
     }
-resend_done:
 
-    assert(resent <= maxnumframes);
-    if (resent > 0){
-        LOG_DEBUG("AooSink: requested " << resent << " frames");
+    if (resent > 0) {
+        LOG_DEBUG("AooSink: requested " << resent << " blocks");
     }
 }
 

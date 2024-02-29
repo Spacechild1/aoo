@@ -365,9 +365,9 @@ public:
         return control(kAooCtlGetResendInterval, 0, AOO_ARG(s));
     }
 
-    /** \brief Set the frame resend limit
+    /** \brief Set the resend limit
      *
-     * This is the max. number of frames to request in a single process call.
+     * This is the max. number of *blocks* to request in a single process call.
      */
     AooError setResendLimit(AooInt32 n) {
         return control(kAooCtlSetResendLimit, 0, AOO_ARG(n));
