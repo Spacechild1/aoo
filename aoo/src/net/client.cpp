@@ -1965,11 +1965,15 @@ void Client::handle_peer_join(const osc::ReceivedMessage& msg){
         list.insert(list.end(), user_relay.begin(), user_relay.end());
     }
     auto md = metadata ? &metadata.value() : nullptr;
+    auto local_id = membership->user_id;
 
-    auto peer = peers_.emplace_front(group_name, group_id, user_name, user_id,
-                                     version, flags, md, family, use_ipv4_mapped,
-                                     std::move(addrlist), membership->user_id,
-                                     std::move(user_relay), membership->relay_list);
+    peer_args args {
+        group_name, user_name, group_id, user_id, local_id,
+        flags, version, md, family, use_ipv4_mapped, binary(),
+        std::move(addrlist), std::move(user_relay), membership->relay_list
+    };
+
+    auto peer = peers_.emplace_front(std::move(args));
 
     auto e = std::make_unique<peer_event>(kAooEventPeerHandshake, *peer);
     send_event(std::move(e));

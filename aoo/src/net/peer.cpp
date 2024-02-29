@@ -16,17 +16,14 @@ namespace net {
 
 //------------------------- peer ------------------------------//
 
-peer::peer(const std::string& group_name, AooId group_id,
-           const std::string& user_name, AooId user_id,
-           const std::string& version, AooFlag flags, const AooData *metadata,
-           ip_address::ip_type address_family, bool use_ipv4_mapped,
-           ip_address_list&& addrlist, AooId local_id,
-           ip_address_list&& user_relay, const ip_address_list& relay_list)
-    : group_name_(group_name), user_name_(user_name),
-      group_id_(group_id), user_id_(user_id), local_id_(local_id), flags_(flags),
-      version_(version), address_family_(address_family), use_ipv4_mapped_(use_ipv4_mapped),
-      metadata_(metadata), addrlist_(std::move(addrlist)),
-      user_relay_(std::move(user_relay)), relay_list_(relay_list)
+peer::peer(peer_args&& args)
+    : group_name_(args.group_name), user_name_(args.user_name),
+      group_id_(args.group_id), user_id_(args.user_id),
+      local_id_(args.local_id), flags_(args.flags), version_(args.version_string),
+      address_family_(args.address_family), binary_(args.binary),
+      use_ipv4_mapped_(args.use_ipv4_mapped), metadata_(args.metadata),
+      addrlist_(std::move(args.address_list)), user_relay_(std::move(args.user_relay)),
+      relay_list_(std::move(args.relay_list))
 {
     LOG_DEBUG("AooClient: create peer " << *this);
     for (auto& addr : addrlist_) {
@@ -467,7 +464,7 @@ void peer::send_ack(const message_ack &ack, const sendfn& fn) {
     LOG_DEBUG("AooClient: send ack (seq: " << ack.sequence << ", frame: " << ack.frame_index
               << ") to " << *this);
 #endif
-    if (binary_.load(std::memory_order_relaxed)) {
+    if (binary_ack_.load(std::memory_order_relaxed)) {
         AooByte buf[64];
         auto onset = binmsg_write_header(buf, sizeof(buf), kAooMsgTypePeer,
                                          kAooBinMsgCmdAck, group_id_, local_id_);
@@ -656,7 +653,8 @@ void peer::handle_client_message(Client &client, osc::ReceivedMessageArgumentIte
     }
 
     // tell the send thread that it should answer with OSC messages
-    binary_.store(false, std::memory_order_relaxed);
+    // TODO: should we just use binary_ instead?
+    binary_ack_.store(false, std::memory_order_relaxed);
 
     do_handle_client_message(client, p, flags);
 }
@@ -706,7 +704,8 @@ void peer::handle_client_message(Client &client, const AooByte *data, AooSize si
     p.data = ptr;
 
     // tell the send thread that it should answer with binary messages
-    binary_.store(true, std::memory_order_relaxed);
+    // TODO: should we just use binary_ instead?
+    binary_ack_.store(true, std::memory_order_relaxed);
 
     do_handle_client_message(client, p, flags);
 
@@ -863,10 +862,21 @@ void peer::send(const AooByte *data, AooSize size,
             LOG_DEBUG("AooClient: relay message " << (const char *)data << " to peer " << *this);
         }
     #endif
-        AooByte buf[AOO_MAX_PACKET_SIZE];
-        auto result = write_relay_message(buf, sizeof(buf), data, size, addr);
+        if (binary_) {
+            AooByte buf[AOO_MAX_PACKET_SIZE];
+            auto result = write_relay_message(buf, sizeof(buf), data, size, addr);
 
-        fn(buf, result, relay_address_);
+            fn(buf, result, relay_address_);
+        } else {
+            // don't prepend size for UDP message!
+            char buf[AOO_MAX_PACKET_SIZE];
+            osc::OutboundPacketStream out(buf, sizeof(buf));
+            out << osc::BeginMessage(kAooMsgDomain kAooMsgRelay)
+                << addr << osc::Blob(data, size)
+                << osc::EndMessage;
+
+            fn((const AooByte*)out.Data(), out.Size(), relay_address_);
+        }
     } else {
         fn(data, size, addr);
     }

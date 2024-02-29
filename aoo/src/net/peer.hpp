@@ -39,15 +39,27 @@ struct message_ack {
     int32_t frame_index;
 };
 
+struct peer_args {
+    std::string_view group_name;
+    std::string_view user_name;
+    AooId group_id;
+    AooId user_id;
+    AooId local_id;
+    AooFlag flags;
+    std::string_view version_string;
+    const AooData *metadata;
+    ip_address::ip_type address_family;
+    bool use_ipv4_mapped;
+    bool binary;
+    ip_address_list address_list;
+    ip_address_list user_relay;
+    ip_address_list relay_list;
+};
+
 class peer {
 public:
     // NB: be must set everything in the constructor to avoid race conditions!
-    peer(const std::string& group_name, AooId group_id,
-         const std::string& user_name, AooId user_id,
-         const std::string& version, AooFlag flags, const AooData *metadata,
-         ip_address::ip_type address_family, bool use_ipv4_mapped,
-         ip_address_list&& addrlist, AooId local_id,
-         ip_address_list&& user_relay, const ip_address_list& relay_list);
+    peer(peer_args&& args);
 
     ~peer();
 
@@ -156,6 +168,7 @@ private:
     AooFlag flags_;
     std::string version_;
     ip_address::ip_type address_family_;
+    bool binary_;
     bool use_ipv4_mapped_;
     bool timeout_ = false;
     bool active_ = true;
@@ -173,7 +186,7 @@ private:
     std::atomic<float> average_rtt_{0};
     std::atomic<bool> connected_{false};
     std::atomic<bool> got_ping_{false};
-    std::atomic<bool> binary_{false};
+    std::atomic<bool> binary_ack_{false};
     int32_t next_sequence_reliable_ = 0;
     int32_t next_sequence_unreliable_ = 0;
     message_send_buffer send_buffer_;
