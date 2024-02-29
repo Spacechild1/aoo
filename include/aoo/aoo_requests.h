@@ -38,8 +38,8 @@ AOO_ENUM(AooRequestType)
 /*----------------- request ------------------*/
 
 /** \brief common header for all request structures */
-#define AOO_REQUEST_HEADER \
-    AooRequestType type; \
+#define AOO_REQUEST_HEADER  \
+    AooRequestType type;    \
     AooUInt32 structSize;
 
 /** \brief basic request */
@@ -48,10 +48,8 @@ typedef struct AooRequestBase
     AOO_REQUEST_HEADER
 } AooRequestBase;
 
-/** \brief helper function for initializing a request structure */
-#define AOO_REQUEST_INIT(ptr, name, field) \
-    (ptr)->type = kAooRequest##name; \
-    (ptr)->structSize = AOO_STRUCT_SIZE(AooRequest##name, field);
+#define AOO_REQUEST_INIT(name, field) \
+    kAooRequest##name, AOO_STRUCT_SIZE(AooRequest##name, field)
 
 /*----------------- response ------------------*/
 
@@ -64,15 +62,15 @@ typedef struct AooResponseBase
     AOO_RESPONSE_HEADER
 } AooResponseBase;
 
-/** \brief helper function for initializing a reponse structure */
-#define AOO_RESPONSE_INIT(ptr, name, field) \
-    (ptr)->type = kAooRequest##name; \
-    (ptr)->structSize = AOO_STRUCT_SIZE(AooResponse##name, field);
-
+#define AOO_RESPONSE_INIT(name, field) \
+    kAooRequest##name, AOO_STRUCT_SIZE(AooResponse##name, field)
 
 /*----------------- error ------------------*/
 
-/** \brief error response */
+/** \brief error response
+ *
+ * \attention always initialize with AOO_RESPONSE_ERROR_INIT()!
+ */
 typedef struct AooResponseError
 {
     AOO_RESPONSE_HEADER
@@ -82,9 +80,16 @@ typedef struct AooResponseError
     const AooChar *errorMessage;
 } AooResponseError;
 
+/** \brief default initializer for AooResponseError struct */
+#define AOO_RESPONSE_ERROR_INIT() \
+    { AOO_RESPONSE_INIT(Error, errorMessage), 0, NULL }
+
 /*--------- connect (client-side) ---------*/
 
-/** \brief connection request */
+/** \brief connection request
+ *
+ * \attention always initialize with AOO_REQUEST_CONNECT_INIT()!
+ */
 typedef struct AooRequestConnect
 {
     AOO_REQUEST_HEADER
@@ -93,7 +98,14 @@ typedef struct AooRequestConnect
     const AooData *metadata;
 } AooRequestConnect;
 
-/** \brief connection response */
+/** \brief default initializer for AooRequestConnect struct */
+#define AOO_REQUEST_CONNECT_INIT() \
+    { AOO_REQUEST_INIT(Connect, metadata), { NULL, 0 }, NULL, NULL }
+
+/** \brief connection response
+ *
+ * \attention always initialize with AOO_RESPONSE_CONNECT_INIT()!
+ */
 typedef struct AooResponseConnect
 {
     AOO_RESPONSE_HEADER
@@ -102,15 +114,44 @@ typedef struct AooResponseConnect
     const AooData *metadata;
 } AooResponseConnect;
 
+/** \brief default initializer for AooResponseConnect struct */
+#define AOO_RESPONSE_CONNECT_INIT() \
+    { AOO_RESPONSE_INIT(Connect, metadata), kAooIdInvalid, NULL, NULL }
+
 /*--------- disconnect (client-side) ----------*/
 
-typedef AooRequestBase AooRequestDisconnect;
+/** \brief disconnect request
+ *
+ * \attention always initialize with AOO_REQUEST_DISCONNECT_INIT()!
+ */
+typedef struct AooRequestDisconnect
+{
+    AOO_REQUEST_HEADER
+} AooRequestDisconnect;
 
-typedef AooResponseBase AooResponseDisconnect;
+/** \brief default initializer for AooRequestDisconnect struct */
+#define AOO_REQUEST_DISCONNECT_INIT() \
+    { AOO_REQUEST_INIT(Disconnect, structSize) }
+
+/** \brief disconnect response
+ *
+ * \attention always initialize with AOO_RESPONSE_DISCONNECT_INIT()!
+ */
+typedef struct AooResponseDisconnect
+{
+    AOO_RESPONSE_HEADER
+} AooResponseDisconnect;
+
+/** \brief default initializer for AooResponseDisconnect struct */
+#define AOO_RESPONSE_DISCONNECT_INIT() \
+    { AOO_RESPONSE_INIT(Disconnect, structSize) }
 
 /*----------- login (server-side) ------------*/
 
-/** \brief login request */
+/** \brief login request
+ *
+ * \attention always initialize with AOO_REQUEST_LOGIN_INIT()!
+ */
 typedef struct AooRequestLogin
 {
     AOO_REQUEST_HEADER
@@ -119,20 +160,34 @@ typedef struct AooRequestLogin
     const AooData *metadata;
 } AooRequestLogin;
 
-/** \brief login response */
+/** \brief default initializer for AooRequestLogin struct */
+#define AOO_REQUEST_LOGIN_INIT() \
+    { AOO_REQUEST_INIT(Login, metadata), NULL, NULL, NULL }
+
+/** \brief login response
+ *
+ * \attention always initialize with AOO_RESPONSE_LOGIN_INIT()!
+ */
 typedef struct AooResponseLogin
 {
     AOO_RESPONSE_HEADER
     const AooData *metadata;
 } AooResponseLogin;
 
+/** \brief default initializer for AooResponseLogin struct */
+#define AOO_RESPONSE_LOGIN_INIT() \
+    { AOO_RESPONSE_INIT(Login, metadata), NULL }
+
 /*-------- join group (server/client) -------*/
 
-/** \brief request for joining a group */
+/** \brief request for joining a group
+ *
+ * \attention always initialize with AOO_REQUEST_GROUP_JOIN_INIT()!
+ */
 typedef struct AooRequestGroupJoin
 {
     AOO_REQUEST_HEADER
-    /* group */
+    /*---------------------------- group ----------------------------*/
     const AooChar *groupName;
     const AooChar *groupPwd;
     AooId groupId; /* kAooIdInvalid if group does not exist (yet) */
@@ -143,7 +198,7 @@ typedef struct AooRequestGroupJoin
      * metadata, or provide any kind of metadata it wants, by setting
      * AooResponseGroupJoin::groupMetadata. */
     const AooData *groupMetadata;
-    /* user */
+    /*---------------------------- user ---------------------------*/
     const AooChar *userName;
     const AooChar *userPwd;
     AooId userId; /* kAooIdInvalid if user does not exist (yet) */
@@ -153,29 +208,37 @@ typedef struct AooRequestGroupJoin
      * the request and validate/modify the metadata, or provide any kind of
      * metadata it wants, by setting AooResponseGroupJoin::userMetadata. */
     const AooData *userMetadata;
-    /* other */
+    /*--------------------------- other --------------------------*/
     /** (optional) UDP relay address provided by the user/client.
      * The server will forward it to all peers. */
     const AooIpEndpoint *relayAddress;
 } AooRequestGroupJoin;
 
-/** \brief response for joining a group */
+/** \brief default initializer for AooRequestGroupJoin struct */
+#define AOO_REQUEST_GROUP_JOIN_INIT() \
+    { AOO_REQUEST_INIT(GroupJoin, relayAddress), NULL, NULL, kAooIdInvalid, \
+        NULL, NULL, NULL, kAooIdInvalid, NULL, NULL }
+
+/** \brief response for joining a group
+ *
+ * \attention always initialize with AOO_RESPONSE_GROUP_JOIN_INIT()!
+ */
 typedef struct AooResponseGroupJoin
 {
     AOO_RESPONSE_HEADER
-    /* group */
+    /*--------------------------- group -----------------------------*/
     /** group ID generated by the server */
     AooId groupId;
     AooGroupFlags groupFlags;
     /** (optional) group metadata validated/modified by the server. */
     const AooData *groupMetadata;
-    /* user */
+    /*--------------------------- user ------------------------------*/
     /** user Id generated by the server */
     AooId userId;
     AooUserFlags userFlags;
     /** (optional) user metadata validated/modified by the server. */
     const AooData *userMetadata;
-    /* other */
+    /*--------------------------- other -----------------------------*/
     /** (optional) private metadata that is only sent to the client.
      * For example, this can be used for state synchronization. */
     const AooData *privateMetadata;
@@ -187,21 +250,46 @@ typedef struct AooResponseGroupJoin
     const AooIpEndpoint *relayAddress;
 } AooResponseGroupJoin;
 
+/** \brief default initializer for AooResponseGroupJoin struct */
+#define AOO_RESPONSE_GROUP_JOIN_INIT() \
+    { AOO_RESPONSE_INIT(GroupJoin, relayAddress), kAooIdInvalid, 0, NULL, \
+        kAooIdInvalid, 0, NULL, NULL, NULL }
+
 /*--------- leave group (server/client) ----------*/
 
-/** \brief request for leaving a group */
+/** \brief request for leaving a group
+ *
+ * \attention always initialize with AOO_RESPONSE_GROUP_LEAVE_INIT()!
+ */
 typedef struct AooRequestGroupLeave
 {
     AOO_REQUEST_HEADER
     AooId group;
 } AooRequestGroupLeave;
 
-/** \brief response for leaving a group */
-typedef AooResponseBase AooResponseGroupLeave;
+/** \brief default initializer for AooRequestGroupLeave struct */
+#define AOO_REQUEST_GROUP_LEAVE_INIT() \
+    { AOO_REQUEST_INIT(GroupLeave, group), kAooIdInvalid }
+
+/** \brief response for leaving a group
+ *
+ * \attention always initialize with AOO_RESPONSE_GROUP_LEAVE_INIT()!
+ */
+typedef struct AooResponseGroupLeave
+{
+    AOO_REQUEST_HEADER
+} AooResponseGroupLeave;
+
+/** \brief default initializer for AooResponseGroupLeave struct */
+#define AOO_RESPONSE_GROUP_LEAVE_INIT() \
+    { AOO_REQUEST_INIT(GroupLeave, structSize) }
 
 /*------------ update group metadata -------------*/
 
-/** \brief request for updating a group */
+/** \brief request for updating a group
+ *
+ * \attention always initialize with AOO_REQUEST_GROUP_UPDATE_INIT()!
+ */
 typedef struct AooRequestGroupUpdate
 {
     AOO_REQUEST_HEADER
@@ -209,16 +297,32 @@ typedef struct AooRequestGroupUpdate
     AooData groupMetadata;
 } AooRequestGroupUpdate;
 
-/** \brief response for updating a group */
+/** \brief default initializer for AooRequestGroupUpdate struct */
+#define AOO_REQUEST_GROUP_UPDATE_INIT() \
+    { AOO_REQUEST_INIT(GroupUpdate, groupMetadata), kAooIdInvalid, \
+    { kAooDataUnspecified, NULL, 0 } }
+
+/** \brief response for updating a group
+ *
+ * \attention always initialize with AOO_RESPONSE_GROUP_UPDATE_INIT()!
+ */
 typedef struct AooResponseGroupUpdate
 {
     AOO_RESPONSE_HEADER
     AooData groupMetadata;
 } AooResponseGroupUpdate;
 
+/** \brief default initializer for AooResponseGroupJoin struct */
+#define AOO_RESPONSE_GROUP_UPDATE_INIT() \
+    { AOO_RESPONSE_INIT(GroupUpdate, groupMetadata), \
+        { kAooDataUnspecified, NULL, 0 } }
+
 /*------------ update user metadata -------------*/
 
-/** \brief request for updating a user */
+/** \brief request for updating a user
+ *
+ * \attention always initialize with AOO_REQUEST_USER_UPDATE_INIT()!
+ */
 typedef struct AooRequestUserUpdate
 {
     AOO_REQUEST_HEADER
@@ -226,16 +330,32 @@ typedef struct AooRequestUserUpdate
     AooData userMetadata;
 } AooRequestUserUpdate;
 
-/** \brief response for updating a user */
+/** \brief default initializer for AooRequestUserUpdate struct */
+#define AOO_REQUEST_USER_UPDATE_INIT() \
+    { AOO_REQUEST_INIT(UserUpdate, userMetadata), kAooIdInvalid, \
+        { kAooDataUnspecified, NULL, 0 } }
+
+/** \brief response for updating a user
+ *
+ * \attention always initialize with AOO_RESPONSE_USER_UPDATE_INIT()!
+ */
 typedef struct AooResponseUserUpdate
 {
     AOO_RESPONSE_HEADER
     AooData userMetadata;
 } AooResponseUserUpdate;
 
+/** \brief default initializer for AooResponseUserJoin struct */
+#define AOO_RESPONSE_USER_UPDATE_INIT() \
+    { AOO_RESPONSE_INIT(UserUpdate, userMetadata), \
+        { kAooDataUnspecified, NULL, 0 } }
+
 /*------- custom request (server/client) --------*/
 
-/** \brief custom client request */
+/** \brief custom client request
+ *
+ * \attention always initialize with AOO_REQUEST_CUSTOM_INIT()!
+ */
 typedef struct AooRequestCustom
 {
     AOO_REQUEST_HEADER
@@ -243,13 +363,24 @@ typedef struct AooRequestCustom
     AooFlag flags; /* TODO: do we need this? */
 } AooRequestCustom;
 
-/** \brief custom server response */
+/** \brief default initializer for AooRequestCustom struct */
+#define AOO_REQUEST_CUSTOM_INIT() \
+    { AOO_REQUEST_INIT(Custom, flags), { kAooDataUnspecified, NULL, 0 }, 0 }
+
+/** \brief custom server response
+ *
+ * \attention always initialize with AOO_RESPONSE_CUSTOM_INIT()!
+ */
 typedef struct AooResponseCustom
 {
     AOO_RESPONSE_HEADER
     AooData data;
     AooFlag flags; /* TODO: do we need this? */
 } AooResponseCustom;
+
+/** \brief default initializer for AooResponseCustom struct */
+#define AOO_RESPONSE_CUSTOM_INIT() \
+    { AOO_RESPONSE_INIT(Custom, flags), { kAooDataUnspecified, NULL, 0 }, 0 }
 
 /*--------------------------------------------*/
 

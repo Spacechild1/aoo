@@ -456,7 +456,6 @@ PluginLoad(Aoo) {
     ft = inTable; // store pointer to InterfaceTable
 
     AooSettings settings;
-    AooSettings_init(&settings);
     settings.logFunc = SCLog;
 
     aoo_initialize(&settings);

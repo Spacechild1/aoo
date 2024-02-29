@@ -20,7 +20,7 @@ AOO_PACK_BEGIN
 
 /** \brief settings for aoo_initialize()
  *
- * \attention Always call AooSettings_init()!
+ * \attention always initialize with AOO_SETTINGS_INIT()!
  */
 typedef struct AooSettings
 {
@@ -30,13 +30,10 @@ typedef struct AooSettings
     AooSize memPoolSize; /** size of RT memory pool */
 } AooSettings;
 
-/** \brief default initialization for AooSettings struct */
-AOO_INLINE void AooSettings_init(AooSettings *settings)
-{
-    AOO_STRUCT_INIT(settings, AooSettings, memPoolSize);
-    settings->allocFunc = NULL;
-    settings->logFunc = NULL;
-    settings->memPoolSize = AOO_MEM_POOL_SIZE;
+/** \brief default initializer for AooSettings struct */
+#define AOO_SETTINGS_INIT() {                   \
+    AOO_STRUCT_SIZE(AooSettings, memPoolSize),  \
+    NULL, NULL, AOO_MEM_POOL_SIZE               \
 }
 
 /**

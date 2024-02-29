@@ -222,8 +222,7 @@ int main(int argc, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    AooSettings settings;
-    AooSettings_init(&settings);
+    AooSettings settings = AOO_SETTINGS_INIT();
     settings.logFunc = log_function;
     if (auto err = aoo_initialize(&settings); err != kAooOk) {
         std::cout << "Could not initialize AOO library: "

@@ -24,9 +24,8 @@ int main(int argc, const char * arg[]) {
     AooServer *server;
 #endif
     AooFormatPcm format;
-    AooSettings settings;
 
-    AooSettings_init(&settings);
+    AooSettings settings = AOO_SETTINGS_INIT();
     aoo_initialize(&settings);
 
     source = AooSource_new(0, NULL);

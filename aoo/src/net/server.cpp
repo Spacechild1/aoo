@@ -319,7 +319,6 @@ AooError AOO_CALL aoo::net::Server::handleRequest(
 
     if (result == kAooErrorNone) {
         // request accepted
-
         // every request needs a response
         if (!response) {
             return kAooErrorBadArgument;
@@ -1020,11 +1019,12 @@ void Server::handle_login(client_endpoint& client, const osc::ReceivedMessage& m
         client.add_public_address(osc_read_address(it));
     }
 
-    AooRequestLogin request;
-    AOO_REQUEST_INIT(&request, Login, metadata);
+    AooRequestLogin request = AOO_REQUEST_LOGIN_INIT();
     request.version = version;
     request.password = pwd;
-    request.metadata = metadata ? &metadata.value() : nullptr;
+    if (metadata) {
+        request.metadata = &metadata.value();
+    }
     // check version
     if (auto err = check_version(version); err != kAooOk) {
         LOG_DEBUG("AooServer: client " << client.id() << ": version mismatch");
@@ -1045,9 +1045,7 @@ void Server::handle_login(client_endpoint& client, const osc::ReceivedMessage& m
     }
 
     if (!handle_request(client, token, (AooRequest&)request)) {
-        AooResponseLogin response;
-        AOO_RESPONSE_INIT(&response, Login, metadata);
-        response.metadata = nullptr;
+        AooResponseLogin response = AOO_RESPONSE_LOGIN_INIT();
 
         do_login(client, token, request, response);
     }
@@ -1090,17 +1088,22 @@ void Server::handle_group_join(client_endpoint& client, const osc::ReceivedMessa
     auto user_md = osc_read_metadata(it); // optional
     auto relay = osc_read_host(it); // optional
 
-    AooRequestGroupJoin request;
-    AOO_REQUEST_INIT(&request, GroupJoin, relayAddress);
+    AooRequestGroupJoin request = AOO_REQUEST_GROUP_JOIN_INIT();
     request.groupName = group_name;
     request.groupPwd = group_pwd;
     request.groupId = kAooIdInvalid; // to be created (override later)
-    request.groupMetadata = group_md ? &group_md.value() : nullptr;
+    if (group_md) {
+        request.groupMetadata = &group_md.value();
+    }
     request.userName = user_name;
     request.userPwd = user_pwd;
     request.userId = kAooIdInvalid; // to be created (override later)
-    request.userMetadata = user_md ? &user_md.value() : nullptr;
-    request.relayAddress = relay ? &relay.value() : nullptr;
+    if (user_md) {
+        request.userMetadata = &user_md.value();
+    }
+    if (relay) {
+        request.relayAddress = &relay.value();
+    }
 
     auto grp = find_group(request.groupName);
     user *usr = nullptr;
@@ -1142,16 +1145,7 @@ void Server::handle_group_join(client_endpoint& client, const osc::ReceivedMessa
     }
 
     if (!handle_request(client, token, (AooRequest&)request)) {
-        AooResponseGroupJoin response;
-        AOO_RESPONSE_INIT(&response, GroupJoin, relayAddress);
-        response.groupId = 0;
-        response.groupFlags = 0; // not used
-        response.groupMetadata = nullptr;
-        response.userId = 0;
-        response.userFlags = 0; // not used
-        response.userMetadata = nullptr;
-        response.privateMetadata = nullptr;
-        response.relayAddress = nullptr;
+        AooResponseGroupJoin response = AOO_RESPONSE_GROUP_JOIN_INIT();
 
         do_group_join(client, token, request, response);
     }
@@ -1247,12 +1241,10 @@ void Server::handle_group_leave(client_endpoint& client, const osc::ReceivedMess
     auto token = (AooId)(it++)->AsInt32();
     auto group = (it++)->AsInt32();
 
-    AooRequestGroupLeave request;
-    AOO_REQUEST_INIT(&request, GroupLeave, group);
+    AooRequestGroupLeave request = AOO_REQUEST_GROUP_LEAVE_INIT();
     request.group = group;
 
-    AooResponseGroupLeave response;
-    AOO_RESPONSE_INIT(&response, GroupLeave, structSize);
+    AooResponseGroupLeave response = AOO_RESPONSE_GROUP_LEAVE_INIT();
 
     if (!handle_request(client, token, (AooRequest&)request)) {
         do_group_leave(client, token, request, response);
@@ -1308,8 +1300,7 @@ void Server::handle_group_update(client_endpoint& client, const osc::ReceivedMes
         throw osc::MalformedMessageException("missing data");
     }
 
-    AooRequestGroupUpdate request;
-    AOO_REQUEST_INIT(&request, GroupUpdate, groupMetadata);
+    AooRequestGroupUpdate request = AOO_REQUEST_GROUP_UPDATE_INIT();
     request.groupId = group_id;
     request.groupMetadata = *md;
 
@@ -1325,8 +1316,7 @@ void Server::handle_group_update(client_endpoint& client, const osc::ReceivedMes
     }
 
     if (!handle_request(client, token, (AooRequest&)request)) {
-        AooResponseGroupUpdate response;
-        AOO_RESPONSE_INIT(&response, GroupUpdate, groupMetadata);
+        AooResponseGroupUpdate response = AOO_RESPONSE_GROUP_UPDATE_INIT();
         response.groupMetadata = request.groupMetadata;
 
         do_group_update(client, token, request, response);
@@ -1391,8 +1381,7 @@ void Server::handle_user_update(client_endpoint& client, const osc::ReceivedMess
         throw osc::MalformedMessageException("missing data");
     }
 
-    AooRequestUserUpdate request;
-    AOO_REQUEST_INIT(&request, UserUpdate, userMetadata);
+    AooRequestUserUpdate request = AOO_REQUEST_USER_UPDATE_INIT();
     request.groupId = group_id;
     request.userMetadata = *md;
 
@@ -1408,8 +1397,7 @@ void Server::handle_user_update(client_endpoint& client, const osc::ReceivedMess
     }
 
     if (!handle_request(client, token, (AooRequest&)request)) {
-        AooResponseUserUpdate response;
-        AOO_RESPONSE_INIT(&request, UserUpdate, userMetadata);
+        AooResponseUserUpdate response = AOO_RESPONSE_USER_UPDATE_INIT();
         response.userMetadata = request.userMetadata;
 
         do_user_update(client, token, request, response);
@@ -1473,8 +1461,7 @@ void Server::handle_custom_request(client_endpoint& client, const osc::ReceivedM
         throw osc::MalformedMessageException("missing data");
     }
 
-    AooRequestCustom request;
-    AOO_REQUEST_INIT(&request, Custom, flags);
+    AooRequestCustom request = AOO_REQUEST_CUSTOM_INIT();
     request.data = *data;
     request.flags = flags;
 

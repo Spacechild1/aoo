@@ -1269,8 +1269,7 @@ void Client::perform(const disconnect_cmd& cmd) {
 
     close();
 
-    AooResponseDisconnect response;
-    AOO_RESPONSE_INIT(&response, Disconnect, structSize);
+    AooResponseDisconnect response = AOO_RESPONSE_DISCONNECT_INIT();
 
     cmd.reply((AooResponse&)response); // always succeeds
 }
@@ -1358,16 +1357,23 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
             return;
         }
 
-        AooResponseGroupJoin response;
-        AOO_RESPONSE_INIT(&response, GroupJoin, relayAddress);
+        AooResponseGroupJoin response = AOO_RESPONSE_GROUP_JOIN_INIT();
         response.groupId = group_id;
         response.groupFlags = group_flags;
         response.userId = user_id;
         response.userFlags = user_flags;
-        response.groupMetadata = group_md ? &group_md.value() : nullptr;
-        response.userMetadata = user_md ? &user_md.value() : nullptr;
-        response.privateMetadata = private_md ? &private_md.value() : nullptr;
-        response.relayAddress = relay ? &relay.value() : nullptr;
+        if (group_md) {
+            response.groupMetadata = &group_md.value();
+        }
+        if (user_md) {
+            response.userMetadata = &user_md.value();
+        }
+        if (private_md) {
+            response.privateMetadata = &private_md.value();
+        }
+        if (relay) {
+            response.relayAddress = &relay.value();
+        }
 
         cmd.reply((AooResponse&)response);
         LOG_VERBOSE("AooClient: successfully joined group " << cmd.group_name_);
@@ -1429,8 +1435,7 @@ void Client::handle_response(const group_leave_cmd& cmd, const osc::ReceivedMess
             LOG_ERROR("AooClient: group leave response: not a member of group " << cmd.group_);
         }
 
-        AooResponseGroupLeave response;
-        AOO_RESPONSE_INIT(&response, GroupLeave, structSize);
+        AooResponseGroupLeave response = AOO_RESPONSE_GROUP_LEAVE_INIT();
 
         cmd.reply((AooResponse&)response);
         LOG_VERBOSE("AooClient: successfully left group " << cmd.group_);
@@ -1469,8 +1474,7 @@ void Client::handle_response(const group_update_cmd& cmd, const osc::ReceivedMes
     (it++)->AsInt32(); // skip token
     auto result = (it++)->AsInt32();
     if (result == kAooErrorNone) {
-        AooResponseGroupUpdate response;
-        AOO_RESPONSE_INIT(&response, GroupUpdate, groupMetadata);
+        AooResponseGroupUpdate response = AOO_RESPONSE_GROUP_UPDATE_INIT();
         response.groupMetadata.type = cmd.md_.type();
         response.groupMetadata.data = cmd.md_.data();
         response.groupMetadata.size = cmd.md_.size();
@@ -1513,8 +1517,7 @@ void Client::handle_response(const user_update_cmd& cmd, const osc::ReceivedMess
     (it++)->AsInt32(); // skip token
     auto result = (it++)->AsInt32();
     if (result == kAooErrorNone) {
-        AooResponseUserUpdate response;
-        AOO_RESPONSE_INIT(&response, UserUpdate, userMetadata);
+        AooResponseUserUpdate response = AOO_RESPONSE_USER_UPDATE_INIT();
         response.userMetadata.type = cmd.md_.type();
         response.userMetadata.data = cmd.md_.data();
         response.userMetadata.size = cmd.md_.size();
@@ -1790,11 +1793,12 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
             server_ping_timer_.reset();
 
             // notify
-            AooResponseConnect response;
-            AOO_RESPONSE_INIT(&response, Connect, metadata);
+            AooResponseConnect response = AOO_RESPONSE_CONNECT_INIT();
             response.clientId = id;
             response.version = version;
-            response.metadata = metadata ? &metadata.value() : nullptr;
+            if (metadata) {
+                response.metadata = &metadata.value();
+            }
 
             connection_->reply((AooResponse&)response);
         } else {
