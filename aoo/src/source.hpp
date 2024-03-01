@@ -251,7 +251,8 @@ class Source final : public AooSource, rt_memory_pool_client {
     AooId id() const { return id_.load(); }
 
     bool is_running() const {
-        return state_.load(std::memory_order_acquire) == stream_state::run;
+        auto state = stream_state_.load(std::memory_order_acquire) & stream_state_mask;
+        return state == stream_state::run;
     }
 
     void notify_start();
@@ -279,8 +280,25 @@ class Source final : public AooSource, rt_memory_pool_client {
     std::unique_ptr<AooFormat, format_deleter> format_;
     std::unique_ptr<AooCodec, encoder_deleter> encoder_;
     AooId format_id_ = kAooIdInvalid;
-    // state
     int32_t sequence_ = invalid_stream;
+    // metadata
+    // state_ actually is a aoo::flat_metadata pointer,
+    // but the lowest 4 bits contain the state.
+    using stream_state_type = uintptr_t;
+    static constexpr stream_state_type stream_state_mask = 15;
+    static constexpr stream_state_type metadata_mask = ~15;
+    enum stream_state : stream_state_type {
+        stop,
+        start,
+        run,
+        idle
+    };
+    stream_state_type stream_state() const {
+        return stream_state_.load(std::memory_order_relaxed) & stream_state_mask;
+    }
+    std::atomic<stream_state_type> stream_state_{stream_state::idle};
+    rt_metadata_ptr metadata_;
+    // timing
     uint64_t process_samples_ = 0;
     double stream_samples_ = 0;
     aoo::time_tag stream_tt_;
@@ -293,17 +311,6 @@ class Source final : public AooSource, rt_memory_pool_client {
     void reset_timer() {
         need_reset_timer_.store(true);
     }
-    enum class stream_state {
-        stop,
-        start,
-        run,
-        idle
-    };
-    std::atomic<stream_state> state_{stream_state::idle};
-    // metadata
-    rt_metadata_ptr metadata_;
-    bool metadata_accepted_{false};
-    sync::spinlock metadata_lock_;
     // timing
     time_dll dll_;
     parameter<AooSampleRate> realsr_{0};
@@ -350,6 +357,8 @@ class Source final : public AooSource, rt_memory_pool_client {
     parameter<char> resample_method_{ AOO_RESAMPLE_MODE };
 
     // helper methods
+    static void free_metadata(stream_state_type state);
+
     sink_desc * do_add_sink(const ip_address& addr, AooId id, AooId stream_id);
 
     bool do_remove_sink(const ip_address& addr, AooId id);
@@ -366,7 +375,9 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     bool need_resampling() const;
 
-    void make_new_stream(aoo::time_tag tt, bool notify);
+    void restart_stream();
+
+    void make_new_stream(aoo::time_tag tt, AooData *md);
 
     void add_xrun(int32_t nsamples);
 

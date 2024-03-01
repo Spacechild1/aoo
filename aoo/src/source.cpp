@@ -134,6 +134,15 @@ void sink_desc::activate(Source& s, bool b) {
 
 //---------------------- Source -------------------------//
 
+void aoo::Source::free_metadata(stream_state_type state) {
+    auto ptr = reinterpret_cast<AooData*>(state & metadata_mask);
+    if (ptr) {
+        assert(((stream_state_type)ptr & stream_state_mask) == 0);
+        auto size = flat_metadata_size(*ptr);
+        aoo::rt_deallocate(ptr, size);
+    }
+}
+
 AOO_API AooSource * AOO_CALL AooSource_new(AooId id, AooError *err) {
     try {
         if (err) {
@@ -157,7 +166,10 @@ AOO_API void AOO_CALL AooSource_free(AooSource *src){
     aoo::destroy(static_cast<aoo::Source *>(src));
 }
 
-aoo::Source::~Source() {}
+aoo::Source::~Source() {
+    // free previous (unaccepted) metadata, if any
+    free_metadata(stream_state_.load());
+}
 
 template<typename T>
 T& as(void *p){
@@ -231,9 +243,7 @@ AooError AOO_CALL aoo::Source::control(
     {
         auto newid = as<int32_t>(ptr);
         if (id_.exchange(newid) != newid){
-            // if playing, restart
-            auto expected = stream_state::run;
-            state_.compare_exchange_strong(expected, stream_state::start);
+            restart_stream();
         }
         break;
     }
@@ -476,9 +486,7 @@ AooError AOO_CALL aoo::Source::setup(
                 sequence_ = invalid_stream;
             }
 
-            // if playing, restart
-            auto expected = stream_state::run;
-            state_.compare_exchange_strong(expected, stream_state::start);
+            restart_stream();
         }
 
         reset_timer(); // always reset!
@@ -575,7 +583,7 @@ AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
 #if 1
     // NB: we must also check for requests, otherwise this would
     // break the /stop message.
-    if (state_.load() == stream_state::idle && requests_.empty()){
+    if (stream_state() == stream_state::idle && requests_.empty()){
         return kAooOk; // nothing to do
     }
 #endif
@@ -625,7 +633,7 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
     }
 #if 1
     // avoid piling up stream messages
-    if (state_.load(std::memory_order_relaxed) == stream_state::idle) {
+    if (stream_state() == stream_state::idle) {
         LOG_DEBUG("AooSource: ignore stream message (type: "
                   << aoo_dataTypeToString(message.type) << ", size: " << message.size
                   << ", offset: " << message.sampleOffset << ") while idle");
@@ -638,7 +646,7 @@ AooError AOO_CALL aoo::Source::addStreamMessage(const AooStreamMessage& message)
     }
 #endif
     uint64_t time;
-    if (state_.load(std::memory_order_relaxed) == stream_state::start) {
+    if (stream_state() == stream_state::start) {
         // This is the first block after startStream(), so we know that
         // we start from zero. NB: the stream will only be reset in the
         // process() function, so we must not use process_samples_!
@@ -668,7 +676,8 @@ AooError AOO_CALL aoo::Source::process(
     assert((flags_ & kAooFixedBlockSize) ? nsamples == blocksize_
                                          : nsamples <= blocksize_);
 
-    auto state = state_.load();
+    auto full_state = stream_state_.load(std::memory_order_relaxed);
+    auto state = full_state & stream_state_mask;
     if (state == stream_state::idle){
         if (!requests_.empty()) {
             return kAooOk; // user needs to call send()!
@@ -681,12 +690,10 @@ AooError AOO_CALL aoo::Source::process(
             s.stop(*this);
         }
 
-        // check if we have been started in the meantime
-        auto expected = stream_state::stop;
-        if (state_.compare_exchange_strong(expected, stream_state::idle)){
-            // don't return kAooIdle because we want to send the /stop messages !
-            return kAooOk;
-        }
+        // make sure that we haven't been started in the meantime
+        stream_state_.compare_exchange_strong(full_state, stream_state::idle);
+        // don't return kAooIdle because we want to send the /stop messages !
+        return kAooOk;
     } else if (state == stream_state::start){
         // start -> play
         // the mutex should be uncontended most of the time.
@@ -699,13 +706,14 @@ AooError AOO_CALL aoo::Source::process(
             return kAooErrorIdle; // ?
         }
 
-        make_new_stream(t, true);
-
-        // check if we have been stopped in the meantime
-        auto expected = stream_state::start;
-        if (!state_.compare_exchange_strong(expected, stream_state::run)){
+        // check if we have been stopped in the meantime; otherwise we
+        // atomically exchange the state and obtain the metadata, if any.
+        if (!stream_state_.compare_exchange_strong(full_state, stream_state::run)){
             return kAooErrorIdle; // pausing
         }
+        // now we own the metadata!
+        auto md = reinterpret_cast<AooData*>(full_state & metadata_mask);
+        make_new_stream(t, md);
     }
 
     // Always update timers, even if there are no sinks.
@@ -904,7 +912,8 @@ AooError AOO_CALL aoo::Source::startStream(const AooData *md) {
             return kAooErrorBadArgument;
         }
 
-        LOG_DEBUG("AooSource: start stream with " << md->type << " metadata");
+        LOG_DEBUG("AooSource: start stream with "
+                  << aoo_dataTypeToString(md->type) << " metadata");
     } else {
         LOG_DEBUG("AooSource: start stream");
     }
@@ -913,18 +922,16 @@ AooError AOO_CALL aoo::Source::startStream(const AooData *md) {
     AooData *metadata = nullptr;
     if (md && md->size > 0) {
         auto size = flat_metadata_size(*md);
-        metadata = (AooData *)rt_allocate(size);
+        metadata = (AooData *)aoo::rt_allocate(size);
+        assert(((stream_state_type)metadata & stream_state_mask) == 0);
         flat_metadata_copy(*md, *metadata);
     }
-    // exchange metadata
-    {
-        scoped_spinlock lock(metadata_lock_);
-        metadata_.reset(metadata);
-        // metadata needs to be "accepted" in make_new_stream()
-        metadata_accepted_ = false;
-    }
 
-    state_.store(stream_state::start);
+    // combine metadata pointer with stream state
+    auto state = stream_state::start | (stream_state_type)metadata;
+    auto oldstate = stream_state_.exchange(state);
+    // free previous (unaccepted) metadata, if any
+    free_metadata(oldstate);
 
     return kAooOk;
 }
@@ -934,7 +941,9 @@ AOO_API AooError AOO_CALL AooSource_stopStream(AooSource *source) {
 }
 
 AooError AOO_CALL aoo::Source::stopStream() {
-    state_.store(stream_state::stop);
+    auto oldstate = stream_state_.exchange(stream_state::stop);
+    // free previous (unaccepted) metadata, if any
+    free_metadata(oldstate);
     return kAooOk;
 }
 
@@ -1198,8 +1207,7 @@ AooError Source::set_format(AooFormat &f){
     update_historybuffer();
 
     // restart stream if playing, but invalidate current stream!
-    auto expected = stream_state::run;
-    state_.compare_exchange_strong(expected, stream_state::start);
+    restart_stream();
     sequence_ = invalid_stream;
 
     return kAooOk;
@@ -1241,21 +1249,23 @@ void Source::send_event(event_ptr e, AooThreadLevel level){
     }
 }
 
-// must be real-time safe because it might be called in process()!
-// always called with update lock!
-void Source::make_new_stream(aoo::time_tag tt, bool notify){
+void Source::restart_stream() {
+    // if playing, restart.
+    // NB: metadata always goes together with stream_state::start,
+    // but we only overwrite the state if it is stream_state::run!
+    stream_state_type expected = stream_state::run;
+    stream_state_.compare_exchange_strong(expected, stream_state::start);
+}
+
+// must be real-time safe; always called with update lock!
+void Source::make_new_stream(aoo::time_tag tt, AooData *md) {
     stream_tt_ = tt;
     sequence_ = 0;
     xrunblocks_.store(0.0); // !
     reset_timer();
 
-    // "accept" stream metadata, see send_start()
-    {
-        scoped_spinlock lock(metadata_lock_);
-        if (metadata_) {
-            metadata_accepted_ = true;
-        }
-    }
+    // "accept" and store stream metadata
+    metadata_.reset(md);
 
     // remove audio from previous stream
     resampler_.reset();
@@ -1286,9 +1296,7 @@ void Source::make_new_stream(aoo::time_tag tt, bool notify){
         s.start();
     }
 
-    if (notify) {
-        notify_start();
-    }
+    notify_start();
 }
 
 void Source::add_xrun(int32_t nsamples) {
@@ -1536,16 +1544,11 @@ void Source::send_start(const sendfn& fn){
 
     // cache stream metadata
     AooData *md = nullptr;
-    {
-        scoped_spinlock lock(metadata_lock_);
-        // only send metadata if "accepted" in make_new_stream().
-        if (metadata_accepted_) {
-            assert(metadata_ != nullptr);
-            assert(metadata_->size > 0);
-            auto mdsize = flat_metadata_size(*metadata_);
-            md = (AooData *)alloca(mdsize);
-            flat_metadata_copy(*metadata_, *md);
-        }
+    if (metadata_) {
+        assert(metadata_->size > 0);
+        auto mdsize = flat_metadata_size(*metadata_);
+        md = (AooData *)alloca(mdsize);
+        flat_metadata_copy(*metadata_, *md);
     }
 #if IDLE_IF_NO_SINKS
     // cache sinks that need to send a /start message
@@ -2264,7 +2267,7 @@ void Source::handle_stop_request(const osc::ReceivedMessage& msg,
     if (sink){
         // A stream can be considered stopped if the source is stopped (idle)
         // and/or the sink is deactivated.
-        auto state = state_.load(std::memory_order_relaxed);
+        auto state = stream_state();
         if (state == stream_state::idle || !sink->is_active()){
             // resend /stop message
             sink_request r(request_type::stop, sink->ep);
