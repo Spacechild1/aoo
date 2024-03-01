@@ -505,15 +505,13 @@ AooError AOO_CALL aoo::Sink::process(
         AooStreamMessageHandler messageHandler, void *user) {
     // check nsamples
     assert(fixed_blocksize() ? nsamples == blocksize_ : nsamples <= blocksize_);
-    // Always update timer and DLL, even if there are no sinks.
+    // Always update timers, even if there are no sources.
     // Do it *before* trying to lock the mutex.
     // (The DLL is only ever touched in this method.)
-    // NB: dynamic resampling requires fixed blocksize!
-    bool dynamic_resampling = dynamic_resampling_.load() && (flags_ & kAooFixedBlockSize);
-    AooNtpTime start_time = 0;
-    if (start_time_.compare_exchange_strong(start_time, t)) {
+    if (need_reset_timer_.exchange(false, std::memory_order_relaxed)) {
         // start timer
-        LOG_DEBUG("AooSource: start timer");
+        LOG_DEBUG("AooSink: start timer");
+        start_tt_ = t;
         elapsed_time_.store(0);
         // reset DLL
         auto bw = dll_bandwidth_.load();
@@ -521,22 +519,30 @@ AooError AOO_CALL aoo::Sink::process(
         realsr_.store(samplerate());
     } else {
         // advance timer
-        // NB: start_time has been updated by the CAS above!
-        auto elapsed = aoo::time_tag::duration(start_time, t);
+        auto elapsed = aoo::time_tag::duration(start_tt_, t);
         auto prev_elapsed = elapsed_time_.exchange(elapsed, std::memory_order_relaxed);
+        // NB: dynamic resampling requires fixed blocksize!
+        bool dynamic_resampling = dynamic_resampling_.load() && (flags_ & kAooFixedBlockSize);
         if (dynamic_resampling) {
-            // update time DLL
-            assert(nsamples == blocksize_);
-            dll_.update(elapsed);
-        #if AOO_DEBUG_DLL
-            LOG_DEBUG("AooSink: time elapsed: " << elapsed << ", period: "
-                      << dll_.period() << ", samplerate: " << dll_.samplerate());
-        #endif
-            realsr_.store(dll_.samplerate());
-        } else {
-            // directly calculate samplerate from timestamp
-            auto realsr = blocksize_ / (elapsed - prev_elapsed);
-            realsr_.store(realsr);
+            if (flags_ & kAooPreciseTimestamp) {
+                // directly calculate samplerate from timestamp
+                auto delta = elapsed - prev_elapsed;
+                if (delta > 0) {
+                    auto realsr = blocksize_ / delta;
+                    realsr_.store(realsr);
+                } else {
+                    LOG_WARNING("AooSource: bad time delta");
+                }
+            } else {
+                // update time DLL
+                assert(nsamples == blocksize_);
+                dll_.update(elapsed);
+            #if AOO_DEBUG_DLL
+                LOG_DEBUG("AooSink: time elapsed: " << elapsed << ", period: "
+                          << dll_.period() << ", samplerate: " << dll_.samplerate());
+            #endif
+                realsr_.store(dll_.samplerate());
+            }
         }
     }
 

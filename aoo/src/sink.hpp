@@ -403,12 +403,13 @@ private:
     source_list sources_;
     sync::mutex source_mutex_;
     // timing
-    parameter<AooSampleRate> realsr_{0};
     time_dll dll_;
-    std::atomic<AooNtpTime> start_time_{0};
+    parameter<AooSampleRate> realsr_{0};
+    AooNtpTime start_tt_{0};
     std::atomic<float> elapsed_time_ = 0;
+    std::atomic<bool> need_reset_timer_{false};
     void reset_timer() {
-        start_time_.store(0);
+        need_reset_timer_.store(true);
     }
     // options
     parameter<float> latency_{ AOO_SINK_LATENCY };

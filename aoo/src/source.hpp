@@ -280,13 +280,19 @@ class Source final : public AooSource, rt_memory_pool_client {
     std::unique_ptr<AooCodec, encoder_deleter> encoder_;
     AooId format_id_ = kAooIdInvalid;
     // state
+    int32_t sequence_ = invalid_stream;
     uint64_t process_samples_ = 0;
     double stream_samples_ = 0;
     aoo::time_tag stream_tt_;
-    int32_t sequence_ = invalid_stream;
+    aoo::time_tag start_tt_;
     std::atomic<float> xrunblocks_{0};
     std::atomic<float> last_ping_time_{0};
-    std::atomic<bool> needstart_{false};
+    std::atomic<float> elapsed_time_ = 0;
+    std::atomic<bool> need_start_{false};
+    std::atomic<bool> need_reset_timer_{false};
+    void reset_timer() {
+        need_reset_timer_.store(true);
+    }
     enum class stream_state {
         stop,
         start,
@@ -299,13 +305,8 @@ class Source final : public AooSource, rt_memory_pool_client {
     bool metadata_accepted_{false};
     sync::spinlock metadata_lock_;
     // timing
-    parameter<AooSampleRate> realsr_{0};
     time_dll dll_;
-    std::atomic<AooNtpTime> start_time_{0};
-    std::atomic<float> elapsed_time_ = 0;
-    void reset_timer() {
-        start_time_.store(0);
-    }
+    parameter<AooSampleRate> realsr_{0};
     // buffers and queues
     aoo::vector<AooByte> sendbuffer_;
     dynamic_resampler resampler_;

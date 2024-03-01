@@ -708,14 +708,14 @@ AooError AOO_CALL aoo::Source::process(
         }
     }
 
-    // Always update DLL filter, even if there are no sinks.
+    // Always update timers, even if there are no sinks.
     // Do it *before* trying to lock the mutex.
     // (The DLL is only ever touched in this method.)
     // NB: dynamic resampling requires fixed blocksize!
     bool dynamic_resampling = dynamic_resampling_.load() && (flags_ & kAooFixedBlockSize);
-    AooNtpTime start_time = 0;
-    if (start_time_.compare_exchange_strong(start_time, t)) {
+    if (need_reset_timer_.exchange(false, std::memory_order_relaxed)) {
         LOG_DEBUG("AooSource: start timer");
+        start_tt_ = t;
         elapsed_time_.store(0);
         // it is safe to set 'last_ping_time' after updating
         // the timer, because in the worst case the ping
@@ -727,22 +727,28 @@ AooError AOO_CALL aoo::Source::process(
         realsr_.store(samplerate_);
     } else {
         // advance timer
-        // NB: start_time has been updated by the CAS above!
-        auto elapsed = aoo::time_tag::duration(start_time, t);
+        auto elapsed = aoo::time_tag::duration(start_tt_, t);
         auto prev_elapsed = elapsed_time_.exchange(elapsed, std::memory_order_relaxed);
         if (dynamic_resampling) {
-            // update time DLL
-            assert(nsamples == blocksize_);
-            dll_.update(elapsed);
-        #if AOO_DEBUG_DLL
-            LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
-                      << dll_.period() << ", samplerate: " << dll_.samplerate());
-        #endif
-            realsr_.store(dll_.samplerate());
-        } else {
-            // directly calculate samplerate from timestamp
-            auto realsr = blocksize_ / (elapsed - prev_elapsed);
-            realsr_.store(realsr);
+            if (flags_ & kAooPreciseTimestamp) {
+                // directly calculate samplerate from timestamp
+                auto delta = elapsed - prev_elapsed;
+                if (delta > 0) {
+                    auto realsr = blocksize_ / delta;
+                    realsr_.store(realsr);
+                } else {
+                    LOG_WARNING("AooSource: bad time delta");
+                }
+            } else {
+                // update time DLL
+                assert(nsamples == blocksize_);
+                dll_.update(elapsed);
+            #if AOO_DEBUG_DLL
+                LOG_DEBUG("AooSource: time elapsed: " << elapsed << ", period: "
+                          << dll_.period() << ", samplerate: " << dll_.samplerate());
+            #endif
+                realsr_.store(dll_.samplerate());
+            }
         }
     }
 
@@ -1219,7 +1225,7 @@ void Source::push_request(const sink_request &r){
 
 void Source::notify_start(){
     LOG_DEBUG("AooSource: notify_start()");
-    needstart_.exchange(true, std::memory_order_release);
+    need_start_.exchange(true, std::memory_order_release);
 }
 
 void Source::send_event(event_ptr e, AooThreadLevel level){
@@ -1241,7 +1247,7 @@ void Source::make_new_stream(aoo::time_tag tt, bool notify){
     stream_tt_ = tt;
     sequence_ = 0;
     xrunblocks_.store(0.0); // !
-    reset_timer(); // the stream might have been idle!
+    reset_timer();
 
     // "accept" stream metadata, see send_start()
     {
@@ -1469,7 +1475,7 @@ void Source::dispatch_requests(const sendfn& fn){
 void Source::send_start(const sendfn& fn){
 #if 0
     // a) send /start message as soon as possible
-    if (!needstart_.exchange(false, std::memory_order_acquire)) {
+    if (!need_start_.exchange(false, std::memory_order_acquire)) {
         return;
     }
 
@@ -1480,7 +1486,7 @@ void Source::send_start(const sendfn& fn){
     }
 #else
     // b) send /start message only when audio is ready to be send
-    if (!needstart_.load(std::memory_order_relaxed)) {
+    if (!need_start_.load(std::memory_order_relaxed)) {
         return;
     }
 
@@ -1496,7 +1502,7 @@ void Source::send_start(const sendfn& fn){
     }
 
     // now we can finally send
-    if (!needstart_.exchange(false, std::memory_order_acquire)) {
+    if (!need_start_.exchange(false, std::memory_order_acquire)) {
         return;
     }
 #endif

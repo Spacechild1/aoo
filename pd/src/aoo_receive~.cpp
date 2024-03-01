@@ -263,6 +263,15 @@ static void aoo_receive_dll_bandwidth(t_aoo_receive *x, t_floatarg f)
     x->x_sink->setDllBandwidth(f);
 }
 
+static void aoo_receive_real_samplerate(t_aoo_receive *x)
+{
+    AooSampleRate sr;
+    x->x_sink->getRealSampleRate(sr);
+    t_atom msg;
+    SETFLOAT(&msg, sr);
+    outlet_anything(x->x_msgout, gensym("real_samplerate"), 1, &msg);
+}
+
 static void aoo_receive_packetsize(t_aoo_receive *x, t_floatarg f)
 {
     x->x_sink->setPacketSize(f);
@@ -899,6 +908,8 @@ void aoo_receive_tilde_setup(void)
                     gensym("dynamic_resampling"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_dll_bandwidth,
                     gensym("dll_bandwidth"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_receive_class, (t_method)aoo_receive_real_samplerate,
+                    gensym("real_samplerate"), A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_packetsize,
                     gensym("packetsize"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_ping,
