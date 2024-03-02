@@ -210,6 +210,13 @@ int main(int argc, const char **argv) {
             }
             argc--; argv++;
         }
+        if (argc > 0) {
+            std::cout << "Ignoring excess arguments: ";
+            for (int i = 0; i < argc; ++i) {
+                std::cout << argv[i] << " ";
+            }
+            std::cout << std::endl;
+        }
     } catch (const std::exception& e) {
         std::cout << "Bad argument for option '" << argv[0] << "'" << std::endl;
         return EXIT_FAILURE;
