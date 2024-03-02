@@ -5,9 +5,7 @@
 #include <thread>
 #include <vector>
 
-#ifdef _WIN32
-#include <winsock2.h>
-#else
+#ifndef _WIN32
 #include <sys/poll.h>
 #include <unistd.h>
 #include <netdb.h>

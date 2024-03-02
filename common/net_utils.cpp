@@ -606,10 +606,10 @@ void socket_error_print(const char *label)
     socket_set_errno(err); // restore errno!
 }
 
-int socket_udp(uint16_t port)
+int socket_udp(uint16_t port, bool reuse_port)
 {
 #if AOO_USE_IPv6
-    // prefer IPv6, but fall back to IPv4 if disabled
+    // prefer IPv6 (dual stack), but fall back to IPv4 if disabled
     ip_address bindaddr;
     int sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock >= 0){
@@ -632,6 +632,13 @@ int socket_udp(uint16_t port)
         socket_error_print("socket_udp");
         return -1;
     }
+    if (reuse_port) {
+        // set SO_REUSEADDR
+        if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
+            fprintf(stderr, "socket_udp: couldn't set SO_REUSEADDR\n");
+            fflush(stderr);
+        }
+    }
     // finally bind the socket
     if (bind(sock, bindaddr.address(), bindaddr.length()) != 0){
         auto err = socket_errno(); // cache errno
@@ -643,17 +650,17 @@ int socket_udp(uint16_t port)
     return sock; // success
 }
 
-int socket_tcp(uint16_t port)
+int socket_tcp(uint16_t port, bool reuse_port)
 {
 #if AOO_USE_IPv6
-    // prefer IPv6, but fall back to IPv4 if disabled
+    // prefer IPv6 (dualstack), but fall back to IPv4 if disabled
     ip_address bindaddr;
     int sock = socket(AF_INET6, SOCK_STREAM, 0);
     if (sock >= 0) {
         bindaddr = ip_address(port, ip_address::IPv6);
         // make dual stack socket by listening to both IPv4 and IPv6 packets
         if (socket_set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false)) {
-            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
+            fprintf(stderr, "socket_tcp: couldn't set IPV6_V6ONLY\n");
             fflush(stderr);
             // TODO: fall back to IPv4?
         }
@@ -669,14 +676,16 @@ int socket_tcp(uint16_t port)
         socket_error_print("socket_tcp");
         return -1;
     }
-    // set SO_REUSEADDR
-    if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
-        fprintf(stderr, "aoo_client: couldn't set SO_REUSEADDR\n");
-        fflush(stderr);
+    if (reuse_port) {
+        // set SO_REUSEADDR
+        if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
+            fprintf(stderr, "socket_tcp: couldn't set SO_REUSEADDR\n");
+            fflush(stderr);
+        }
     }
     // disable Nagle's algorithm
     if (socket_set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true)) {
-        fprintf(stderr, "aoo_client: couldn't set TCP_NODELAY\n");
+        fprintf(stderr, "socket_tcp: couldn't set TCP_NODELAY\n");
         fflush(stderr);
     }
     // finally bind the socket

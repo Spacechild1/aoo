@@ -9,7 +9,12 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
 
     receive_handler_ = std::move(receive);
 
-    auto sock = socket_udp(port);
+    // Don't try to reuse ports because it would lead to silent errors
+    // if the port is already taken by another application.
+    // Also, it can cause deadlocks when trying to signal the socket
+    // and join the network thread.
+    // TODO: figure out if some operating systems let UDP sockets linger.
+    auto sock = socket_udp(port, false);
     if (sock < 0) {
         auto e = socket_errno();
         throw udp_error(e, socket_strerror(e));

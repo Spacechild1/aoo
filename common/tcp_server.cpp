@@ -24,7 +24,7 @@ void tcp_server::start(int port, accept_handler accept, receive_handler receive)
         throw tcp_error(e, socket_strerror(e));
     }
 
-    listen_socket_ = socket_tcp(port);
+    listen_socket_ = socket_tcp(port, true);
     if (listen_socket_ < 0) {
         // cache errno
         auto e = socket_errno();

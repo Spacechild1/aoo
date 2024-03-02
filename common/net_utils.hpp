@@ -133,9 +133,9 @@ private:
 
 int socket_init();
 
-int socket_udp(uint16_t port);
+int socket_udp(uint16_t port, bool reuse_port = false);
 
-int socket_tcp(uint16_t port);
+int socket_tcp(uint16_t port, bool reuse_port = false);
 
 enum shutdown_method {
     shutdown_receive = 0,
