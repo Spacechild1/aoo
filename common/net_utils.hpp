@@ -9,6 +9,13 @@
 #include <vector>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <winsock2.h>
 typedef int socklen_t;
 struct sockaddr;
 #else
@@ -21,6 +28,18 @@ struct sockaddr;
 #endif
 
 namespace aoo {
+
+//-------------- error codes -------------//
+
+enum network_error {
+#ifdef _WIN32
+    timeout = WSAETIMEDOUT,
+    abort = WSAECONNABORTED
+#else
+    timeout = ETIMEDOUT,
+    abort = ECONNABORTED
+#endif
+};
 
 //-------------- ip_address --------------//
 
