@@ -497,14 +497,9 @@ private:
 
     void handle_pong(const osc::ReceivedMessage& msg);
 
-    void on_socket_error(int err);
+    void close_with_error(int err);
 
-    void on_exception(const char *what, const osc::Exception& err,
-                      const char *pattern = nullptr);
-
-    void close(AooError error = kAooErrorNone);
-
-    void do_close();
+    void close();
 
     group_membership * find_group_membership(const std::string& name);
 

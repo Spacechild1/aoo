@@ -179,11 +179,6 @@ static void aoo_server_handle_event(t_aoo_server *x, const AooEvent *event, int3
 
         break;
     }
-    case kAooEventError:
-    {
-        pd_error(x, "%s: %s", classname(x), event->error.errorMessage);
-        break;
-    }
     default:
         logpost(x, PD_DEBUG, "%s: unknown event type %d",
                 classname(x), event->type);

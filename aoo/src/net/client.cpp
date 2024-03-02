@@ -19,9 +19,7 @@
 #include <random>
 #endif
 
-#ifdef _WIN32
-# include <winsock2.h>
-#else
+#ifndef _WIN32
 # include <sys/poll.h>
 # include <sys/select.h>
 # include <sys/time.h>
@@ -80,7 +78,7 @@ AOO_API void AOO_CALL AooClient_free(AooClient *client){
 }
 
 aoo::net::Client::~Client() {
-    do_close();
+    close();
 }
 
 AOO_API AooError AOO_CALL AooClient_setup(
@@ -115,7 +113,7 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     }
 
     // in case run() has been called in non-blocking mode
-    do_close();
+    close();
 
     // get private/global network interfaces
     auto get_address = [](int sock, const char *host, int port,
@@ -184,7 +182,7 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                 auto result = server_ping_timer_.update(now, settings);
                 if (result.state == ping_state::inactive) {
                     LOG_ERROR("AooClient: server not responding");
-                    close();
+                    close_with_error(network_error::timeout);
                 } else if (result.ping) {
                     // send ping
                     auto msg = start_server_message();
@@ -221,12 +219,12 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
 
         // NB: in non-blocking mode, close() will be called in setup()!
         if (!nonBlocking) {
-            do_close();
+            close();
         }
 
         return kAooOk;
     } catch (const net::error& e) {
-        do_close();
+        close();
 
         return e.code();
     }
@@ -1192,7 +1190,8 @@ void Client::perform(const login_cmd& cmd) {
     state_.store(client_state::connecting);
 
     int err = try_connect(connection_->host_);
-    if (err != 0){
+    if (err != 0) {
+        // send error response and close connection
         auto msg = socket_strerror(err);
         connection_->reply_error(kAooErrorSocket, err, msg.c_str());
         close();
@@ -1249,6 +1248,7 @@ void Client::perform(const login_cmd& cmd) {
 
 void Client::perform(const timeout_cmd& cmd) {
     if (connection_ && state_.load() == client_state::handshake) {
+        // send error response and close connection
         connection_->reply_error(kAooErrorUDPHandshakeTimeOut);
         close();
     }
@@ -1267,7 +1267,7 @@ void Client::perform(const disconnect_cmd& cmd) {
         return;
     }
 
-    do_close();
+    close();
 
     AooResponseDisconnect response;
     AOO_RESPONSE_INIT(&response, Disconnect, structSize);
@@ -1648,16 +1648,16 @@ void Client::receive_data(){
                 handle_server_message(msg, packet.Size());
             });
         } catch (const osc::Exception& e) {
-            LOG_ERROR("AooClient: exception in receive_data: " << e.what());
-            on_exception("server TCP message", e);
+            LOG_ERROR("AooClient: exception in server TCP message: " << e.what());
+            close_with_error(network_error::abort);
         }
     } else if (result == 0) {
         // connection closed by the remote server
-        on_socket_error(0);
+        close_with_error(0);
     } else {
         int err = socket_errno();
         LOG_ERROR("AooClient: recv() failed (" << err << ")");
-        on_socket_error(err);
+        close_with_error(err);
     }
 }
 
@@ -1691,9 +1691,8 @@ void Client::send_server_message(const osc::OutboundPacketStream& msg) {
             // LOG_DEBUG("AooClient: sent " << res << " bytes");
         } else {
             auto err = socket_errno();
-
             LOG_ERROR("AooClient: send() failed (" << err << ")");
-            on_socket_error(err);
+            close_with_error(err);
             return;
         }
     }
@@ -1756,9 +1755,9 @@ void Client::handle_server_message(const osc::ReceivedMessage& msg, int32_t n){
             LOG_WARNING("AooClient: got unsupported message " << msg.AddressPattern());
         }
     } catch (const osc::Exception& e){
-        LOG_ERROR("AooClient: exception on handling " << msg.AddressPattern()
-                  << " message: " << e.what());
-        on_exception("server TCP message", e, msg.AddressPattern());
+        LOG_ERROR("AooClient: exception on handling TCP server message '" << msg.AddressPattern()
+                  << "': " << e.what());
+        close_with_error(network_error::abort);
     }
 }
 
@@ -1776,6 +1775,7 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
 
             // check version
             if (auto err = check_version(version); err != kAooOk) {
+                // send error response and close connection
                 LOG_WARNING("AooClient: login failed: " << aoo_strerror(err));
                 connection_->reply_error(err);
                 close();
@@ -1798,6 +1798,7 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
 
             connection_->reply((AooResponse&)response);
         } else {
+            // send error response and close connection
             auto code = (it++)->AsInt32();
             auto msg = (it++)->AsString();
             LOG_WARNING("AooClient: login failed: "
@@ -2014,11 +2015,8 @@ void Client::handle_peer_leave(const osc::ReceivedMessage& msg){
         // check if this relay is used by a peer
         for (auto& p : peers_) {
             if (p.need_relay() && p.relay_address() == addr) {
-                std::stringstream ss;
-                ss << p << " uses a relay provided by " << *peer
-                   << ", so the connection might stop working";
-                auto e = std::make_unique<error_event>(0, ss.str());
-                send_event(std::move(e));
+                LOG_WARNING(p << " uses a relay provided by " << *peer
+                            << ", so the connection might stop working");
             }
         }
         // remove from group relay list
@@ -2085,18 +2083,19 @@ bool Client::signal() {
     return socket_signal(event_socket_);
 }
 
-void Client::close(AooError error){
-    bool notify = state_.load() == client_state::connected;
+void Client::close_with_error(int err) {
+    auto notify = state_.load() == client_state::connected;
 
-    do_close();
+    close();
 
-    if (notify){
-        auto e = std::make_unique<disconnect_event>(error, aoo_strerror(error));
+    if (notify) {
+        auto msg = err != 0 ? "connection closed by server" : socket_strerror(err);
+        auto e = std::make_unique<disconnect_event>(err, std::move(msg));
         send_event(std::move(e));
     }
 }
 
-void Client::do_close() {
+void Client::close() {
     if (tcp_socket_>= 0){
         socket_close(tcp_socket_);
         tcp_socket_= -1;
@@ -2136,39 +2135,6 @@ Client::group_membership * Client::find_group_membership(AooId id) {
         }
     }
     return nullptr;
-}
-
-
-void Client::on_socket_error(int err){
-    char msg[256];
-    if (err != 0) {
-        socket_strerror(err, msg, sizeof(msg));
-    } else {
-        snprintf(msg, sizeof(msg), "connection closed by server");
-    }
-    auto e = std::make_unique<error_event>(err, msg);
-
-    send_event(std::move(e));
-
-    close();
-}
-
-void Client::on_exception(const char *what, const osc::Exception &err,
-                          const char *pattern){
-    char msg[256];
-    if (pattern){
-        snprintf(msg, sizeof(msg), "exception in %s (%s): %s",
-                 what, pattern, err.what());
-    } else {
-        snprintf(msg, sizeof(msg), "exception in %s: %s",
-                 what, err.what());
-    }
-
-    auto e = std::make_unique<error_event>(0, msg);
-
-    send_event(std::move(e));
-
-    close();
 }
 
 //---------------------- udp_client ------------------------//

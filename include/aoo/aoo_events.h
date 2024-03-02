@@ -132,7 +132,7 @@ typedef struct AooEventBase
 typedef struct AooEventError
 {
     AOO_EVENT_HEADER
-    /** platform specific error code for system errors */
+    /** platform- or application-specific error code */
     AooInt32 errorCode;
     const AooChar *errorMessage;
 } AooEventError;

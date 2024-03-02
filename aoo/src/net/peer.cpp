@@ -106,15 +106,8 @@ void peer::send(Client& client, const sendfn& fn, time_tag now,
                       << " connection to " << *this << "; timed out after "
                       << client.query_timeout() << " seconds");
 
-            std::stringstream ss;
-            ss << "couldn't establish connection with peer " << *this;
-
-            // TODO: do we really need to send the error event?
-            auto e1 = std::make_unique<error_event>(0, ss.str());
-            client.send_event(std::move(e1));
-
-            auto e2 = std::make_unique<peer_event>(kAooEventPeerTimeout, *this);
-            client.send_event(std::move(e2));
+            auto e = std::make_unique<peer_event>(kAooEventPeerTimeout, *this);
+            client.send_event(std::move(e));
 
             timeout_ = true;
 

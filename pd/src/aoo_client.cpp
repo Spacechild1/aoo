@@ -554,7 +554,7 @@ void aoo_client_handle_event(t_aoo_client *x, const AooEvent *event, int32_t lev
     }
     case kAooEventDisconnect:
     {
-        post("%s: disconnected from server", classname(x));
+        pd_error(x, "%s: disconnected from server", classname(x));
 
         x->x_peers.clear();
         x->x_groups.clear();
@@ -659,11 +659,6 @@ void aoo_client_handle_event(t_aoo_client *x, const AooEvent *event, int32_t lev
 
         outlet_anything(x->x_msgout, gensym("peer_ping"), 9, msg);
 
-        break;
-    }
-    case kAooEventError:
-    {
-        pd_error(x, "%s: %s", classname(x), event->error.errorMessage);
         break;
     }
     default:
