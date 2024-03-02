@@ -463,9 +463,9 @@ AOO_API AooError AOO_CALL AooClient_setEventHandler(
 AooError AOO_CALL aoo::net::Client::setEventHandler(
     AooEventHandler fn, void *user, AooEventMode mode)
 {
-    eventhandler_ = fn;
-    eventcontext_ = user;
-    eventmode_ = (AooEventMode)mode;
+    event_handler_ = fn;
+    event_context_ = user;
+    event_mode_ = (AooEventMode)mode;
     return kAooOk;
 }
 
@@ -474,7 +474,7 @@ AOO_API AooBool AOO_CALL AooClient_eventsAvailable(AooClient *client){
 }
 
 AooBool AOO_CALL aoo::net::Client::eventsAvailable(){
-    return !events_.empty();
+    return !event_queue_.empty();
 }
 
 AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client){
@@ -483,9 +483,9 @@ AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client){
 
 AooError AOO_CALL aoo::net::Client::pollEvents(){
     // always thread-safe
-    event_handler fn(eventhandler_, eventcontext_, kAooThreadLevelUnknown);
+    event_handler fn(event_handler_, event_context_, kAooThreadLevelUnknown);
     event_ptr e;
-    while (events_.try_pop(e)){
+    while (event_queue_.try_pop(e)){
         e->dispatch(fn);
     }
     return kAooOk;
@@ -1564,13 +1564,13 @@ void Client::perform(const message& m, const sendfn& fn) {
 
 void Client::send_event(event_ptr e)
 {
-    switch (eventmode_){
+    switch (event_mode_){
     case kAooEventModePoll:
-        events_.push(std::move(e));
+        event_queue_.push(std::move(e));
         break;
     case kAooEventModeCallback:
     {
-        event_handler fn(eventhandler_, eventcontext_, kAooThreadLevelNetwork);
+        event_handler fn(event_handler_, event_context_, kAooThreadLevelNetwork);
         e->dispatch(fn);
         break;
     }

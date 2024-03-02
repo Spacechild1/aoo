@@ -870,9 +870,9 @@ AOO_API AooError AOO_CALL AooSource_setEventHandler(
 
 AooError AOO_CALL aoo::Source::setEventHandler(
         AooEventHandler fn, void *user, AooEventMode mode){
-    eventhandler_ = fn;
-    eventcontext_ = user;
-    eventmode_ = mode;
+    event_handler_ = fn;
+    event_context_ = user;
+    event_mode_ = mode;
     return kAooOk;
 }
 
@@ -881,7 +881,7 @@ AOO_API AooBool AOO_CALL AooSource_eventsAvailable(AooSource *src){
 }
 
 AooBool AOO_CALL aoo::Source::eventsAvailable(){
-    return !eventqueue_.empty();
+    return !event_queue_.empty();
 }
 
 AOO_API AooError AOO_CALL AooSource_pollEvents(AooSource *src){
@@ -891,8 +891,8 @@ AOO_API AooError AOO_CALL AooSource_pollEvents(AooSource *src){
 AooError AOO_CALL aoo::Source::pollEvents(){
     // always thread-safe
     event_ptr e;
-    while (eventqueue_.try_pop(e)) {
-        eventhandler_(eventcontext_, &e->cast(), kAooThreadLevelUnknown);
+    while (event_queue_.try_pop(e)) {
+        event_handler_(event_context_, &e->cast(), kAooThreadLevelUnknown);
     }
     return kAooOk;
 }
@@ -1237,12 +1237,12 @@ void Source::notify_start(){
 }
 
 void Source::send_event(event_ptr e, AooThreadLevel level){
-    switch (eventmode_){
+    switch (event_mode_){
     case kAooEventModePoll:
-        eventqueue_.push(std::move(e));
+        event_queue_.push(std::move(e));
         break;
     case kAooEventModeCallback:
-        eventhandler_(eventcontext_, &e->cast(), level);
+        event_handler_(event_context_, &e->cast(), level);
         break;
     default:
         break;

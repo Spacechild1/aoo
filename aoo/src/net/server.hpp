@@ -274,10 +274,10 @@ private:
     void *request_context_{nullptr};
     // event handler
     using event_queue = aoo::unbounded_mpsc_queue<event_ptr>;
-    event_queue events_;
-    AooEventHandler eventhandler_ = nullptr;
-    void *eventcontext_ = nullptr;
-    AooEventMode eventmode_ = kAooEventModeNone;
+    event_queue event_queue_;
+    AooEventHandler event_handler_ = nullptr;
+    void *event_context_ = nullptr;
+    AooEventMode event_mode_ = kAooEventModeNone;
     // options
     ip_host global_relay_addr_;
     std::string password_;

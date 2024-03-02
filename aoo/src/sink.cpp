@@ -603,9 +603,9 @@ AOO_API AooError AOO_CALL AooSink_setEventHandler(
 AooError AOO_CALL aoo::Sink::setEventHandler(
         AooEventHandler fn, void *user, AooEventMode mode)
 {
-    eventhandler_ = fn;
-    eventcontext_ = user;
-    eventmode_ = mode;
+    event_handler_ = fn;
+    event_context_ = user;
+    event_mode_ = mode;
     return kAooOk;
 }
 
@@ -614,39 +614,18 @@ AOO_API AooBool AOO_CALL AooSink_eventsAvailable(AooSink *sink){
 }
 
 AooBool AOO_CALL aoo::Sink::eventsAvailable(){
-    if (!eventqueue_.empty()){
-        return true;
-    }
-
-    source_lock lock(sources_);
-    for (auto& src : sources_){
-        if (src.has_events()){
-            return true;
-        }
-    }
-
-    return false;
+    return !event_queue_.empty();
 }
 
 AOO_API AooError AOO_CALL AooSink_pollEvents(AooSink *sink){
     return sink->pollEvents();
 }
 
-#define EVENT_THROTTLE 1000
 
 AooError AOO_CALL aoo::Sink::pollEvents(){
-    int total = 0;
     event_ptr e;
-    while (eventqueue_.try_pop(e)){
-        eventhandler_(eventcontext_, &e->cast(), kAooThreadLevelUnknown);
-        total++;
-    }
-    source_lock lock(sources_);
-    for (auto& src : sources_){
-        total += src.poll_events(*this, eventhandler_, eventcontext_);
-        if (total > EVENT_THROTTLE){
-            break;
-        }
+    while (event_queue_.try_pop(e)){
+        event_handler_(event_context_, &e->cast(), kAooThreadLevelUnknown);
     }
     return kAooOk;
 }
@@ -709,21 +688,16 @@ AooError AOO_CALL aoo::Sink::uninviteAll() {
 namespace aoo {
 
 void Sink::send_event(event_ptr e, AooThreadLevel level) const {
-    switch (eventmode_){
+    switch (event_mode_){
     case kAooEventModePoll:
-        eventqueue_.push(std::move(e));
+        event_queue_.push(std::move(e));
         break;
     case kAooEventModeCallback:
-        eventhandler_(eventcontext_, &e->cast(), level);
+        event_handler_(event_context_, &e->cast(), level);
         break;
     default:
         break;
     }
-}
-
-// only called if mode is kAooEventModeCallback
-void Sink::call_event(event_ptr e, AooThreadLevel level) const {
-    eventhandler_(eventcontext_, &e->cast(), level);
 }
 
 void Sink::dispatch_requests(){
@@ -1156,7 +1130,7 @@ source_desc::source_desc(const ip_address& addr, AooId id, double time)
 #endif
 {
     // resendqueue_.reserve(256);
-    eventbuffer_.reserve(6); // start, stop, active, inactive, overrun, underrun
+    event_buffer_.reserve(6); // start, stop, active, inactive, overrun, underrun
     LOG_DEBUG("AooSink: source_desc");
 }
 
@@ -1468,14 +1442,14 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     if (first_stream){
         // first /start message -> source added.
         auto e = make_event<source_event>(kAooEventSourceAdd, ep);
-        send_event(s, std::move(e), kAooThreadLevelNetwork);
+        s.send_event(std::move(e), kAooThreadLevelNetwork);
         LOG_DEBUG("AooSink: add new source " << ep);
     }
 
     if (format_changed){
         // send "format" event
         auto e = make_event<format_change_event>(ep, fmt.header);
-        send_event(s, std::move(e), kAooThreadLevelNetwork);
+        s.send_event(std::move(e), kAooThreadLevelNetwork);
     }
 
     state_.store(source_state::start);
@@ -1740,7 +1714,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
     // store events in buffer and only dispatch at the very end,
     // after we release the lock!
-    assert(eventbuffer_.empty());
+    assert(event_buffer_.empty());
 
     auto state = state_.load(std::memory_order_acquire);
     // handle state transitions in a CAS loop
@@ -1753,19 +1727,19 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 if (stream_state_ != stream_state::inactive) {
                     // send missing /stop message
                     auto e = make_event<stream_stop_event>(ep);
-                    eventbuffer_.push_back(std::move(e));
+                    event_buffer_.push_back(std::move(e));
                 }
             #endif
 
                 // *move* metadata into event
                 auto e1 = make_event<stream_start_event>(ep, stream_tt_, metadata_.release());
-                eventbuffer_.push_back(std::move(e1));
+                event_buffer_.push_back(std::move(e1));
 
                 if (stream_state_ != stream_state::buffering) {
                     stream_state_ = stream_state::buffering;
                     LOG_DEBUG("AooSink: stream buffering");
                     auto e2 = make_event<stream_state_event>(ep, kAooStreamStateBuffering, 0);
-                    eventbuffer_.push_back(std::move(e2));
+                    event_buffer_.push_back(std::move(e2));
                 }
 
                 break; // continue processing
@@ -1794,7 +1768,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 lock.unlock(); // unlock before sending event!
 
                 auto e = make_event<stream_state_event>(ep, kAooStreamStateInactive, 0);
-                send_event(s, std::move(e), kAooThreadLevelAudio);
+                s.send_event(std::move(e), kAooThreadLevelAudio);
             }
             return false;
         }
@@ -1809,7 +1783,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
             stream_state_ = stream_state::buffering;
             LOG_DEBUG("AooSink: stream buffering");
             auto e = make_event<stream_state_event>(ep, kAooStreamStateBuffering, 0);
-            eventbuffer_.push_back(std::move(e));
+            queue_event(std::move(e));
         }
     }
 
@@ -1856,7 +1830,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
                 lock.unlock(); // unlock before sending event!
 
-                flush_event_buffer(s);
+                flush_events(s);
 
                 return false;
             }
@@ -1892,7 +1866,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
                 lock.unlock(); // unlock before sending event!
 
-                flush_event_buffer(s);
+                flush_events(s);
 
                 return false;
             }
@@ -1911,7 +1885,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
             LOG_DEBUG("AooSink: stream active (offset: " << offset << ")");
             auto e = make_event<stream_state_event>(ep, kAooStreamStateActive, offset);
-            eventbuffer_.push_back(std::move(e));
+            queue_event(std::move(e));
 
             // calculate and report latencies
             auto samples_to_ms = 1000. / (double)s.samplerate();
@@ -1955,38 +1929,27 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     // send events
     lock.unlock();
 
-    flush_event_buffer(s);
+    flush_events(s);
 
     if (stats.dropped > 0){
         // add to dropped blocks for packet loss reporting
         dropped_blocks_.fetch_add(stats.dropped, std::memory_order_relaxed);
         // push block dropped event
         auto e = make_event<block_drop_event>(ep, stats.dropped);
-        send_event(s, std::move(e), kAooThreadLevelAudio);
+        s.send_event(std::move(e), kAooThreadLevelAudio);
     }
     if (stats.resent > 0){
         // push block resent event
         auto e = make_event<block_resend_event>(ep, stats.resent);
-        send_event(s, std::move(e), kAooThreadLevelAudio);
+        s.send_event(std::move(e), kAooThreadLevelAudio);
     }
     if (stats.xrun > 0){
         // push block xrun event
         auto e = make_event<block_xrun_event>(ep, stats.xrun);
-        send_event(s, std::move(e), kAooThreadLevelAudio);
+        s.send_event(std::move(e), kAooThreadLevelAudio);
     }
 
     return true;
-}
-
-int32_t source_desc::poll_events(Sink& s, AooEventHandler fn, void *user){
-    // always lockfree!
-    int count = 0;
-    event_ptr e;
-    while (eventqueue_.try_pop(e)) {
-        fn(user, &e->cast(), kAooThreadLevelUnknown);
-        count++;
-    }
-    return count;
 }
 
 void source_desc::on_underrun(const Sink &s) {
@@ -1998,13 +1961,13 @@ void source_desc::on_underrun(const Sink &s) {
         LOG_DEBUG("AooSink: stream inactive");
         // TODO: read out partial data from resampler and set sample offset
         auto e = make_event<stream_state_event>(ep, kAooStreamStateInactive, 0);
-        eventbuffer_.push_back(std::move(e));
+        queue_event(std::move(e));
     }
 
     if (stopped_) {
         // we received a /stop message
         auto e = make_event<stream_stop_event>(ep);
-        eventbuffer_.push_back(std::move(e));
+        queue_event(std::move(e));
 
         // try to change source state to idle (if still running!)
         auto expected = source_state::run;
@@ -2057,14 +2020,16 @@ void source_desc::handle_underrun(const Sink& s){
     AooDecoder_reset(decoder_.get());
 #endif
 
-    auto e1 = make_event<source_event>(kAooEventBufferUnderrun, ep);
-    eventbuffer_.push_back(std::move(e1));
+    {
+        auto e = make_event<source_event>(kAooEventBufferUnderrun, ep);
+        queue_event(std::move(e));
+    }
 
     if (stream_state_ != stream_state::buffering) {
         stream_state_ = stream_state::buffering;
         LOG_DEBUG("AooSink: stream buffering");
-        auto e2 = make_event<stream_state_event>(ep, kAooStreamStateBuffering, 0);
-        eventbuffer_.push_back(std::move(e2));
+        auto e = make_event<stream_state_event>(ep, kAooStreamStateBuffering, 0);
+        queue_event(std::move(e));
     }
 
     underrun_ = false;
@@ -2155,7 +2120,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
               #endif
                 // TODO: report latency change?
                 auto e = make_event<source_event>(kAooEventBufferOverrun, ep);
-                eventbuffer_.push_back(std::move(e));
+                queue_event(std::move(e));
             }
             // fill gaps with placeholder blocks
             for (int32_t i = newest + 1; i < d.sequence; ++i) {
@@ -2544,7 +2509,7 @@ void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
                 if (offset >= 0) {
                     auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
                     auto e = make_event<stream_time_event>(ep, tt, offset);
-                    eventbuffer_.push_back(std::move(e));
+                    queue_event(std::move(e));
                 #if AOO_DEBUG_STREAM_MESSAGE
                     LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
                                                                             << ", offset: " << offset << ")");
@@ -2951,24 +2916,18 @@ void source_desc::reset_stream() {
     stream_offset_ = 0;
 }
 
-void source_desc::send_event(const Sink& s, event_ptr e, AooThreadLevel level){
-    switch (s.event_mode()){
-    case kAooEventModePoll:
-        eventqueue_.push(std::move(e));
-        break;
-    case kAooEventModeCallback:
-        s.call_event(std::move(e), level);
-        break;
-    default:
-        break;
-    }
+// NOTE: for kAooEventModeCallback we could theoretically
+// pass the event directly to Sink::send_event(),
+// but I'm not sure if it would make a real difference.
+void source_desc::queue_event(event_ptr e) {
+    event_buffer_.push_back(std::move(e));
 }
 
-void source_desc::flush_event_buffer(const Sink& s) {
-    for (auto& e : eventbuffer_) {
-        send_event(s, std::move(e), kAooThreadLevelAudio);
+void source_desc::flush_events(const Sink& s) {
+    for (auto& e : event_buffer_) {
+        s.send_event(std::move(e), kAooThreadLevelAudio);
     }
-    eventbuffer_.clear();
+    event_buffer_.clear();
 }
 
 } // aoo

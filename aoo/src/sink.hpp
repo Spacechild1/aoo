@@ -153,12 +153,6 @@ public:
 
     bool check_active(const Sink& s);
 
-    bool has_events() const {
-        return !eventqueue_.empty();
-    }
-
-    int32_t poll_events(Sink& s, AooEventHandler fn, void *user);
-
     AooError get_format(AooFormat& format, size_t size);
 
     AooError codec_control(AooCtl ctl, void *data, AooSize size);
@@ -298,12 +292,12 @@ private:
         data_requests_.push(r);
     }
     // events
-    using event_queue = lockfree::unbounded_mpsc_queue<event_ptr, aoo::rt_allocator<event_ptr>>;
-    event_queue eventqueue_;
+//    using event_queue = lockfree::unbounded_mpsc_queue<event_ptr, aoo::rt_allocator<event_ptr>>;
+//    event_queue event_queue_;
     using event_buffer = std::vector<event_ptr, aoo::allocator<event_ptr>>;
-    event_buffer eventbuffer_;
-    void send_event(const Sink& s, event_ptr e, AooThreadLevel level);
-    void flush_event_buffer(const Sink& s);
+    event_buffer event_buffer_;
+    void queue_event(event_ptr e);
+    void flush_events(const Sink& s);
     // thread synchronization
     sync::shared_mutex mutex_; // LATER replace with a spinlock?
 };
@@ -382,11 +376,9 @@ public:
 
     AooSeconds invite_timeout() const { return invite_timeout_.load(); }
 
-    AooEventMode event_mode() const { return eventmode_; }
+    AooEventMode event_mode() const { return event_mode_; }
 
     void send_event(event_ptr e, AooThreadLevel level) const;
-
-    void call_event(event_ptr e, AooThreadLevel level) const;
 private:
     // settings
     parameter<AooId> id_;
@@ -427,10 +419,10 @@ private:
 
     // events
     using event_queue = lockfree::unbounded_mpsc_queue<event_ptr, aoo::rt_allocator<event_ptr>>;
-    mutable event_queue eventqueue_;
-    AooEventHandler eventhandler_ = nullptr;
-    void *eventcontext_ = nullptr;
-    AooEventMode eventmode_ = kAooEventModeNone;
+    mutable event_queue event_queue_;
+    AooEventHandler event_handler_ = nullptr;
+    void *event_context_ = nullptr;
+    AooEventMode event_mode_ = kAooEventModeNone;
     // requests
     aoo::unbounded_mpsc_queue<source_request> requestqueue_;
     void push_request(const source_request& r){

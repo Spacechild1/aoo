@@ -330,10 +330,10 @@ class Source final : public AooSource, rt_memory_pool_client {
     message_prio_queue message_prio_queue_;
     // events
     using event_queue = lockfree::unbounded_mpsc_queue<event_ptr, aoo::rt_allocator<event_ptr>>;
-    event_queue eventqueue_;
-    AooEventHandler eventhandler_ = nullptr;
-    void *eventcontext_ = nullptr;
-    AooEventMode eventmode_ = kAooEventModeNone;
+    event_queue event_queue_;
+    AooEventHandler event_handler_ = nullptr;
+    void *event_context_ = nullptr;
+    AooEventMode event_mode_ = kAooEventModeNone;
     // requests
     aoo::unbounded_mpsc_queue<sink_request> requests_;
     // sinks
