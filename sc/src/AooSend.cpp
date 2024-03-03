@@ -441,8 +441,7 @@ void aoo_send_codec_set(AooSendUnit *unit, sc_msg_iter* args){
             auto param = args.gets();
 
         #if AOO_USE_CODEC_OPUS
-            if (!strcmp(codec, "opus")){
-                opus_int32 value;
+            if (!strcmp(codec, "opus")) {
                 if (!strcmp(param ,"bitrate")){
                     set_opus_bitrate(owner.source(), args);
                     return false; // done

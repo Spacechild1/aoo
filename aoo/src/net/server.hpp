@@ -59,7 +59,7 @@ public:
             const AooByte *data, AooInt32 size,
             const void *address, AooAddrSize addrlen) override;
 
-    AooError AOO_CALL quit() override;
+    AooError AOO_CALL stop() override;
 
     AooError AOO_CALL setEventHandler(
             AooEventHandler fn, void *user, AooEventMode mode) override;

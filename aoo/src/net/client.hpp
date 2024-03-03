@@ -108,7 +108,7 @@ public:
 
     AooError receive(bool nonblocking);
 
-    void quit() {
+    void stop() {
         udp_server_.stop();
     }
 
@@ -230,7 +230,7 @@ public:
 
     AooError AOO_CALL run(AooBool nonBlocking) override;
 
-    AooError AOO_CALL quit() override;
+    AooError AOO_CALL stop() override;
 
     AooError AOO_CALL send(AooBool nonBlocking) override;
 

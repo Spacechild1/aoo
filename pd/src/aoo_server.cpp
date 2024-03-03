@@ -39,7 +39,7 @@ struct t_aoo_server
 
 void t_aoo_server::close() {
     if (x_port > 0) {
-        x_server->quit();
+        x_server->stop();
         if (x_thread.joinable()) {
             x_thread.join();
         }

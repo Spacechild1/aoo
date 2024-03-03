@@ -38,8 +38,8 @@ AOO_API AooError AOO_CALL AooClient_setup(
 AOO_API AooError AOO_CALL AooClient_run(
         AooClient *client, AooBool nonBlocking);
 
-/** \copydoc AooClient::quit() */
-AOO_API AooError AOO_CALL AooClient_quit(AooClient *client);
+/** \copydoc AooClient::stop() */
+AOO_API AooError AOO_CALL AooClient_stop(AooClient *client);
 
 /** \copydoc AooClient::send() */
 AOO_API AooError AOO_CALL AooClient_send(

@@ -236,12 +236,12 @@ AooError AOO_CALL aoo::net::Server::handlePacket(
     return kAooOk;
 }
 
-AOO_API AooError AOO_CALL AooServer_quit(AooServer *server)
+AOO_API AooError AOO_CALL AooServer_stop(AooServer *server)
 {
-    return server->quit();
+    return server->stop();
 }
 
-AooError AOO_CALL aoo::net::Server::quit() {
+AooError AOO_CALL aoo::net::Server::stop() {
     tcp_server_.stop();
     udp_server_.stop();
     return kAooOk;

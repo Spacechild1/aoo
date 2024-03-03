@@ -306,7 +306,7 @@ int main(int argc, const char **argv) {
     }
 
     // stop server and join threads
-    g_server->quit();
+    g_server->stop();
     if (thread.joinable()) {
         thread.join();
     }

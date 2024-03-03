@@ -46,8 +46,8 @@ AOO_API AooError AOO_CALL AooServer_handlePacket(
     AooServer *server, const AooByte *data, AooInt32 size,
     const void *address, AooAddrSize addrlen);
 
-/** \copydoc AooServer::quit() */
-AOO_API AooError AOO_CALL AooServer_quit(AooServer *server);
+/** \copydoc AooServer::stop() */
+AOO_API AooError AOO_CALL AooServer_stop(AooServer *server);
 
 /* event handling */
 

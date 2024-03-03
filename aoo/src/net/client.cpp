@@ -230,16 +230,16 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
     }
 }
 
-AOO_API AooError AOO_CALL AooClient_quit(AooClient *client){
-    return client->quit();
+AOO_API AooError AOO_CALL AooClient_stop(AooClient *client){
+    return client->stop();
 }
 
-AooError AOO_CALL aoo::net::Client::quit(){
+AooError AOO_CALL aoo::net::Client::stop(){
     quit_.store(true);
     // signal send thread
     notify();
     // signal UPD receive thread
-    udp_client_.quit();
+    udp_client_.stop();
     // signal TCP thread
     if (!signal()){
         // force wakeup by closing the socket.

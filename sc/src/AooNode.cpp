@@ -46,7 +46,7 @@ AooNode::AooNode(World *world, int port) {
 
 AooNode::~AooNode() {
     // notify and quit client thread
-    client_->quit();
+    client_->stop();
     if (clientThread_.joinable()){
         clientThread_.join();
     }

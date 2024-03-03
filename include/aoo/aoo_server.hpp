@@ -87,8 +87,8 @@ public:
             const AooByte *data, AooInt32 size,
             const void *address, AooAddrSize addrlen) = 0;
 
-    /** \brief quit the AOO client from another thread */
-    virtual AooError AOO_CALL quit() = 0;
+    /** \brief stop the AOO client from another thread */
+    virtual AooError AOO_CALL stop() = 0;
 
     /* event handling */
 

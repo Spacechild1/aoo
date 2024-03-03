@@ -93,7 +93,7 @@ AooServer::AooServer(World *world, int port, const char *password)
 }
 
 AooServer::~AooServer() {
-    server_->quit();
+    server_->stop();
     if (thread_.joinable()) {
         thread_.join();
     }

@@ -437,9 +437,8 @@ t_node_imp::~t_node_imp()
 {
     pd_unbind(&x_proxy.x_pd, x_bindsym);
 
-    // notify quit
-    x_client->quit();
-    // join threads
+    // stop the client and join threads
+    x_client->stop();
     if (x_clientthread.joinable()){
         x_clientthread.join();
     }
