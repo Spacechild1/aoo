@@ -147,9 +147,6 @@ typedef struct AooCodecInterface
     AooCodecDeserializeFunc deserialize;
 } AooCodecInterface;
 
-#define AOO_CODEC_INTERFACE_SIZE \
-    AOO_STRUCT_SIZE(AooCodecInterface, deserialize)
-
 /*----------------- helper functions ----------------------*/
 
 /** \brief setup encoder

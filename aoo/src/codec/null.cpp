@@ -151,7 +151,7 @@ AooError AOO_CALL deserialize(
 }
 
 AooCodecInterface g_interface = {
-    AOO_CODEC_INTERFACE_SIZE,
+    AOO_STRUCT_SIZE(AooCodecInterface, deserialize),
     kAooCodecNull,
     // encoder
     NullCodec_new,

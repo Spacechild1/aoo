@@ -460,7 +460,7 @@ AooError deserialize(
 }
 
 AooCodecInterface g_interface = {
-    AOO_CODEC_INTERFACE_SIZE,
+    AOO_STRUCT_SIZE(AooCodecInterface, deserialize),
     kAooCodecOpus,
     // encoder
     Encoder_new,
