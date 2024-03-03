@@ -309,8 +309,8 @@ typedef struct AooEventGroupUpdate
 {
     AOO_EVENT_HEADER
     AooId groupId;
-    /** user who updated the group;
-     * `kAooIdInvalid` if updated by the server */
+    /** the user who updated the group;
+     * #kAooIdNone if updated on the server */
     AooId userId;
     AooData groupMetadata;
 } AooEventGroupUpdate;

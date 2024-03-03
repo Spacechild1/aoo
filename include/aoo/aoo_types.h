@@ -65,6 +65,10 @@ typedef AooInt32 AooId;
 
 /** \brief invalid AooId constant */
 #define kAooIdInvalid -1
+/** \brief alias for kAooIdInvalid */
+#define kAooIdNone kAooIdInvalid
+/** \brief alias for kAooIdInvalid */
+#define kAooIdAll kAooIdInvalid
 /** \brief smallest valid AooId */
 #define kAooIdMin 0
 /** \brief largest valid AooId */

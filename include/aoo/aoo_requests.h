@@ -193,8 +193,8 @@ typedef struct AooRequestGroupJoin
     /*------------------------ group ------------------------*/
     const AooChar *groupName;
     const AooChar *groupPwd;
-    AooId groupId; /* kAooIdInvalid if group does not exist (yet) */
-    /** The client who creates the group may provide group metadata
+    /** the group ID; #kAooIdNone if group does not exist (yet) */
+    AooId groupId;
      * in AooClient::joinGroup(). By default, the server just stores
      * the metadata and sends it to all subsequent users via this field.
      * However, it may also intercept the request and validate/modify the
@@ -204,8 +204,8 @@ typedef struct AooRequestGroupJoin
     /*------------------------ user ------------------------*/
     const AooChar *userName;
     const AooChar *userPwd;
-    AooId userId; /* kAooIdInvalid if user does not exist (yet) */
-    /** Each client may provide user metadata in AooClient::joinGroup().
+    /** the user ID; #kAooIdNone if user does not exist (yet) */
+    AooId userId;
      * By default, the server just stores the metadata and sends it to all
      * peers via AooEventPeer::metadata. However, it may also intercept
      * the request and validate/modify the metadata, or provide any kind of

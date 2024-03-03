@@ -774,7 +774,7 @@ void Server::update_group(group& grp, const AooData& md) {
 }
 
 void Server::update_user(const group& grp, user& usr, const AooData& md) {
-    LOG_DEBUG("AooServer: update group " << grp);
+    LOG_DEBUG("AooServer: update user " << usr << " in group " << grp);
 
     usr.set_metadata(md);
 

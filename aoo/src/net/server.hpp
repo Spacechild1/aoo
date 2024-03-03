@@ -260,7 +260,7 @@ private:
     // mutex for protecting the client and group list
     //
     // NB: shared_recursive_mutex only supports recursive shared
-    // locks if the top-level lock is exclusive! AFAICT, this is
+    // locks if the top-level lock is exclusive! AFAICT, this
     // should be ok since all API methods that may cause callback
     // invocations (events or requests) take a writer lock.
     //
