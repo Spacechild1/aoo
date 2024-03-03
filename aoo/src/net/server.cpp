@@ -367,11 +367,11 @@ AooError AOO_CALL aoo::net::Server::notifyClient(
         AooId client, const AooData &data) {
     sync::scoped_shared_lock lock(mutex_); // reader lock
 
-    if (find_client(client)) {
+    if (client == kAooIdInvalid || find_client(client)) {
         push_message(kAooIdInvalid, client, data);
         return kAooOk;
     } else {
-        LOG_ERROR("AooServer: notifyClient: can't find client!");
+        LOG_ERROR("AooServer: notifyClient: can't find client " << client << "!");
         return kAooErrorNotFound;
     }
 }
@@ -1674,7 +1674,18 @@ void Server::push_message(AooId group, AooId user, const AooData& data) {
 void Server::dispatch_message(const message &msg) {
     if (msg.group == kAooIdInvalid) {
         // client message
-        if (auto c = find_client(msg.user)) {
+        if (msg.user == kAooIdInvalid) {
+            // all clients
+            AooData data;
+            data.type = msg.type;
+            data.data = msg.data.data();
+            data.size = msg.data.size();
+
+            for (auto& [_, c] : clients_) {
+                c.send_notification(*this, data);
+            }
+        }else if (auto c = find_client(msg.user)) {
+            // single client
             AooData data;
             data.type = msg.type;
             data.data = msg.data.data();

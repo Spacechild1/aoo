@@ -850,6 +850,11 @@ AooError AOO_CALL aoo::net::Client::sendMessage(
     AooId group, AooId user, const AooData& msg,
     AooNtpTime timeStamp, AooFlag flags)
 {
+    // if 'group' is a wildcard, so must be 'user'!
+    if (group == kAooIdInvalid && user != kAooIdInvalid) {
+        return kAooErrorBadArgument;
+    }
+    // TODO: check group membership? See Server::notifyGroup()
     bool reliable = flags & kAooMessageReliable;
     message m(group, user, timeStamp, msg, reliable);
     udp_client_.queue_message(std::move(m));
@@ -2354,10 +2359,9 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
     }
 
     // send outgoing peer/group messages
-    message m;
-    while (messages_.try_pop(m)){
+    messages_.consume_all([&](const auto& m) {
         client.perform(m, fn);
-    }
+    });
 }
 
 void udp_client::start_handshake(const ip_address& remote) {

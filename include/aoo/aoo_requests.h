@@ -359,7 +359,7 @@ typedef struct AooRequestUserUpdate
     AOO_REQUEST_HEADER
     /** the group ID */
     AooId groupId;
-    /** the user ID (only on the server) */
+    /** the user ID (server-side only) */
     AooId userId;
     /** the new user metadata */
     AooData userMetadata;
