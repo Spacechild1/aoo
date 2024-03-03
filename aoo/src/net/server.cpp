@@ -1391,10 +1391,13 @@ void Server::handle_user_update(client_endpoint& client, const osc::ReceivedMess
         return;
     }
     // verify group membership (in addition to client-side check)
-    if (!grp->find_user(client)) {
+    // and get user ID.
+    auto usr = grp->find_user(client);
+    if (!usr) {
         client.send_error(*this, token, request.type, kAooErrorNotPermitted);
         return;
     }
+    request.userId = usr->id();
 
     if (!handle_request(client, token, (AooRequest&)request)) {
         AooResponseUserUpdate response = AOO_RESPONSE_USER_UPDATE_INIT();
@@ -1413,7 +1416,7 @@ AooError Server::do_user_update(client_endpoint &client, AooId token,
         return kAooErrorNotFound;
     }
 
-    auto usr = grp->find_user(client);
+    auto usr = grp->find_user(request.userId);
     if (!usr) {
         LOG_ERROR("AooServer: could not find user");
         return kAooErrorNotFound;

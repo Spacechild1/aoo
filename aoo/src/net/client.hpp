@@ -680,7 +680,8 @@ public:
 
     struct user_update_cmd : callback_cmd
     {
-        user_update_cmd(AooId group, const AooData &md, AooResponseHandler cb, void *context)
+        user_update_cmd(AooId group, const AooData &md,
+                        AooResponseHandler cb, void *context)
             : callback_cmd(cb, context),
               group_(group), md_(&md) {}
 

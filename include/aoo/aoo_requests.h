@@ -330,13 +330,14 @@ typedef struct AooRequestUserUpdate
 {
     AOO_REQUEST_HEADER
     AooId groupId;
+    AooId userId; /* server-only */
     AooData userMetadata;
 } AooRequestUserUpdate;
 
 /** \brief default initializer for AooRequestUserUpdate struct */
 #define AOO_REQUEST_USER_UPDATE_INIT() \
     { AOO_REQUEST_INIT(UserUpdate, userMetadata), kAooIdInvalid, \
-        { kAooDataUnspecified, NULL, 0 } }
+        kAooIdInvalid, { kAooDataUnspecified, NULL, 0 } }
 
 
 /** \brief response for updating a user
