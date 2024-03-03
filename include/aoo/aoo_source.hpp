@@ -18,12 +18,14 @@
 # include <memory>
 #endif
 
+/** \cond DO_NOT_DOCUMENT */
 typedef struct AooSource AooSource;
+/** \endcond */
 
 /** \brief create a new AOO source instance
  *
  * \param id the ID
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooSource instance on success; `NULL` on failure
  */
 AOO_API AooSource * AOO_CALL AooSource_new(AooId id, AooError *err);
@@ -226,7 +228,7 @@ public:
 
     /** \brief Set the stream format
      *
-     * \param[in,out] format Pointer to the format header.
+     * \param [in,out] format Pointer to the format header.
      * The format struct is validated and updated on success!
      *
      * This will change the streaming format and consequently start a new stream.
@@ -238,7 +240,7 @@ public:
 
     /** \brief Get the stream format
      *
-     * \param[out] format Pointer to an instance of `AooFormatStorage`
+     * \param [out] format Pointer to an instance of `AooFormatStorage`
      */
     AooError getFormat(AooFormatStorage& format) {
         return control(kAooCtlGetFormat, 0, AOO_ARG(format));

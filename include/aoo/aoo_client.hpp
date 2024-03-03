@@ -19,13 +19,15 @@
 # include <memory>
 #endif
 
+/** \cond DO_NOT_DOCUMENT */
 struct AooSource;
 struct AooSink;
 typedef struct AooClient AooClient;
+/** \endcond */
 
-/** \brief create a new AOO source instance
+/** \brief create a new AOO client instance
  *
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooClient instance on success; `NULL` on failure
  */
 AOO_API AooClient * AOO_CALL AooClient_new(AooError *err);
@@ -195,7 +197,7 @@ public:
      * \param password (optional) password
      * \param metadata (optional) metadata
      * \param cb callback function for server reply
-     * \param user user data passed to callback function
+     * \param context user data passed to callback function
      */
     virtual AooError AOO_CALL connect(
             const AooChar *hostName, AooInt32 port,
@@ -295,7 +297,7 @@ public:
      * Find group by name and return group ID
      *
      * \param groupName the group name
-     * \param[out] groupId group ID
+     * \param [out] groupId group ID
      */
     virtual AooError AOO_CALL findGroupByName(
             const AooChar *groupName, AooId *groupId) = 0;
@@ -305,8 +307,8 @@ public:
      * \note Threadsafe
      *
      * \param group the group ID
-     * \param[out] buffer the group name buffer
-     * \param[in,out] size the buffer size;
+     * \param [out] buffer the group name buffer
+     * \param [in,out] size the buffer size;
      *        updated to the actual size (excluding the 0 character)
      */
     virtual AooError AOO_CALL getGroupName(
@@ -320,10 +322,10 @@ public:
      *
      * \param groupName the group name
      * \param userName the user name
-     * \param[out] groupId (optional) group ID
-     * \param[out] userId (optional) user ID
-     * \param[out] address (optional) pointer to sockaddr storage
-     * \param[in][out] addrlen (optional) sockaddr storage size, updated to actual size
+     * \param [out] groupId (optional) group ID
+     * \param [out] userId (optional) user ID
+     * \param [out] address (optional) pointer to sockaddr storage
+     * \param [in,out] addrlen (optional) sockaddr storage size, updated to actual size
      */
     virtual AooError AOO_CALL findPeerByName(
             const AooChar *groupName, const AooChar *userName,
@@ -337,8 +339,8 @@ public:
      *
      * \param address the sockaddr
      * \param addrlen the sockaddr size
-     * \param[out] groupId group ID
-     * \param[out] userId user ID
+     * \param [out] groupId group ID
+     * \param [out] userId user ID
      */
     virtual AooError AOO_CALL findPeerByAddress(
             const void *address, AooAddrSize addrlen, AooId *groupId, AooId *userId) = 0;
@@ -349,11 +351,11 @@ public:
      *
      * \param group the group ID
      * \param user the user ID
-     * \param[out] (optional) groupNameBuf group name buffer
-     * \param[in,out] (optional) groupNameSize the group name buffer size;
+     * \param [out] groupNameBuffer (optional) group name buffer
+     * \param [in,out] groupNameSize (optional) the group name buffer size;
      *        updated to the actual size (excluding the 0 character)
-     * \param[out] (optional) userNameBuf user name buffer
-     * \param[in,out] (optional) userNameSize user name buffer size
+     * \param [out] userNameBuffer (optional) user name buffer
+     * \param [in,out] userNameSize (optional) user name buffer size
      *        updated to the actual size (excluding the 0 character)
      */
     virtual AooError AOO_CALL getPeerName(
@@ -363,8 +365,8 @@ public:
 
     /** \brief send a message to a peer or group
      *
-     * \param group the target group (#kAooIdInvalid for all groups)
-     * \param user the target user (#kAooIdInvalid for all group members)
+     * \param group the target group (#kAooIdAll for all groups)
+     * \param user the target user (#kAooIdAll for all group members)
      * \param msg the message
      * \param timeStamp future NTP time stamp or #kAooNtpTimeNow
      * \param flags contains one or more values from AooMessageFlags

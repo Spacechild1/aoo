@@ -10,7 +10,9 @@
 
 #include "aoo_config.h"
 
+/** \cond DO_NOT_DOCUMENT */
 #define AOO_ARG(x) ((void *)&x), sizeof(x)
+/** \endcond */
 
 /*------------------------------------------------------*/
 /*               AOO source/sink controls               */

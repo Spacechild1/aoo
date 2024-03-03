@@ -304,14 +304,17 @@ typedef struct AooEventGroupEject
     AooId groupId;
 } AooEventGroupEject;
 
-/** \brief group metadata has been updated */
+/** \brief group metadata has been updated,
+  * either by another user or on the server. */
 typedef struct AooEventGroupUpdate
 {
     AOO_EVENT_HEADER
+    /** the group ID */
     AooId groupId;
     /** the user who updated the group;
      * #kAooIdNone if updated on the server */
     AooId userId;
+    /** the new group metadata */
     AooData groupMetadata;
 } AooEventGroupUpdate;
 
@@ -319,8 +322,11 @@ typedef struct AooEventGroupUpdate
 typedef struct AooEventUserUpdate
 {
     AOO_EVENT_HEADER
+    /** the group ID */
     AooId groupId;
+    /** the user ID */
     AooId userId;
+    /** the new metadata */
     AooData userMetadata;
 } AooEventUserUpdate;
 
@@ -330,14 +336,22 @@ typedef struct AooEventUserUpdate
 typedef struct AooEventPeer
 {
     AOO_EVENT_HEADER
+    /** the group ID */
     AooId groupId;
+    /** the user ID */
     AooId userId;
+    /** the group name */
     const AooChar *groupName;
+    /** the user name */
     const AooChar *userName;
+    /** the socket address used for peer-to-peer communication */
     AooSockAddr address;
+    /** flags */
     AooPeerFlags flags;
+    /** the peer's AOO version string */
     const AooChar *version;
-    /** See AooResponseGroupJoin::userMetadata */
+    /** (optional) peer metadata,
+     * see AooResponseGroupJoin::userMetadata */
     const AooData *metadata;
 #if 0
     /** relay address provided by this peer,
@@ -398,7 +412,8 @@ typedef struct AooEventPeerMessage
     AooData data;
 } AooEventPeerMessage;
 
-/** \brief peer metadata has been updated */
+/** \brief peer metadata has been updated,
+ * either by another user or on the server. */
 typedef struct AooEventPeerUpdate
 {
     AOO_EVENT_HEADER

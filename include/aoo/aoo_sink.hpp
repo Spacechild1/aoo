@@ -18,12 +18,14 @@
 # include <memory>
 #endif
 
+/** \cond DO_NOT_DOCUMENT */
 typedef struct AooSink AooSink;
+/** \endcond */
 
 /** \brief create a new AOO sink instance
  *
  * \param id the ID
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooSink instance on success; `NULL` on failure
  */
 AOO_API AooSink * AOO_CALL AooSink_new(AooId id, AooError *err);
@@ -413,7 +415,7 @@ public:
     /** \brief Get the source stream format
      *
      * \param source The source endpoint.
-     * \param[out] format Pointer to an instance of `AooFormatStorage` or a similar struct
+     * \param [out] format Pointer to an instance of `AooFormatStorage` or a similar struct
      * that is large enough to hold any codec format. The `size` member in the format header
      * should contain the storage size; on success it is updated to the actual format size.
      */
@@ -424,7 +426,7 @@ public:
     /** \brief Get the current buffer fill ratio
      *
      * \param source The source endpoint.
-     * \param[out] ratio The current fill ratio (0.0: empty, 1.0: full)
+     * \param [out] ratio The current fill ratio (0.0: empty, 1.0: full)
      */
     AooError getBufferFillRatio(const AooEndpoint& source, double& ratio) {
         return control(kAooCtlGetBufferFillRatio, (AooIntPtr)&source, AOO_ARG(ratio));

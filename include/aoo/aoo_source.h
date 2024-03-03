@@ -14,12 +14,14 @@
 #include "aoo_events.h"
 #include "aoo_types.h"
 
+/** \cond DO_NOT_DOCUMENT */
 typedef struct AooSource AooSource;
+/** \endcond */
 
 /** \brief create a new AOO source instance
  *
  * \param id the ID
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooSource instance on success; `NULL` on failure
  */
 AOO_API AooSource * AOO_CALL AooSource_new(AooId id, AooError *err);

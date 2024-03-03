@@ -14,12 +14,14 @@
 #include "aoo_events.h"
 #include "aoo_types.h"
 
+/** \cond DO_NOT_DOCUMENT */
 typedef struct AooSink AooSink;
+/** \endcond */
 
 /** \brief create a new AOO sink instance
  *
  * \param id the ID
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooSink instance on success; `NULL` on failure
  */
 AOO_API AooSink * AOO_CALL AooSink_new(AooId id, AooError *err);

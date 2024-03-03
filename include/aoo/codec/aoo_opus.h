@@ -22,14 +22,17 @@
 
 struct AooSource;
 
+/** \cond DO_NOT_DOCUMENT */
 AOO_API AooError AOO_CALL AooSource_codecControl(
         AooSource *source,  AooCtl ctl, AooIntPtr index,
         void *data, AooSize size);
+/** \endcond */
 
 AOO_PACK_BEGIN
 
 /*---------------------------------------------------*/
 
+/** \brief name of Opus codec */
 #define kAooCodecOpus "opus"
 
 /** \brief Opus codec format */

@@ -21,7 +21,7 @@ AOO_PACK_BEGIN
 /** \brief base class for all codec classes */
 typedef struct AooCodec
 {
-    struct AooCodecInterface *cls;
+    struct AooCodecInterface *cls; /**< interface pointer */
 } AooCodec;
 
 /** \brief codec constructor */

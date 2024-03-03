@@ -10,6 +10,8 @@
 
 #include "aoo_config.h"
 
+/** \cond DO_NOT_DOCUMENT */
+
 /* check for C++11
  * NB: MSVC does not correctly set __cplusplus by default! */
 #if defined(__cplusplus) && (__cplusplus >= 201103L || ((defined(_MSC_VER) && _MSC_VER >= 1900)))
@@ -17,7 +19,6 @@
 #else
     #define AOO_HAVE_CXX11 0
 #endif
-
 
 #if defined(__cplusplus)
 # define AOO_INLINE inline
@@ -78,6 +79,8 @@
 # define AOO_PACK_END
 #endif
 
+/** \endcond */
+
 /*----------------------- utilities ------------------------*/
 
 /** \brief calculate the size of a versioned struct */
@@ -104,6 +107,8 @@
 #define kAooVersionTest 3
 
 /*------------------ OSC address patterns ------------------*/
+
+/** \cond DO_NOT_DOCUMENT */
 
 #define kAooMsgDomain "/aoo"
 #define kAooMsgDomainLen 4
@@ -186,7 +191,11 @@
 #define kAooMsgRequest "/request"
 #define kAooMsgRequestLen 8
 
+/** \endcond */
+
 /*------------------- binary messages ---------------------*/
+
+/** \cond DO_NOT_DOCUMENT */
 
 /* domain bit + type (uint8), size bit + cmd (uint8)
  * a) sink ID (uint8), source ID (uint8)
@@ -235,5 +244,7 @@ enum
     kAooBinMsgCmdRelayIPv4 = 0,
     kAooBinMsgCmdRelayIPv6 = 1
 };
+
+/** \endcond */
 
 /*---------------------------------------------------------*/

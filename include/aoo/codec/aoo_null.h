@@ -3,7 +3,7 @@
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
 /** \file
- * \brief dummy codec settings
+ * \brief null codec settings
  */
 
 #pragma once
@@ -18,6 +18,7 @@ AOO_PACK_BEGIN
 
 /*--------------------------------------------------*/
 
+/** \brief name of null codec */
 #define kAooCodecNull "null"
 
 /** \brief null codec format */

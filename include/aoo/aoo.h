@@ -59,10 +59,10 @@ AOO_API void AOO_CALL aoo_terminate(void);
 /**
  * \brief get the AOO version number
  *
- * \param[out] major major version
- * \param[out] minor minor version
- * \param[out] patch bugfix version
- * \param[out] test test or pre-release version
+ * \param [out] major major version
+ * \param [out] minor minor version
+ * \param [out] patch bugfix version
+ * \param [out] test test or pre-release version
  */
 AOO_API void AOO_CALL aoo_getVersion(
         AooInt32 *major, AooInt32 *minor, AooInt32 *patch, AooInt32 *test);
@@ -123,9 +123,9 @@ AOO_API AooSeconds AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2);
  *
  * \param msg the OSC message data
  * \param size the OSC message size
- * \param[out] type the AOO message type
- * \param[out] id the source/sink ID
- * \param[out] offset pointer to the start of the remaining address pattern
+ * \param [out] type the AOO message type
+ * \param [out] id the source/sink ID
+ * \param [out] offset pointer to the start of the remaining address pattern
  * \return error code
  */
 AOO_API AooError AOO_CALL aoo_parsePattern(
@@ -156,8 +156,8 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
  * \param ipAddress IP address string
  * \param port port number
  * \param type combination of supported IP types
- * \param[out] sockaddr sockaddr buffer
- * \param[in,out] addrlen sockaddr buffer size; updated to actual size
+ * \param [out] sockaddr sockaddr buffer
+ * \param [in,out] addrlen sockaddr buffer size; updated to actual size
  */
 AOO_API AooError aoo_ipEndpointToSockaddr(const AooChar *ipAddress, AooUInt16 port,
         AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
@@ -167,10 +167,10 @@ AOO_API AooError aoo_ipEndpointToSockaddr(const AooChar *ipAddress, AooUInt16 po
  *
  * \param sockaddr sockaddr struct
  * \param addrlen sockaddr size
- * \param[out] ipAddressBuffer buffer for IP address string
- * \param[in,out] ipAddressSize IP address buffer size; updated to actual size (excluding the 0 character)
- * \param[out] port port Number
- * \param[out] type (optional) IP type
+ * \param [out] ipAddressBuffer buffer for IP address string
+ * \param [in,out] ipAddressSize IP address buffer size; updated to actual size (excluding the 0 character)
+ * \param [out] port port Number
+ * \param [out] type (optional) IP type
  */
 AOO_API AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
         AooChar *ipAddressBuffer, AooSize *ipAddressSize, AooUInt16 *port, AooSocketFlags *type);
@@ -180,9 +180,9 @@ AOO_API AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
  *
  * Typically used to obtain more detailed information about kAooErrorSocket.
  *
- * \param[out] errorCode the error code
- * \param[out] errorMessageBuffer (optional) error message buffer
- * \param[in,out] errorMessageSize (optional) error message buffer size;
+ * \param [out] errorCode the error code
+ * \param [out] errorMessageBuffer (optional) error message buffer
+ * \param [in,out] errorMessageSize (optional) error message buffer size;
  *                updated to actual size (excluding the 0 character)
  */
 AOO_API AooError aoo_getLastSocketError(AooInt32 *errorCode,
@@ -193,9 +193,9 @@ AOO_API AooError aoo_getLastSocketError(AooInt32 *errorCode,
  *
  * Typically used to obtain more detailed information about kAooErrorSystem.
  *
- * \param[out] errorCode the error code
- * \param[out] errorMessageBuffer (optional) error message buffer
- * \param[in,out] errorMessageSize (optional) error message buffer size;
+ * \param [out] errorCode the error code
+ * \param [out] errorMessageBuffer (optional) error message buffer
+ * \param [in,out] errorMessageSize (optional) error message buffer size;
  *                updated to actual size (excluding the 0 character)
  */
 AOO_API AooError aoo_getLastSystemError(AooInt32 *errorCode,

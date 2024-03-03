@@ -116,6 +116,7 @@ typedef AooUInt64 AooNtpTime;
 /** \brief time point/interval in seconds */
 typedef double AooSeconds;
 
+/** \brief infinite duration */
 #define kAooInfinite -1.0
 
 /** \brief sample rate type */
@@ -129,6 +130,7 @@ typedef AooInt32 AooCtl;
 /** \brief socket address size type */
 typedef AooUInt32 AooAddrSize;
 
+/** \brief socket address */
 typedef struct AooSockAddr
 {
     const void *data;
@@ -311,6 +313,7 @@ AOO_FLAG(AooSocketFlags)
     kAooSocketIPv4Mapped = 0x04
 };
 
+/** dual-stack socket */
 #define kAooSocketDualStack (kAooSocketIPv6 | kAooSocketIPv4Mapped)
 
 /*------------------------------------------------------------------*/
@@ -383,7 +386,9 @@ AOO_ENUM(AooEventMode)
 
 /*------------------------------------------------------------------*/
 
+/** \cond DO_NOT_DOCUMENT */
 typedef union AooEvent AooEvent;
+/** \endcond */
 
 /** \brief event handler function
  *
@@ -443,6 +448,7 @@ AOO_FLAG(AooClientOptions)
 /** \brief settings for AooClient::setup() */
 typedef struct AooClientSettings
 {
+    /** struct size */
     AooSize structSize;
     /** option flags */
     AooClientOptions options;
@@ -476,6 +482,7 @@ AOO_FLAG(AooServerOptions)
 /** \brief settings for AooClient::setup() */
 typedef struct AooServerSettings
 {
+    /** struct size */
     AooSize structSize;
     /** option flags */
     AooServerOptions options;
@@ -551,6 +558,7 @@ typedef struct AooStreamMessage
     AooSize size;
 } AooStreamMessage;
 
+/** max. stream message size */
 #define kAooStreamMessageMaxSize 65535
 
 /*------------------------------------------------------------------*/
@@ -622,7 +630,9 @@ typedef struct AooPingSettings
 
 /*------------------------------------------------------------------*/
 
+/** \cond DO_NOT_DOCUMENT */
 typedef union AooRequest AooRequest;
+/** \endcond */
 
 /** \brief server request handler (to intercept client requests)
  * \param user user data
@@ -640,7 +650,9 @@ typedef AooBool (AOO_CALL *AooRequestHandler)(
 
 /*------------------------------------------------------------------*/
 
+/** \cond DO_NOT_DOCUMENT */
 typedef union AooResponse AooResponse;
+/** \endcond */
 
 /** \brief client response handler
  *

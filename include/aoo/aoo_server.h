@@ -17,11 +17,13 @@
 
 /*--------------------------------------------------------------*/
 
+/** \cond DO_NOT_DOCUMENT */
 typedef struct AooServer AooServer;
+/** \endcond */
 
-/** \brief create a new AOO source instance
+/** \brief create a new AOO server instance
  *
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooServer instance on success; `NULL` on failure
  */
 AOO_API AooServer * AOO_CALL AooServer_new(AooError *err);
@@ -150,7 +152,7 @@ AOO_INLINE AooError AooServer_setUseInternalRelay(AooServer *server, AooBool b)
     return AooServer_control(server, kAooCtlSetUseInternalRelay, 0, AOO_ARG(b));
 }
 
-/** \copydoc AooServer::setServerRelay() */
+/** \copydoc AooServer::getUseInternalRelay() */
 AOO_INLINE AooError AooServer_getUseInternalRelay(AooServer *server, AooBool* b)
 {
     return AooServer_control(server, kAooCtlGetUseInternalRelay, 0, AOO_ARG(*b));

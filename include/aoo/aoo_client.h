@@ -15,14 +15,15 @@
 #include "aoo_requests.h"
 #include "aoo_types.h"
 
+/** \cond DO_NOT_DOCUMENT */
 struct AooSource;
 struct AooSink;
-
 typedef struct AooClient AooClient;
+/** \endcond */
 
-/** \brief create a new AOO source instance
+/** \brief create a new AOO client instance
  *
- * \param[out] err (optional) error code on failure
+ * \param [out] err (optional) error code on failure
  * \return new AooClient instance on success; `NULL` on failure
  */
 AOO_API AooClient * AOO_CALL AooClient_new(AooError *err);

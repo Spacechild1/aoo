@@ -18,6 +18,7 @@ AOO_PACK_BEGIN
 
 /*--------------------------------------------------*/
 
+/** \brief name of PCM codec */
 #define kAooCodecPcm "pcm"
 
 /** \brief PCM bit depth values */
