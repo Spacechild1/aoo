@@ -382,11 +382,10 @@ public:
      * \param request request structure
      * \param callback function to be called on response
      * \param user user data passed to callback function
-     * \param flags additional flags
      */
     virtual AooError AOO_CALL sendRequest(
-            const AooRequest& request, AooResponseHandler callback,
-            void *user, AooFlag flags) = 0;
+            const AooRequest& request,
+            AooResponseHandler callback, void *user) = 0;
 
     /** \brief control interface
      *

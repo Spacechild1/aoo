@@ -294,13 +294,11 @@ public:
                                   AooChar *groupNameBuffer, AooSize *groupNameSize,
                                   AooChar *userNameBuffer, AooSize *userNameSize) override;
 
-    AooError AOO_CALL sendMessage(
-            AooId group, AooId user, const AooData& msg,
-            AooNtpTime timeStamp, AooFlag flags) override;
+    AooError AOO_CALL sendMessage(AooId group, AooId user, const AooData& msg,
+                                  AooNtpTime timeStamp, AooFlag flags) override;
 
-    AooError AOO_CALL sendRequest(
-            const AooRequest& request, AooResponseHandler callback,
-            void *user, AooFlag flags) override;
+    AooError AOO_CALL sendRequest(const AooRequest& request,
+                                  AooResponseHandler callback, void *user) override;
 
     AooError AOO_CALL control(
             AooCtl ctl, intptr_t index, void *ptr, size_t size) override;

@@ -158,7 +158,7 @@ AOO_API AooError AOO_CALL AooClient_sendMessage(
 /** \copydoc AooClient::sendRequest() */
 AOO_API AooError AOO_CALL AooClient_sendRequest(
         AooClient *client, const AooRequest *request,
-        AooResponseHandler callback, void *user, AooFlag flags);
+        AooResponseHandler callback, void *user);
 
 /** \copydoc AooClient::control */
 AOO_API AooError AOO_CALL AooClient_control(

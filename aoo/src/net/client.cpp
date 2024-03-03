@@ -867,15 +867,15 @@ AooError AOO_CALL aoo::net::Client::sendMessage(
 
 AOO_API AooError AOO_CALL AooClient_sendRequest(
         AooClient *client, const AooRequest *request,
-        AooResponseHandler callback, void *user, AooFlag flags) {
+        AooResponseHandler callback, void *user) {
     if (!request) {
         return kAooErrorBadArgument;
     }
-    return client->sendRequest(*request, callback, user, flags);
+    return client->sendRequest(*request, callback, user);
 }
 
 AooError AOO_CALL aoo::net::Client::sendRequest(
-        const AooRequest& request, AooResponseHandler callback, void *user, AooFlag flags)
+        const AooRequest& request, AooResponseHandler callback, void *user)
 {
     LOG_ERROR("AooClient: unknown request " << request.type);
     return kAooErrorNotImplemented;
