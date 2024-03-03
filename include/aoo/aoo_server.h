@@ -135,14 +135,14 @@ AOO_API AooError AOO_CALL AooServer_control(
 /** \copydoc AooServer::setPassword() */
 AOO_INLINE AooError AooServer_setPassword(AooServer *server, const AooChar *pwd)
 {
-    return AooServer_control(server, kAooCtlSetPassword, 0, AOO_ARG(pwd));
+    return AooServer_control(server, kAooCtlSetPassword, (AooIntPtr)pwd, NULL, 0);
 }
 
-/** \copydoc AooServer::setPassword() */
+/** \copydoc AooServer::setRelayHost() */
 AOO_INLINE AooError AooServer_setRelayHost(
     AooServer *server, const AooIpEndpoint *ep)
 {
-    return AooServer_control(server, kAooCtlSetRelayHost, 0, AOO_ARG(ep));
+    return AooServer_control(server, kAooCtlSetRelayHost, (AooIntPtr)ep, NULL, 0);
 }
 
 /** \copydoc AooServer::setUseInternalRelay() */

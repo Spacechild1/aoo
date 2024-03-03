@@ -66,7 +66,11 @@
 # define AOO_API AOO_EXPORT
 #endif
 
+/** \endcond */
+
 /*-------------------- struct packing ----------------------*/
+
+/** \cond DO_NOT_DOCUMENT */
 
 #if defined(__GNUC__)
 # define AOO_PACK_BEGIN _Pragma("pack(push,8)")

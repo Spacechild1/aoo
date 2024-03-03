@@ -625,9 +625,7 @@ AooError AOO_CALL aoo::net::Server::control(
     case kAooCtlSetPassword:
     {
         sync::scoped_lock lock(mutex_); // writer lock
-
-        CHECKARG(AooChar *);
-        auto pwd = as<AooChar*>(ptr);
+        auto pwd = reinterpret_cast<const AooChar *>(index);
         if (pwd) {
             password_ = encrypt(pwd);
         } else {
@@ -638,9 +636,7 @@ AooError AOO_CALL aoo::net::Server::control(
     case kAooCtlSetRelayHost:
     {
         sync::scoped_lock lock(mutex_); // writer lock
-
-        CHECKARG(AooIpEndpoint*);
-        auto ep = as<AooIpEndpoint*>(ptr);
+        auto ep = reinterpret_cast<const AooIpEndpoint *>(index);
         if (ep) {
             global_relay_addr_ = ip_host(*ep);
         } else {

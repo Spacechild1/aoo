@@ -956,7 +956,7 @@ AooError AOO_CALL aoo::net::Client::control(
         break;
     case kAooCtlAddInterfaceAddress:
     {
-        auto ifaddr = (const AooChar *)index;
+        auto ifaddr = reinterpret_cast<const AooChar *>(index);
         if (ifaddr == nullptr) {
             return kAooErrorBadArgument;
         }
@@ -977,7 +977,7 @@ AooError AOO_CALL aoo::net::Client::control(
     case kAooCtlRemoveInterfaceAddress:
     {
         sync::scoped_lock lock(interface_mutex_);
-        auto ifaddr = (const AooChar *)index;
+        auto ifaddr = reinterpret_cast<const AooChar *>(index);
         if (ifaddr != NULL) {
             if (auto it = std::find(interfaces_.begin(), interfaces_.end(), ifaddr);
                     it != interfaces_.end()) {
@@ -986,6 +986,7 @@ AooError AOO_CALL aoo::net::Client::control(
                 return kAooErrorNotFound;
             }
         } else {
+            // remove all
             interfaces_.clear();
         }
         break;

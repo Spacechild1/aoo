@@ -207,7 +207,7 @@ public:
     /** \brief set the server password */
     AooError setPassword(const AooChar *pwd)
     {
-        return control(kAooCtlSetPassword, 0, AOO_ARG(pwd));
+        return control(kAooCtlSetPassword, (AooIntPtr)pwd, NULL, 0);
     }
 
     /** \brief set external (global) relay host
@@ -217,7 +217,7 @@ public:
      *  If `ep` is `NULL`, the relay host is unset. */
     AooError setRelayHost(const AooIpEndpoint *ep)
     {
-        return control(kAooCtlSetRelayHost, 0, AOO_ARG(ep));
+        return control(kAooCtlSetRelayHost, (AooIntPtr)ep, NULL, 0);
     }
 
     /** \brief enabled/disable internal relay */

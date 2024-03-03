@@ -228,14 +228,14 @@ AOO_INLINE AooError AooClient_addInterfaceAddress(
 }
 
 /** \copydoc AooClient::removeInterfaceAddress() */
-AOO_INLINE AooError removeInterfaceAddress(
+AOO_INLINE AooError AooClient_removeInterfaceAddress(
     AooClient *client, const AooChar *address)
 {
     return AooClient_control(client, kAooCtlRemoveInterfaceAddress, (AooIntPtr)address, NULL, 0);
 }
 
 /** \copydoc AooClient::clearInterfaceAddresses() */
-AOO_INLINE AooError clearInterfaceAddresses(AooClient *client)
+AOO_INLINE AooError AooClient_clearInterfaceAddresses(AooClient *client)
 {
     return AooClient_control(client, kAooCtlRemoveInterfaceAddress, 0, NULL, 0);
 }
