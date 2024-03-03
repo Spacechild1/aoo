@@ -21,10 +21,9 @@ typedef struct AooSource AooSource;
 /** \brief create a new AOO source instance
  *
  * \param id the ID
- * \param [out] err (optional) error code on failure
  * \return new AooSource instance on success; `NULL` on failure
  */
-AOO_API AooSource * AOO_CALL AooSource_new(AooId id, AooError *err);
+AOO_API AooSource * AOO_CALL AooSource_new(AooId id);
 
 /** \brief destroy the AOO source instance */
 AOO_API void AOO_CALL AooSource_free(AooSource *source);

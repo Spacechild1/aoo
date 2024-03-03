@@ -857,7 +857,7 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
     x_msgout = outlet_new(&x_obj, 0);
 
     // create and initialize AooSink object
-    x_sink = AooSink::create(x_id, nullptr);
+    x_sink = AooSink::create(x_id);
 
     // set event handler
     x_sink->setEventHandler((AooEventHandler)aoo_receive_handle_event,

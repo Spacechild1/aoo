@@ -28,11 +28,11 @@ int main(int argc, const char * arg[]) {
     AooSettings settings = AOO_SETTINGS_INIT();
     aoo_initialize(&settings);
 
-    source = AooSource_new(0, NULL);
-    sink = AooSink_new(0, NULL);
+    source = AooSource_new(0);
+    sink = AooSink_new(0);
 #if AOO_NET
-    client = AooClient_new(NULL);
-    server = AooServer_new(NULL);
+    client = AooClient_new();
+    server = AooServer_new();
 #endif
 
     AooSource_setup(source, 2, SAMPLERATE, BUFFERSIZE, 0);

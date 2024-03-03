@@ -25,10 +25,9 @@ typedef struct AooSink AooSink;
 /** \brief create a new AOO sink instance
  *
  * \param id the ID
- * \param [out] err (optional) error code on failure
  * \return new AooSink instance on success; `NULL` on failure
  */
-AOO_API AooSink * AOO_CALL AooSink_new(AooId id, AooError *err);
+AOO_API AooSink * AOO_CALL AooSink_new(AooId id);
 
 /** \brief destroy the AOO sink instance */
 AOO_API void AOO_CALL AooSink_free(AooSink *sink);
@@ -52,10 +51,10 @@ public:
 
     /** \brief create a new managed AOO sink instance
      *
-     * \copydetails AooSink_new()
+     * \return valid Ptr on success; empty Ptr on failure
      */
-    static Ptr create(AooId id, AooError *err) {
-        return Ptr(AooSink_new(id, err));
+    static Ptr create(AooId id) {
+        return Ptr(AooSink_new(id));
     }
 #endif
 

@@ -52,16 +52,10 @@ const int32_t kBinDataHeaderSize = kAooBinMsgLargeHeaderSize + 8;
 
 //------------------------- Sink ------------------------------//
 
-AOO_API AooSink * AOO_CALL AooSink_new(AooId id, AooError *err) {
+AOO_API AooSink * AOO_CALL AooSink_new(AooId id) {
     try {
-        if (err) {
-            *err = kAooErrorNone;
-        }
         return aoo::construct<aoo::Sink>(id);
     } catch (const std::bad_alloc&) {
-        if (err) {
-            *err = kAooErrorOutOfMemory;
-        }
         return nullptr;
     }
 }

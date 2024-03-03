@@ -230,11 +230,9 @@ int main(int argc, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    AooError err;
-    g_server = AooServer::create(&err);
+    g_server = AooServer::create();
     if (!g_server) {
-        std::cout << "Could not create AooServer: "
-                  << aoo_strerror(err) << std::endl;
+        std::cout << "Could not create AooServer" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -245,7 +243,7 @@ int main(int argc, const char **argv) {
 
     AooServerSettings server_settings = AOO_SERVER_SETTINGS_INIT();
     server_settings.portNumber = port;
-    err = g_server->setup(server_settings);
+    auto err = g_server->setup(server_settings);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {

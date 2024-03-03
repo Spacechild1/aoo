@@ -342,7 +342,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
     : x_proxy(this), x_bindsym(s), x_port(port)
 {
     LOG_DEBUG("create AooClient on port " << port);
-    auto client = AooClient::create(nullptr);
+    auto client = AooClient::create();
 
     client->setEventHandler([](void *user, const AooEvent *event, AooThreadLevel level) {
         auto x = static_cast<t_node_imp *>(user);

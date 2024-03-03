@@ -53,7 +53,7 @@ namespace sc {
 AooServer::AooServer(World *world, int port, const char *password)
     : world_(world), port_(port)
 {
-    server_ = ::AooServer::create(nullptr); // does not really fail
+    server_ = ::AooServer::create(); // does not really fail
 
     // first set event handler!
     server_->setEventHandler([](void *x, const AooEvent *e, AooThreadLevel) {

@@ -134,25 +134,10 @@ void sink_desc::activate(Source& s, bool b) {
 
 //---------------------- Source -------------------------//
 
-void aoo::Source::free_metadata(stream_state_type state) {
-    auto ptr = reinterpret_cast<AooData*>(state & metadata_mask);
-    if (ptr) {
-        assert(((stream_state_type)ptr & stream_state_mask) == 0);
-        auto size = flat_metadata_size(*ptr);
-        aoo::rt_deallocate(ptr, size);
-    }
-}
-
-AOO_API AooSource * AOO_CALL AooSource_new(AooId id, AooError *err) {
+AOO_API AooSource * AOO_CALL AooSource_new(AooId id) {
     try {
-        if (err) {
-            *err = kAooErrorNone;
-        }
         return aoo::construct<aoo::Source>(id);
     } catch (const std::bad_alloc&) {
-        if (err) {
-            *err = kAooErrorOutOfMemory;
-        }
         return nullptr;
     }
 }
@@ -1074,6 +1059,15 @@ AooError AOO_CALL aoo::Source::handleUninvite(const AooEndpoint& ep, AooId token
 //------------------------- source --------------------------------//
 
 namespace aoo {
+
+void Source::free_metadata(stream_state_type state) {
+    auto ptr = reinterpret_cast<AooData*>(state & metadata_mask);
+    if (ptr) {
+        assert(((stream_state_type)ptr & stream_state_mask) == 0);
+        auto size = flat_metadata_size(*ptr);
+        aoo::rt_deallocate(ptr, size);
+    }
+}
 
 sink_desc * Source::find_sink(const ip_address& addr, AooId id){
     for (auto& sink : sinks_){

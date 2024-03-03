@@ -24,7 +24,7 @@ void AooSend::init(int32_t port, AooId id) {
                 auto cmd = (OpenCmd *)data;
                 auto node = INode::get(world, cmd->port);
                 if (node){
-                    AooSource *source = AooSource_new(cmd->id, nullptr);
+                    AooSource *source = AooSource_new(cmd->id);
                     if (source){
                         source->setEventHandler(
                             [](void *user, const AooEvent *event, int32_t){

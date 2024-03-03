@@ -47,16 +47,10 @@ std::string response_error_message(AooError result, int code, const char *msg) {
 
 //--------------------- AooClient -----------------------------//
 
-AOO_API AooClient * AOO_CALL AooClient_new(AooError *err) {
+AOO_API AooClient * AOO_CALL AooClient_new(void) {
     try {
-        if (err) {
-            *err = kAooErrorNone;
-        }
         return aoo::construct<aoo::net::Client>();
     } catch (const std::bad_alloc&) {
-        if (err) {
-            *err = kAooErrorOutOfMemory;
-        }
         return nullptr;
     }
 }

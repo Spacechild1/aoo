@@ -29,10 +29,9 @@ typedef struct AooServer AooServer;
 
 /** \brief create a new AOO server instance
  *
- * \param [out] err (optional) error code on failure
  * \return new AooServer instance on success; `NULL` on failure
  */
-AOO_API AooServer * AOO_CALL AooServer_new(AooError *err);
+AOO_API AooServer * AOO_CALL AooServer_new(void);
 
 /** \brief destroy AOO server instance */
 AOO_API void AOO_CALL AooServer_free(AooServer *server);
@@ -56,10 +55,10 @@ public:
 
     /** \brief create a new managed AOO server instance
      *
-     * \copydetails AooServer_new()
+     * \return valid Ptr on success; empty Ptr failure
      */
-    static Ptr create(AooError *err) {
-        return Ptr(AooServer_new(err));
+    static Ptr create() {
+        return Ptr(AooServer_new());
     }
 #endif
 

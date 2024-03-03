@@ -5,7 +5,7 @@
 AooNode::AooNode(World *world, int port) {
     LOG_DEBUG("create AooClient on port " << port);
 
-    client_ = AooClient::create(nullptr);
+    client_ = AooClient::create();
 
     AooClientSettings settings = AOO_CLIENT_SETTINGS_INIT();
     settings.portNumber = port;
