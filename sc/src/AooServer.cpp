@@ -65,8 +65,7 @@ AooServer::AooServer(World *world, int port, const char *password)
     }
 
     // setup server
-    AooServerSettings settings;
-    AooServerSettings_init(&settings);
+    AooServerSettings settings = AOO_SERVER_SETTINGS_INIT();
     settings.portNumber = port;
     if (auto err = server_->setup(settings);
             err != kAooOk) {

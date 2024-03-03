@@ -455,16 +455,10 @@ typedef struct AooClientSettings
     void *userData;
 } AooClientSettings;
 
-/** \brief default initialization for AooClientSettings struct */
-AOO_INLINE void AooClientSettings_init(AooClientSettings *settings)
-{
-    AOO_STRUCT_INIT(settings, AooClientSettings, userData);
-    settings->portNumber = 0;
-    settings->socketType = kAooSocketDefault;
-    settings->options = 0;
-    settings->sendFunc = 0;
-    settings->userData = 0;
-}
+/** \brief default initializer for AooClientSettings struct */
+#define AOO_CLIENT_SETTINGS_INIT() \
+    { AOO_STRUCT_SIZE(AooClientSettings, userData), 0, 0, \
+        kAooSocketDefault, NULL, NULL }
 
 /*------------------------------------------------------------------*/
 
@@ -492,16 +486,10 @@ typedef struct AooServerSettings
     void *userData;
 } AooServerSettings;
 
-/** \brief default initialization for AooServerSettings struct */
-AOO_INLINE void AooServerSettings_init(AooServerSettings *settings)
-{
-    AOO_STRUCT_INIT(settings, AooServerSettings, userData);
-    settings->portNumber = 0;
-    settings->socketType = kAooSocketDefault;
-    settings->options = 0;
-    settings->sendFunc = 0;
-    settings->userData = 0;
-}
+/** \brief default initializer for AooServerSettings struct */
+#define AOO_SERVER_SETTINGS_INIT() \
+    { AOO_STRUCT_SIZE(AooServerSettings, userData), 0, 0, \
+        kAooSocketDefault, NULL, NULL }
 
 /*------------------------------------------------------------------*/
 

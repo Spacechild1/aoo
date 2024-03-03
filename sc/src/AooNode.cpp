@@ -7,8 +7,7 @@ AooNode::AooNode(World *world, int port) {
 
     client_ = AooClient::create(nullptr);
 
-    AooClientSettings settings;
-    AooClientSettings_init(&settings);
+    AooClientSettings settings = AOO_CLIENT_SETTINGS_INIT();
     settings.portNumber = port;
     if (auto err = client_->setup(settings); err != kAooOk) {
         // TODO: throw error

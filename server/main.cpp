@@ -243,8 +243,7 @@ int main(int argc, const char **argv) {
         g_server->setEventHandler(handle_event, nullptr, kAooEventModeCallback);
     }
 
-    AooServerSettings server_settings;
-    AooServerSettings_init(&server_settings);
+    AooServerSettings server_settings = AOO_SERVER_SETTINGS_INIT();
     server_settings.portNumber = port;
     err = g_server->setup(server_settings);
     if (err != kAooOk) {
