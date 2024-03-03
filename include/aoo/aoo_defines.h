@@ -3,9 +3,7 @@
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
 /** \file
- * \brief types and constants
- *
- * contains typedefs, constants, enumerations and struct declarations
+ * \brief macros and enumerations
  */
 
 #pragma once

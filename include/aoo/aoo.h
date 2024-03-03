@@ -4,9 +4,7 @@
 
 /** \file
  * \brief main library API
- *
- * This file contains default values and important library routines.
- * It also describes the public OSC interface. */
+ */
 
 #pragma once
 
@@ -20,14 +18,21 @@ AOO_PACK_BEGIN
 
 /** \brief settings for aoo_initialize()
  *
- * \attention always initialize with AOO_SETTINGS_INIT()!
+ * \details Example:
+ *
+ *      AooSettings settings = AOO_SETTINGS_INIT();
+ *      settings.logFunc = myLogFunc; // set custom log function
+ *      aoo_initialize(&settings);
  */
 typedef struct AooSettings
 {
     AooSize structSize;
-    AooAllocFunc allocFunc; /** custom allocator function, or `NULL` */
-    AooLogFunc logFunc; /** custom log function, or `NULL` */
-    AooSize memPoolSize; /** size of RT memory pool */
+    /** custom allocator function, or `NULL` */
+    AooAllocFunc allocFunc;
+    /** custom log function, or `NULL` */
+    AooLogFunc logFunc;
+    /** size of RT memory pool */
+    AooSize memPoolSize;
 } AooSettings;
 
 /** \brief default initializer for AooSettings struct */
@@ -39,7 +44,7 @@ typedef struct AooSettings
 /**
  * \brief initialize AOO library settings
  *
- * \note Call before using any AOO functions!
+ * \note Call before any other AOO function!
  * \param settings (optional) settings struct
  */
 AOO_API AooError AOO_CALL aoo_initialize(const AooSettings *settings);

@@ -42,7 +42,7 @@ AOO_API AooError AOO_CALL AooSource_send(
         AooSource *source, AooSendFunc fn, void *user);
 
 /** \copydoc AooSource::addStreamMessage() */
-AOO_API AooError AOO_CALL addStreamMessage(
+AOO_API AooError AOO_CALL AooSource_addStreamMessage(
         AooSource *source, const AooStreamMessage *message);
 
 /** \copydoc AooSource::process() */

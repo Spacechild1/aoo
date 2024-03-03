@@ -3,7 +3,7 @@
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
 /** \file
- * \brief AOO events
+ * \brief AOO event types
  */
 
 #pragma once
@@ -153,10 +153,10 @@ typedef struct AooEventSourcePing
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
-    AooNtpTime t1; /** sink send time */
-    AooNtpTime t2; /** source receive time */
-    AooNtpTime t3; /** source send time */
-    AooNtpTime t4; /** sink receive time */
+    AooNtpTime t1; /**< sink send time */
+    AooNtpTime t2; /**< source receive time */
+    AooNtpTime t3; /**< source send time */
+    AooNtpTime t4; /**< sink receive time */
 } AooEventSourcePing;
 
 /** \brief received ping (reply) from sink */
@@ -164,11 +164,11 @@ typedef struct AooEventSinkPing
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
-    AooNtpTime t1; /** source send time */
-    AooNtpTime t2; /** sink receive time */
-    AooNtpTime t3; /** sink send time */
-    AooNtpTime t4; /** source receive time */
-    float packetLoss; /** packet loss percentage (0.0 - 1.0) */
+    AooNtpTime t1; /**< source send time */
+    AooNtpTime t2; /**< sink receive time */
+    AooNtpTime t3; /**< sink send time */
+    AooNtpTime t4; /**< source receive time */
+    float packetLoss; /**< packet loss percentage (0.0 - 1.0) */
 } AooEventSinkPing;
 
 /** \brief a new source has been added */
@@ -373,10 +373,10 @@ typedef struct AooEventPeerPing
     AOO_EVENT_HEADER
     AooId group;
     AooId user;
-    AooNtpTime t1; /** local send time */
-    AooNtpTime t2; /** remote receive time */
-    AooNtpTime t3; /** remote send time */
-    AooNtpTime t4; /** local receive time */
+    AooNtpTime t1; /**< local send time */
+    AooNtpTime t2; /**< remote receive time */
+    AooNtpTime t3; /**< remote send time */
+    AooNtpTime t4; /**< local receive time */
 } AooEventPeerPing;
 
 /** \brief peer state */
@@ -385,7 +385,7 @@ typedef struct AooEventPeerState
     AOO_EVENT_HEADER
     AooId group;
     AooId user;
-    AooBool active; /** peer is (in)active */
+    AooBool active; /**< peer is (in)active */
 } AooEventPeerState;
 
 /** \brief received peer message */
@@ -498,7 +498,7 @@ typedef struct AooEventGroupLeave
 /** \brief union holding all possible events */
 union AooEvent
 {
-    AooEventType type; /** the event type */
+    AooEventType type; /**< the event type */
     AooEventBase base;
     AooEventError error;
     /* AOO source/sink events */

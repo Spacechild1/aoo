@@ -2,6 +2,10 @@
  * For information on usage and redistribution, and for a DISCLAIMER OF ALL
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
+/** \file
+ * \brief AOO types and structs
+ */
+
 #pragma once
 
 #include "aoo_config.h"
@@ -614,10 +618,14 @@ typedef struct AooFormatStorage
 /** \brief ping settings */
 typedef struct AooPingSettings
 {
-    AooSeconds interval; /** regular ping interval */
-    AooSeconds probeTime; /** time to wait before probing */
-    AooSeconds probeInterval; /** probe ping interval */
-    AooInt32 probeCount; /** max. number of probe pings */
+    /** regular ping interval */
+    AooSeconds interval;
+    /** time to wait before probing */
+    AooSeconds probeTime;
+    /** probe ping interval */
+    AooSeconds probeInterval;
+    /** max. number of probe pings */
+    AooInt32 probeCount;
 } AooPingSettings;
 
 /*------------------------------------------------------------------*/
