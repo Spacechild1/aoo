@@ -1582,7 +1582,7 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
                 auto result = write_relay_message(buf, sizeof(buf), data + onset,
                                                   size - onset, src_addr);
                 if (result > 0) {
-                    send_udp(dst_addr, buf, result + size);
+                    send_udp(dst_addr, buf, result);
                 } else {
                     LOG_ERROR("AooServer: can't relay: buffer too small");
                 }
