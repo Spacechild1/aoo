@@ -194,6 +194,8 @@ AOO_ENUM(AooError)
     kAooErrorBadArgument,
     /** bad message/structure format */
     kAooErrorBadFormat,
+    /** argument(s) out of range */
+    kAooErrorOutOfRange,
     /** AOO source/sink is idle;
      * no need to call `send()` resp. notify the send thread */
     kAooErrorIdle,
@@ -201,6 +203,8 @@ AOO_ENUM(AooError)
     kAooErrorWouldBlock,
     /** operation would overflow */
     kAooErrorOverflow,
+    /** operation timed out */
+    kAooErrorTimeout,
     /** out of memory */
     kAooErrorOutOfMemory,
     /** resource already exists */
@@ -231,7 +235,7 @@ AOO_ENUM(AooError)
     /** version not supported */
     kAooErrorVersionNotSupported,
     /** UDP handshake time out */
-    kAooErrorUDPHandshakeTimeOut,
+    kAooErrorUDPHandshakeTimeout,
     /** wrong passoword */
     kAooErrorWrongPassword,
     /** already connected to server */

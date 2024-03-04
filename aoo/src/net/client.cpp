@@ -1249,7 +1249,7 @@ void Client::perform(const login_cmd& cmd) {
 void Client::perform(const timeout_cmd& cmd) {
     if (connection_ && state_.load() == client_state::handshake) {
         // send error response and close connection
-        connection_->reply_error(kAooErrorUDPHandshakeTimeOut);
+        connection_->reply_error(kAooErrorUDPHandshakeTimeout);
         close();
     }
 }

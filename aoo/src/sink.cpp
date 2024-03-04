@@ -1291,7 +1291,8 @@ void source_desc::uninvite(const Sink& s){
     LOG_WARNING("AooSink: couldn't uninvite source - not running");
 }
 
-float source_desc::get_buffer_fill_ratio(){
+// TODO: make this non-blocking
+float source_desc::get_buffer_fill_ratio() {
     scoped_shared_lock lock(mutex_);
     if (decoder_){
         // consider samples in resampler!

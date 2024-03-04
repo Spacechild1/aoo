@@ -79,7 +79,8 @@ AOO_API const AooChar * AOO_CALL aoo_getVersionString(void);
  * \brief get a textual description for an error code
  *
  * \param err the error code
- * \return a C string describing the error
+ * \return a C string describing the error; if the error code is unknown,
+ *         an empty string is returned.
  */
 AOO_API const AooChar * AOO_CALL aoo_strerror(AooError err);
 

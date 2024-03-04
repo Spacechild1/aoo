@@ -162,78 +162,67 @@ Log::~Log() {
 
 } // aoo
 
-const char *aoo_strerror(AooError e){
-    switch (e){
-    case kAooErrorUnspecified:
-        return "unspecified error";
-    case kAooErrorNone:
-        return "no error";
-    case kAooErrorNotImplemented:
-        return "not implemented";
-    case kAooErrorNotPermitted:
-        return "not permitted";
-    case kAooErrorNotInitialized:
-        return "not initialized";
-    case kAooErrorBadArgument:
-        return "bad argument";
-    case kAooErrorBadFormat:
-        return "bad format";
-    case kAooErrorIdle:
-        return "idle";
-    case kAooErrorWouldBlock:
-        return "would block";
-    case kAooErrorOverflow:
-        return "overflow";
-    case kAooErrorOutOfMemory:
-        return "out of memory";
-    case kAooErrorAlreadyExists:
-        return "already exists";
-    case kAooErrorNotFound:
-        return "not found";
-    case kAooErrorInsufficientBuffer:
-        return "insufficient buffer";
-    case kAooErrorBadState:
-        return "bad state";
-    case kAooErrorSocket:
-        return "socket error";
-    case kAooErrorInternal:
-        return "internal error";
-    case kAooErrorSystem:
-        return "system error";
-    case kAooErrorUserDefined:
-        return "user-defined error";
-    case kAooErrorRequestInProgress:
-        return "request in progress";
-    case kAooErrorUnhandledRequest:
-        return "unhandled request";
-    case kAooErrorVersionNotSupported:
-        return "version not supported";
-    case kAooErrorUDPHandshakeTimeOut:
-        return "UDP handshake time out";
-    case kAooErrorWrongPassword:
-        return "wrong password";
-    case kAooErrorAlreadyConnected:
-        return "already connected";
-    case kAooErrorNotConnected:
-        return "not connected";
-    case kAooErrorGroupDoesNotExist:
-        return "group does not exist";
-    case kAooErrorCannotCreateGroup:
-        return "cannot create group";
-    case kAooErrorAlreadyGroupMember:
-        return "already a group member";
-    case kAooErrorNotGroupMember:
-        return "not a group member";
-    case kAooErrorUserAlreadyExists:
-        return "user already exists";
-    case kAooErrorUserDoesNotExist:
-        return "user does not exist";
-    case kAooErrorCannotCreateUser:
-        return "cannot create user";
-    case kAooErrorNotResponding:
-        return "not responding";
-    default:
-        return "unknown error code";
+static std::array g_error_names {
+    "no error",
+    "not implemented",
+    "not permitted",
+    "not initialized",
+    "bad argument",
+    "bad format",
+    "out of range",
+    "idle",
+    "would block",
+    "would overflow",
+    "timed out",
+    "out of memory",
+    "already exists",
+    "not found",
+    "insufficient buffer",
+    "bad state",
+    "socket error",
+    "codec error",
+    "internal error",
+    "system error",
+    "user-defined error"
+};
+
+static_assert(g_error_names.size() == kAooErrorUserDefined + 1,
+              "errors are missing");
+
+static std::array g_server_error_names {
+    "request in progress",
+    "unhandled request",
+    "version not supported",
+    "UDP handshake time out",
+    "wrong password",
+    "already connected",
+    "not connected",
+    "group does not exist",
+    "cannot create group",
+    "already a group member",
+    "not a group member",
+    "user already exists",
+    "user does not exist",
+    "cannot create user",
+    "not responding"
+};
+
+static_assert(g_server_error_names.size() == kAooErrorNotResponding + 1 - 1000,
+              "errors are missing");
+
+const char *aoo_strerror(AooError e) {
+    if (e < 0) {
+        return "unspecified";
+    } else if (e < g_error_names.size()) {
+        // generic error
+        return g_error_names[e];
+    } else if (auto e2 = e - 1000; e2 >= 0 && e2 < g_server_error_names.size()) {
+        // server error
+        return g_server_error_names[e2];
+    } else if (e >= kAooErrorCustom) {
+        return "custom error";
+    } else {
+        return "";
     }
 }
 
