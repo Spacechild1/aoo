@@ -1209,12 +1209,12 @@ AooError Source::set_format(AooFormat &f){
 
 AooError Source::get_format(AooFormat &fmt, size_t size){
     shared_lock lock(update_mutex_); // read lock!
-    if (format_){
+    if (format_) {
         if (size >= format_->structSize){
             memcpy(&fmt, format_.get(), format_->structSize);
             return kAooOk;
         } else {
-            return kAooErrorBadArgument;
+            return kAooErrorInsufficientBuffer;
         }
     } else {
         return kAooErrorNotInitialized;

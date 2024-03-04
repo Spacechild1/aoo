@@ -61,6 +61,7 @@ private:
     T value_ = 0;
 };
 
+// TODO: explain why the bitset needs to be tagged
 template<typename T>
 struct tagged_bitset {
     static constexpr size_t width = sizeof(T) * CHAR_BIT;

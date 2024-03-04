@@ -1156,7 +1156,7 @@ AooError source_desc::get_format(AooFormat &format, size_t size){
             memcpy(&format, format_.get(), format_->structSize);
             return kAooOk;
         } else {
-            return kAooErrorBadArgument;
+            return kAooErrorInsufficientBuffer;
         }
     } else {
         return kAooErrorNotInitialized;

@@ -239,7 +239,8 @@ public:
 
     /** \brief Get the stream format
      *
-     * \param [out] format Pointer to an instance of `AooFormatStorage`
+     * \param [out] format instance of `AooFormatStorage` that should contain
+     * the format; on success, the `structSize` member is set to the actual size.
      */
     AooError getFormat(AooFormatStorage& format) {
         return control(kAooCtlGetFormat, 0, AOO_ARG(format));

@@ -119,7 +119,8 @@ typedef AooError (AOO_CALL *AooCodecDeserializeFunc)(
         const AooByte *buffer,
         /** [in] the extension buffer size */
         AooInt32 bufsize,
-        /** [out] destination format structure; `NULL` returns the required format size */
+        /** [out] destination format structure;
+         * if `NULL`, just return the required format size via `fmtsize`. */
         AooFormat *format,
         /** max. format size; updated to actual resp. required size */
         AooInt32 *fmtsize

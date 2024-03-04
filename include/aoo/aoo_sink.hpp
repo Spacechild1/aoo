@@ -414,9 +414,8 @@ public:
     /** \brief Get the source stream format
      *
      * \param source The source endpoint.
-     * \param [out] format Pointer to an instance of `AooFormatStorage` or a similar struct
-     * that is large enough to hold any codec format. The `size` member in the format header
-     * should contain the storage size; on success it is updated to the actual format size.
+     * \param [out] format instance of `AooFormatStorage` that should contain
+     * the format; on success, the `structSize` member is set to the actual size.
      */
     AooError getSourceFormat(const AooEndpoint& source, AooFormatStorage& format) {
         return control(kAooCtlGetFormat, (AooIntPtr)&source, AOO_ARG(format));
