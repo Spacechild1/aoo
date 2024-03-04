@@ -1144,12 +1144,12 @@ void Client::perform(const connect_cmd& cmd)
     state_.store(client_state::handshake);
 }
 
-int Client::try_connect(const ip_host& server){
+std::pair<bool, int> Client::try_connect(const ip_host& server){
     tcp_socket_= socket_tcp(0);
     if (tcp_socket_< 0){
         int err = socket_errno();
         LOG_ERROR("AooClient: couldn't create socket: " << socket_strerror(err));
-        return err;
+        return { false, err };
     }
 
     auto type = socket_family(tcp_socket_);
@@ -1157,7 +1157,7 @@ int Client::try_connect(const ip_host& server){
     if (addrlist.empty()) {
         int err = socket_errno();
         LOG_ERROR("AooClient: couldn't resolve host name: " << socket_strerror(err));
-        return err;
+        return { false, err };
     }
     // sort IPv4(-mapped) first because it is more likely for an AOO server to be IP4-only than
     // to be IPv6-only
@@ -1174,13 +1174,13 @@ int Client::try_connect(const ip_host& server){
         // try to connect (LATER make timeout configurable)
         if (socket_connect(tcp_socket_, addr, 5.0) == 0) {
             LOG_VERBOSE("AooClient: successfully connected to " << addr);
-            return 0;
+            return { true, 0 };
         }
     }
     int err = socket_errno();
     LOG_ERROR("AooClient: couldn't connect to " << server.name << " on port "
                << server.port << ": " << socket_strerror(err));
-    return err;
+    return { false, err };
 }
 
 void Client::perform(const login_cmd& cmd) {
@@ -1189,8 +1189,8 @@ void Client::perform(const login_cmd& cmd) {
 
     state_.store(client_state::connecting);
 
-    int err = try_connect(connection_->host_);
-    if (err != 0) {
+    auto [success, err] = try_connect(connection_->host_);
+    if (!success) {
         // send error response and close connection
         auto msg = socket_strerror(err);
         connection_->reply_error(kAooErrorSocket, err, msg.c_str());

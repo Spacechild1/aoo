@@ -314,7 +314,7 @@ public:
     struct connect_cmd;
     void perform(const connect_cmd& cmd);
 
-    int try_connect(const ip_host& server);
+    std::pair<bool, int> try_connect(const ip_host& server);
 
     struct login_cmd;
     void perform(const login_cmd& cmd);
