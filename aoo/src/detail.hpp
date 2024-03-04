@@ -16,14 +16,15 @@
 #include "oscpack/osc/OscReceivedElements.h"
 #include "oscpack/osc/OscOutboundPacketStream.h"
 
-#include <stdint.h>
+#include <array>
 #include <cstring>
-#include <utility>
-#include <vector>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <optional>
+#include <vector>
+#include <utility>
 
 namespace aoo {
 

@@ -363,7 +363,7 @@ const char *aoo_getVersionString() {
 
 //---------------------- AooData ----------------------//
 
-static std::unordered_map<std::string, AooDataType> g_data_type_map = {
+static std::unordered_map<std::string_view, AooDataType> g_data_type_map = {
     { "unspecified", kAooDataUnspecified },
     { "raw", kAooDataRaw },
     { "binary", kAooDataBinary },
@@ -375,6 +375,19 @@ static std::unordered_map<std::string, AooDataType> g_data_type_map = {
     { "xml", kAooDataXML }
 };
 
+static std::array g_data_type_names {
+    "raw", // same as "binary"!
+    "text",
+    "osc",
+    "midi",
+    "fudi",
+    "json",
+    "xml"
+};
+
+static_assert(g_data_type_names.size() == kAooDataXML + 1,
+              "missing data type");
+
 AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {
     auto it = g_data_type_map.find(str);
     if (it != g_data_type_map.end()) {
@@ -385,27 +398,14 @@ AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {
 }
 
 AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
-    switch (type) {
-    case kAooDataRaw:
-        return "raw";
-    case kAooDataText:
-        return "text";
-    case kAooDataOSC:
-        return "osc";
-    case kAooDataMIDI:
-        return "midi";
-    case kAooDataFUDI:
-        return "fudi";
-    case kAooDataJSON:
-        return "json";
-    case kAooDataXML:
-        return "xml";
-    default:
-        if (type >= kAooDataUser) {
-            return "user";
-        } else {
-            return nullptr;
-        }
+    if (type < 0) {
+        return "unspecified";
+    } else if (type < g_data_type_names.size()) {
+        return g_data_type_names[type];
+    } else if (type >= kAooDataUser) {
+        return "user";
+    } else {
+        return "";
     }
 }
 

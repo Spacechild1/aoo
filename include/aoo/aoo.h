@@ -143,7 +143,8 @@ AOO_API AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str);
  * \brief convert AooData type to string representation
  *
  * \param type the data type
- * \return a C string on success, NULL if the data type is not valid
+ * \return a C string on success; if the data type is unknown or invalid,
+ *         an empty string is returned.
  */
 AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
 

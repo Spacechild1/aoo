@@ -244,5 +244,5 @@ bool atom_to_datatype(const t_atom &a, AooDataType& type, void *x) {
 
 void datatype_to_atom(AooDataType type, t_atom& a) {
     auto str = aoo_dataTypeToString(type);
-    SETSYMBOL(&a, str ? gensym(str) : gensym("unknown"));
+    SETSYMBOL(&a, *str ? gensym(str) : gensym("unknown"));
 }
