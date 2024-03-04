@@ -158,23 +158,6 @@ AooSize write_relay_message(AooByte *buffer, AooSize bufsize,
 
 std::string encrypt(const std::string& input);
 
-#if 0
-using ip_address_list = std::vector<ip_address, aoo::allocator<ip_address>>;
-#else
-using ip_address_list = std::vector<ip_address>;
-#endif
-
-inline osc::OutboundPacketStream& operator<<(osc::OutboundPacketStream& msg, const ip_address& addr) {
-    msg << addr.name() << (int32_t)addr.port();
-    return msg;
-}
-
-inline ip_address osc_read_address(osc::ReceivedMessageArgumentIterator& it) {
-    auto hostname = (it++)->AsString();
-    auto port = (it++)->AsInt32();
-    return ip_address(hostname, port);
-}
-
 struct ip_host {
     ip_host() = default;
     ip_host(const std::string& _name, int _port)

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <random>
 #include <cstring>
+#include <cstdlib>
 
 constexpr bool use_pool = true;
 constexpr bool grow_pool = true;
@@ -112,4 +113,6 @@ int main(int argc, char *argv[]) {
     std::cout << "total number of allocations: " << global_alloc_count.load() << std::endl;
 #endif
     std::cout << "done!" << std::endl;
+
+    return EXIT_SUCCESS;
 }

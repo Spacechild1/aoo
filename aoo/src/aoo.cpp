@@ -18,6 +18,10 @@
 # include "aoo/codec/aoo_opus.h"
 #endif
 
+#if AOO_NET
+#include "net/detail.hpp"
+#endif
+
 #define CERR_LOG_FUNCTION 1
 #if CERR_LOG_FUNCTION
 # include <cstdio>
@@ -308,21 +312,138 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
     }
 }
 
+//--------------------- relay ------------------------------//
+
+#if AOO_NET
+
+AOO_API AooError aoo_handleRelayMessage(
+    const AooByte *data, AooInt32 size,
+    const void *address, AooAddrSize addrlen,
+    AooSendFunc sendFunc, void *userData, AooSocketFlags socketType)
+{
+    using namespace aoo;
+
+    if (!(socketType & (kAooSocketIPv4 | kAooSocketIPv6))) {
+        // must specify socket type!
+        return kAooErrorBadArgument;
+    }
+
+    ip_address src_addr((const struct sockaddr*)address, addrlen);
+    src_addr.unmap(); // unmap address!
+
+    // check if the embedded destination address is compatible with the given socket type.
+    // TODO: handle true dual stack (IPv4 socket + IPv6 socket)
+    auto check_addr = [&](ip_address& addr) {
+        if (addr.is_ipv4_mapped()) {
+            LOG_DEBUG("aoo_handleRelayMessage: relay destination must not be IPv4-mapped");
+            return false;
+        }
+        if ((socketType & kAooSocketIPv6) && addr.type() == ip_address::IPv4) {
+            if (socketType & kAooSocketIPv4Mapped) {
+                // map address to IPv4
+                addr = addr.ipv4_mapped();
+            } else {
+                // cannot relay to IPv4 address with IPv6-only socket
+                LOG_DEBUG("aoo_handleRelayMessage: cannot relay to destination address " << addr);
+                return false;
+            }
+        } else if ((socketType & kAooSocketIPv4) && addr.type() == ip_address::IPv6) {
+            // cannot relay to IPv6 address with IPv4-only socket
+            LOG_DEBUG("aoo_handleRelayMessage: cannot relay to destination address " << addr);
+            return false;
+        }
+        return true;
+    };
+
+    if (binmsg_check(data, size)) {
+        // a) binary relay message
+
+        if (binmsg_type(data, size) != kAooMsgTypeRelay) {
+            return kAooErrorBadFormat;
+        }
+
+        ip_address dst_addr;
+        auto offset = binmsg_read_relay(data, size, dst_addr);
+        if (offset == 0) {
+            return kAooErrorBadFormat;
+        }
+        if (!check_addr(dst_addr)) {
+            return kAooErrorNotPermitted;
+        }
+
+        if (src_addr.type() == dst_addr.type()) {
+            // simply replace the header (= rewrite address)
+            // NB: we know that the buffer is not really constant
+            binmsg_write_relay(const_cast<AooByte *>(data), size, src_addr);
+
+            return sendFunc(userData, data, size,
+                            dst_addr.address(), dst_addr.length(), 0);
+        } else {
+            // rewrite whole message
+            AooByte buffer[AOO_MAX_PACKET_SIZE];
+
+            auto result = net::write_relay_message(buffer, sizeof(buffer),
+                                                   data + offset, size - offset,
+                                                   src_addr, true);
+            if (result == 0) {
+                return kAooErrorInsufficientBuffer;
+            }
+
+            return sendFunc(userData, buffer, result,
+                            dst_addr.address(), dst_addr.length(), 0);
+        }
+    } else if (auto count = kAooMsgDomainLen + kAooMsgRelayLen;
+               size >= count && !memcmp(data, kAooMsgDomain kAooMsgRelay, count)) {
+        try {
+            osc::ReceivedPacket packet((const char *)data, size);
+            if (!packet.IsMessage()) {
+                return kAooErrorBadFormat;
+            }
+            osc::ReceivedMessage inmsg(packet);
+            auto it = inmsg.ArgumentsBegin();
+            auto dst_addr = osc_read_address(it);
+            if (!check_addr(dst_addr)) {
+                return kAooErrorNotPermitted;
+            }
+
+            const void *msgData;
+            osc::osc_bundle_element_size_t msgSize;
+            (it++)->AsBlob(msgData, msgSize);
+
+            AooByte buffer[AOO_MAX_PACKET_SIZE];
+            osc::OutboundPacketStream outmsg((char*)buffer, sizeof(buffer));
+            outmsg << osc::BeginMessage(kAooMsgDomain kAooMsgRelay)
+                   << src_addr << osc::Blob(msgData, msgSize)
+                   << osc::EndMessage;
+
+            return sendFunc(userData, buffer, outmsg.Size(),
+                            dst_addr.address(), dst_addr.length(), 0);
+        } catch (const osc::Exception& e) {
+            LOG_ERROR("aoo_handleRelayMessage: OSC exception: " << e.what());
+            return kAooErrorBadFormat;
+        }
+    } else {
+        return kAooErrorBadFormat;
+    }
+}
+
+#endif // AOO_NET
+
 //-------------------- NTP time ----------------------------//
 
-AOO_API uint64_t AOO_CALL aoo_getCurrentNtpTime(void){
+AOO_API AooNtpTime AOO_CALL aoo_getCurrentNtpTime(void) {
     return aoo::time_tag::now();
 }
 
-AOO_API double AOO_CALL aoo_ntpTimeToSeconds(AooNtpTime t){
+AOO_API AooSeconds AOO_CALL aoo_ntpTimeToSeconds(AooNtpTime t){
     return aoo::time_tag(t).to_seconds();
 }
 
-AOO_API uint64_t AOO_CALL aoo_ntpTimeFromSeconds(AooSeconds s){
+AOO_API AooNtpTime AOO_CALL aoo_ntpTimeFromSeconds(AooSeconds s){
     return aoo::time_tag::from_seconds(s);
 }
 
-AOO_API double AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2){
+AOO_API AooSeconds AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2){
     return aoo::time_tag::duration(t1, t2);
 }
 

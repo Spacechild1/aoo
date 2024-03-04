@@ -142,6 +142,7 @@ inline AooId binmsg_user(const AooByte *data, AooSize size) {
 // b) IPv6 address (16 bytes)
 inline int binmsg_write_relay(AooByte *buffer, AooSize size,
                               const aoo::ip_address& addr) {
+    assert(addr.valid());
     if (addr.type() == ip_address::IPv6) {
         if (size >= 20) {
             buffer[0] = kAooMsgTypeRelay | kAooBinMsgDomainBit;

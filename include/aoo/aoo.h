@@ -114,7 +114,8 @@ AOO_API AooNtpTime AOO_CALL aoo_ntpTimeFromSeconds(AooSeconds s);
  * \param t2 the second time stamp
  * \return the time difference in seconds
  */
-AOO_API AooSeconds AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2);
+AOO_API AooSeconds AOO_CALL aoo_ntpTimeDuration(
+        AooNtpTime t1, AooNtpTime t2);
 
 /**
  * \brief parse an AOO message
@@ -130,7 +131,36 @@ AOO_API AooSeconds AOO_CALL aoo_ntpTimeDuration(AooNtpTime t1, AooNtpTime t2);
  * \return error code
  */
 AOO_API AooError AOO_CALL aoo_parsePattern(
-        const AooByte *msg, AooInt32 size, AooMsgType *type, AooId *id, AooInt32 *offset);
+        const AooByte *msg, AooInt32 size,
+        AooMsgType *type, AooId *id, AooInt32 *offset);
+
+#if AOO_NET
+/**
+ * \brief handle relay message
+ *
+ * This function can be used to implement a basic AOO relay server.
+ *
+ * \note You don't need to parse the incoming message with `aoo_parsePattern`;
+ *       if the message is not a valid AOO relay message, the function will
+ *       simply ignore it and return #kAooErrorBadFormat.
+ *
+ * \param data the message data
+ * \param size the message size
+ * \param address the source socket address
+ * \param addrlen the source socket address length
+ * \param sendFunc the send function
+ * \param userData user data passed to the send function
+ * \param socketType the socket type; one of the following values:
+ *        #kAooSocketIPv4, #kAooSocketIPv6 or #kAooSocketDualStack
+ * \return error code
+ */
+AOO_API AooError aoo_handleRelayMessage(
+        const AooByte *data, AooInt32 size,
+        const void *address, AooAddrSize addrlen,
+        AooSendFunc sendFunc, void *userData,
+        AooSocketFlags socketType);
+
+#endif /* AOO_NET */
 
 /**
  * \brief get AooData type from string representation

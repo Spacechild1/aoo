@@ -30,3 +30,8 @@ target_link_libraries(test_c_interface ${TEST_LIBS})
 add_executable(test_rt_memory_pool "test_rt_memory_pool.cpp")
 target_compile_definitions(test_rt_memory_pool PUBLIC ${TEST_FLAGS})
 target_link_libraries(test_rt_memory_pool ${TEST_LIBS})
+
+# relay test
+add_executable(test_relay "test_relay.cpp")
+target_compile_definitions(test_relay PUBLIC ${TEST_FLAGS})
+target_link_libraries(test_relay ${TEST_LIBS})

@@ -1550,12 +1550,12 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
                 addr = addr.ipv4_mapped();
             } else {
                 // cannot relay to IPv4 address with IPv6-only socket
-                LOG_DEBUG("AooClient: cannot relay to destination address" << addr);
+                LOG_DEBUG("AooClient: cannot relay to destination address " << addr);
                 return false;
             }
         } else if (address_family_ == ip_address::IPv4 && addr.type() == ip_address::IPv6) {
             // cannot relay to IPv6 address with IPv4-only socket
-            LOG_DEBUG("AooClient: cannot relay to destination address" << addr);
+            LOG_DEBUG("AooClient: cannot relay to destination address " << addr);
             return false;
         }
         return true;
