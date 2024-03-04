@@ -505,6 +505,16 @@ ip_address ip_address::unmapped() const {
     return *this;
 }
 
+void ip_address::unmap() {
+#if AOO_USE_IPv6
+    if (is_ipv4_mapped()){
+        auto addr = reinterpret_cast<const sockaddr_in6 *>(&address_);
+        auto w = (uint16_t *)addr->sin6_addr.s6_addr;
+        *this = ip_address((const AooByte *)&w[6], 4, port(), IPv4);
+    }
+#endif
+}
+
 //------------------------ socket ----------------------------//
 
 int socket_init()

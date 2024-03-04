@@ -95,6 +95,8 @@ public:
 
     ip_address unmapped() const;
 
+    void unmap();
+
     const struct sockaddr *address() const {
         return (const struct sockaddr *)&address_;
     }
