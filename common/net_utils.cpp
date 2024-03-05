@@ -310,6 +310,31 @@ bool ip_address::operator==(const ip_address& other) const {
     return false;
 }
 
+size_t ip_address::hash() const {
+    switch (family_) {
+#if AOO_USE_IPv6
+    case AF_INET6:
+    {
+        uint32_t w[4];
+        memcpy(w, addr_in6_.sin6_addr.s6_addr, 16);
+        size_t state = addr_in6_.sin6_port;
+        state = (state << 1) ^ w[0];
+        state = (state << 1) ^ w[1];
+        state = (state << 1) ^ w[2];
+        state = (state << 1) ^ w[3];
+        return state;
+    }
+#endif
+    case AF_INET:
+    {
+        size_t state = addr_in_.sin_port;
+        return (state << 1) ^ addr_in_.sin_addr.s_addr;
+    }
+    default:
+        return 0;
+    }
+}
+
 std::ostream& operator<<(std::ostream& os, const ip_address& addr) {
     switch (addr.address()->sa_family) {
 #if AOO_USE_IPv6

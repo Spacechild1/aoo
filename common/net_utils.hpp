@@ -116,6 +116,8 @@ public:
         return !(*this == other);
     }
 
+    size_t hash() const;
+
     const char* name() const;
 
     const char* name_unmapped() const;
