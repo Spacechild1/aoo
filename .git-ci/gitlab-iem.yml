@@ -49,7 +49,7 @@ variables:
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_SYSTEM_OPUS=OFF
     -DPD_INCLUDEDIR="${PD_PATH}/src" -DPD_BINDIR="${PD_PATH}/bin" -DPD_INSTALLDIR="${prefix}/pd"
     -DPD_EXTENSION=${PD_EXTENSION}
-    -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
+#    -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
 
    # NOTE: by default, CMake 3.21+ uses the compiler to obtain dependencies for makefiles ('compiler_depends.make').
    # For some reason, on the 'Hopper' runner that file would contain bogus file paths which will cause the following
@@ -100,7 +100,7 @@ variables:
     - test "x${TARGETDEBARCH}" != "x" &&
       { export CC=${TARGETARCH}-gcc; export CXX=${TARGETARCH}-g++; }
     - git submodule update --init
-    - *script_sc
+#    - *script_sc
     - *script_pd
     - *script_cmake
 
@@ -132,7 +132,7 @@ variables:
     PD_EXTENSION: d_fat
   before_script:
     - git submodule update --init
-    - *script_sc
+#    - *script_sc
     - *script_pd
     - *script_cmake
   after_script:
@@ -150,7 +150,7 @@ variables:
   before_script:
     - pacman --noconfirm -S "${MINGW_PACKAGE_PREFIX}-cmake"
     - git submodule update --init
-    - *script_sc
+#    - *script_sc
     - *script_pd_app
     - *script_cmake
 
@@ -196,13 +196,11 @@ variables:
 # create zip files for all platform (e.g. aoo_v0.3.0_win64.zip)
     - rm -f ./*.zip
     - root=$(pwd)
-# Pd + SuperCollider:
+# Pd:
     - for dir in ./build/*; do
-        for lib in pd sc; do
-          name=aoo_${lib}_${CI_COMMIT_REF_NAME}_$(basename "$dir").zip;
-          echo create $name;
-          (cd "$dir/$lib" && zip -r "${root}/${name}" ./aoo)
-        ; done
+        name=aoo_pd_${CI_COMMIT_REF_NAME}_$(basename "$dir").zip;
+        echo create $name;
+        (cd "$dir/pd" && zip -r "${root}/${name}" ./aoo)
       ; done
 # C/C++ library:
     - for dir in ./build/*; do
