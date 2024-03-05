@@ -75,8 +75,8 @@ struct sink_request {
 struct sink_desc {
 #if AOO_NET
     sink_desc(const ip_address& addr, int32_t id,
-              AooId stream_id, const ip_address& relay)
-        : ep(addr, id, relay), stream_id_(stream_id) {}
+              AooId stream_id, const ip_address& relay, bool binary)
+        : ep(addr, id, relay, binary), stream_id_(stream_id) {}
 #else
     sink_desc(const ip_address& addr, int32_t id, AooId stream_id)
         : ep(addr, id), stream_id_(stream_id) {}

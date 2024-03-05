@@ -429,6 +429,19 @@ public:
     AooError getBufferFillRatio(const AooEndpoint& source, double& ratio) {
         return control(kAooCtlGetBufferFillRatio, (AooIntPtr)&source, AOO_ARG(ratio));
     }
+
+    /** \brief Enable/disable binary message format
+     *
+     * Use a more compact (and faster) binary format for certain messages
+     */
+    AooError setBinaryFormat(AooBool b) {
+        return control(kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
+    }
+
+    /** \brief Check if binary message format is enabled */
+    AooError getBinaryFormat(AooBool& b) {
+        return control(kAooCtlGetBinaryFormat, 0, AOO_ARG(b));
+    }
 protected:
     ~AooSink(){} // non-virtual!
 };

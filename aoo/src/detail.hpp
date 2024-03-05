@@ -81,13 +81,15 @@ struct endpoint {
     endpoint(const ip_address& _address, int32_t _id)
         : address(_address), id(_id) {}
 #if AOO_NET
-    endpoint(const ip_address& _address, int32_t _id, const ip_address& _relay)
-        : address(_address), relay(_relay), id(_id) {}
+    endpoint(const ip_address& _address, int32_t _id,
+             const ip_address& _relay, bool _binary)
+        : address(_address), relay(_relay), binary(_binary), id(_id) {}
 #endif
     // data
     ip_address address;
 #if AOO_NET
     ip_address relay;
+    bool binary;
 #endif
     AooId id = 0;
 
@@ -111,7 +113,7 @@ inline std::ostream& operator<<(std::ostream& os, const endpoint& ep){
 #if AOO_NET
 namespace net {
 AooSize write_relay_message(AooByte *buffer, AooSize bufsize, const AooByte *msg,
-                            AooSize msgsize, const ip_address& addr);
+                            AooSize msgsize, const ip_address& addr, bool binary);
 } // net
 
 inline void endpoint::send(const AooByte *data, AooSize size, const sendfn& fn) const {
@@ -121,7 +123,7 @@ inline void endpoint::send(const AooByte *data, AooSize size, const sendfn& fn) 
     #endif
         AooByte buffer[AOO_MAX_PACKET_SIZE];
         auto result = net::write_relay_message(buffer, sizeof(buffer),
-                                               data, size, address);
+                                               data, size, address, binary);
         if (result > 0) {
             fn(buffer, result, relay, 0);
         } else {

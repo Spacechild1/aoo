@@ -857,7 +857,7 @@ void peer::send(const AooByte *data, AooSize size,
     #endif
         if (binary_) {
             AooByte buf[AOO_MAX_PACKET_SIZE];
-            auto result = write_relay_message(buf, sizeof(buf), data, size, addr);
+            auto result = write_relay_message(buf, sizeof(buf), data, size, addr, binary_);
 
             fn(buf, result, relay_address_);
         } else {

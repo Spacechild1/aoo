@@ -1580,7 +1580,7 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
                 // rewrite whole message
                 AooByte buf[AOO_MAX_PACKET_SIZE];
                 auto result = write_relay_message(buf, sizeof(buf), data + onset,
-                                                  size - onset, src_addr);
+                                                  size - onset, src_addr, true);
                 if (result > 0) {
                     send_udp(dst_addr, buf, result);
                 } else {

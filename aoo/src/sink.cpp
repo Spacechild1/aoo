@@ -365,6 +365,14 @@ AooError AOO_CALL aoo::Sink::control(
         CHECKARG(AooSeconds);
         as<AooSeconds>(ptr) = invite_timeout_.load();
         break;
+    case kAooCtlSetBinaryFormat:
+        CHECKARG(AooBool);
+        binary_.store(as<AooBool>(ptr));
+        break;
+    case kAooCtlGetBinaryFormat:
+        CHECKARG(AooBool);
+        as<AooBool>(ptr) = binary_.load();
+        break;
 #if AOO_NET
     case kAooCtlSetClient:
         client_ = reinterpret_cast<AooClient *>(index);
@@ -786,7 +794,7 @@ source_desc * Sink::add_source(const ip_address& addr, AooId id){
             }
         }
     }
-    auto it = sources_.emplace_front(addr, id, relay, elapsed_time());
+    auto it = sources_.emplace_front(addr, id, relay, elapsed_time(), binary_.load());
 #else
     auto it = sources_.emplace_front(addr, id, elapsed_time());
 #endif
@@ -1116,8 +1124,9 @@ AooError Sink::handle_pong_message(const osc::ReceivedMessage& msg,
 
 #if AOO_NET
 source_desc::source_desc(const ip_address& addr, AooId id,
-                         const ip_address& relay, double time)
-    : ep(addr, id, relay), last_packet_time_(time)
+                         const ip_address& relay, double time,
+                         bool binary)
+    : ep(addr, id, relay, binary), last_packet_time_(time)
 #else
 source_desc::source_desc(const ip_address& addr, AooId id, double time)
     : ep(addr, id), last_packet_time_(time)
@@ -1501,8 +1510,6 @@ AooError source_desc::handle_decline(const Sink& s, int32_t token) {
 
 AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
 {
-    binary_.store(binary, std::memory_order_relaxed);
-
     // always update packet time to signify that we're receiving packets
     last_packet_time_.store(s.elapsed_time(), std::memory_order_relaxed);
 
@@ -2701,7 +2708,7 @@ void source_desc::send_data_requests(const Sink& s, const sendfn& fn){
 
     AooByte buf[AOO_MAX_PACKET_SIZE];
 
-    if (binary_.load(std::memory_order_relaxed)){
+    if (ep.binary) {
         // --- binary version ---
         const int32_t maxdatasize = s.packet_size() - kBinDataHeaderSize;
         const int32_t maxrequests = maxdatasize / 8; // 2 * int32

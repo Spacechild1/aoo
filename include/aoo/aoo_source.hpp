@@ -403,7 +403,7 @@ public:
 
     /** \brief Enable/disable binary message format
      *
-     * Use a more compact (and faster) binary format for the audio data message
+     * Use a more compact (and faster) binary format for certain messages
      */
     AooError setBinaryFormat(AooBool b) {
         return control(kAooCtlSetBinaryFormat, 0, AOO_ARG(b));

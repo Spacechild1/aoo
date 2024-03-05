@@ -154,7 +154,7 @@ AooError parse_pattern(const AooByte *msg, int32_t n,
 
 AooSize write_relay_message(AooByte *buffer, AooSize bufsize,
                             const AooByte *msg, AooSize msgsize,
-                            const ip_address& addr);
+                            const ip_address& addr, bool binary);
 
 std::string encrypt(const std::string& input);
 

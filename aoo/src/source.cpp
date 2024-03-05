@@ -1132,7 +1132,7 @@ sink_desc * Source::do_add_sink(const ip_address& addr, AooId id, AooId stream_i
             }
         }
     }
-    auto it = sinks_.emplace_front(addr, id, stream_id, relay);
+    auto it = sinks_.emplace_front(addr, id, stream_id, relay, binary_.load());
 #else
     auto it = sinks_.emplace_front(addr, id, stream_id);
 #endif

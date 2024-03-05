@@ -137,7 +137,7 @@ class source_desc {
 public:
 #if AOO_NET
     source_desc(const ip_address& addr, AooId id,
-                const ip_address& relay, double time);
+                const ip_address& relay, double time, bool binary);
 #else
     source_desc(const ip_address& addr, AooId id, double time);
 #endif
@@ -235,7 +235,6 @@ private:
 
     int16_t channel_ = 0; // recent channel onset
     stream_state stream_state_ = stream_state::inactive;
-    std::atomic<bool> binary_{false};
     bool did_update_{false};
     bool underrun_{false};
     bool stopped_{false};
@@ -415,6 +414,7 @@ private:
     parameter<float> dll_bandwidth_{ AOO_DLL_BANDWIDTH };
     parameter<bool> resend_{ AOO_RESEND_DATA };
     parameter<bool> dynamic_resampling_{ AOO_DYNAMIC_RESAMPLING };
+    parameter<bool> binary_{ AOO_BINARY_FORMAT };
     parameter<char> resample_method_{ AOO_RESAMPLE_MODE };
 
     // events

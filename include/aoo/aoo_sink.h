@@ -280,3 +280,15 @@ AOO_INLINE AooError AooSink_getBufferFillRatio(
 {
     return AooSink_control(sink, kAooCtlGetBufferFillRatio, (AooIntPtr)source, AOO_ARG(*ratio));
 }
+
+/** \copydoc AooSink::setBinaryFormat() */
+AOO_INLINE AooError AooSink_setBinaryFormat(AooSink *sink, AooBool b)
+{
+    return AooSink_control(sink, kAooCtlSetBinaryFormat, 0, AOO_ARG(b));
+}
+
+/** \copydoc AooSink::getBinaryFormat() */
+AOO_INLINE AooError AooSink_getBinaryFormat(AooSink *sink, AooBool *b)
+{
+    return AooSink_control(sink, kAooCtlGetBinaryFormat, 0, AOO_ARG(*b));
+}
