@@ -568,7 +568,7 @@ AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
 #if 1
     // NB: we must also check for requests, otherwise this would
     // break the /stop message.
-    if (stream_state() == stream_state::idle && requests_.empty()){
+    if (stream_state() == stream_state::idle && requests_.empty()) {
         return kAooOk; // nothing to do
     }
 #endif
@@ -1102,6 +1102,7 @@ sink_desc * Source::do_add_sink(const ip_address& addr, AooId id, AooId stream_i
     // might not notify the send thread. This means that the resampler, audio buffer
     // and encoder might contain garbage.
     if (sinks_.empty()) {
+        // we really want to avoid this lock...
         scoped_lock lock(update_mutex_); // writer lock!
         resampler_.reset();
         audio_queue_.reset();
@@ -1160,6 +1161,7 @@ bool Source::do_remove_sink(const ip_address& addr, AooId id){
             }
 
             sinks_.erase(it);
+
             return true;
         }
     }
@@ -1928,6 +1930,7 @@ void Source::send_data(const sendfn& fn){
         stream_samples_ = deadline;
 
         // cache sinks
+        bool had_sinks = cached_sinks_.size();
         cached_sinks_.clear();
         sink_lock lock(sinks_);
         for (auto& s : sinks_){
@@ -1940,6 +1943,12 @@ void Source::send_data(const sendfn& fn){
         // to encode and send the data!
         if (cached_sinks_.empty()) {
             audio_queue_.read_commit(); // !
+            if (had_sinks) {
+                assert(encoder_);
+                LOG_DEBUG("AooSource: clear encoder (no sinks)");
+                // reset encoder to prevent artifacts
+                AooEncoder_reset(encoder_.get());
+            }
             continue;
         }
 
