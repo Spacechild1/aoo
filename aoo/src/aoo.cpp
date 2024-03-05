@@ -531,7 +531,23 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
 
 //------------------------ sockaddr -------------------------//
 
-AOO_API AooError AOO_CALL aoo_ipEndpointToSockaddr(
+AOO_API AooBool AOO_CALL aoo_sockAddrEqual(
+    const void *sockaddr1, AooAddrSize addrlen1,
+    const void *sockaddr2, AooAddrSize addrlen2)
+{
+    aoo::ip_address addr1((const struct sockaddr *)sockaddr1, addrlen1);
+    aoo::ip_address addr2((const struct sockaddr *)sockaddr2, addrlen2);
+    return addr1 == addr2;
+}
+
+AOO_API AooSize AOO_CALL aoo_sockAddrHash(
+    const void *sockaddr, AooAddrSize addrlen)
+{
+    aoo::ip_address addr((const struct sockaddr *)sockaddr, addrlen);
+    return addr.hash();
+}
+
+AOO_API AooError AOO_CALL aoo_ipEndpointToSockAddr(
     const AooChar *ipAddress, AooUInt16 port,
     AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen)
 {
@@ -561,7 +577,7 @@ AOO_API AooError AOO_CALL aoo_ipEndpointToSockaddr(
     return kAooOk;
 }
 
-AOO_API AooError AOO_CALL aoo_sockaddrToIpEndpoint(
+AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
     const void *sockaddr, AooSize addrlen,
     AooChar *ipAddressBuffer, AooSize *ipAddressSize,
     AooUInt16 *port, AooSocketFlags *type)

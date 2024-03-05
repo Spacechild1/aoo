@@ -186,6 +186,61 @@ AOO_API AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str);
  */
 AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
 
+/** \brief socket address storage
+ *
+ * This struct is large enough (and properly aligned) to hold both
+ * IPv4 and IPv6 socket addresses. For example, this can be used
+ * to safely copy `AooSockAddr` members in AOO events.
+ * (The socket address data can be simply copied with `memcpy`.)
+ *
+ * \note With 32 bytes it is significantly smaller than
+ * `sockaddr_storage` (which is typically 128 bytes large).
+ */
+typedef struct AooSockAddrStorage
+{
+    AooUInt16 family; /**< address family */
+    /** \cond DO_NOT_DOCUMENT */
+    AooByte pad1[6];
+    AooUInt64 align;
+    AooByte pad2[16];
+    /** \endcond */
+} AooSockAddrStorage;
+
+/**
+ * \brief compare two socket addresses for equality
+ *
+ * \param address 1
+ * \param size of address 1
+ * \param address 2
+ * \param size of address 2
+ * \return #kAooTrue if both addresses are equal
+ *
+ * \note Both addresses must be valid!
+ * Otherwise the result is undefined.
+ *
+ * \attention You must never attempt to compare socket addresses
+ * with `memcmp` because the padding bytes may contain garbage!
+ */
+AOO_API AooBool AOO_CALL aoo_sockAddrEqual(
+        const void *sockaddr1, AooAddrSize addrlen1,
+        const void *sockaddr2, AooAddrSize addrlen2);
+
+/**
+ * \brief compute the hash for a socket address
+ *
+ * For example, this allows to use socket addresses
+ * as keys in a hashtable.
+ *
+ * \param address
+ * \param address size
+ * \return the hash value
+ *
+ * \note the socket address must be valid!
+ * Otherwise the result is undefined.
+ */
+AOO_API AooSize AOO_CALL aoo_sockAddrHash(
+        const void *sockaddr, AooAddrSize addrlen);
+
 /**
  * \brief make sockaddr from IP endpoint
  *
@@ -194,11 +249,12 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
  *
  * \param ipAddress IP address string
  * \param port port number
- * \param type combination of supported IP types
- * \param [out] sockaddr sockaddr buffer
- * \param [in,out] addrlen sockaddr buffer size; updated to actual size
+ * \param type combination of supported IP families
+ * \param [out] sockaddr socket address buffer,
+ *        e.g. `sockaddr_storage` or `AooSockAddrStorage`
+ * \param [in,out] addrlen buffer size; updated to actual size
  */
-AOO_API AooError aoo_ipEndpointToSockaddr(const AooChar *ipAddress, AooUInt16 port,
+AOO_API AooError aoo_ipEndpointToSockAddr(const AooChar *ipAddress, AooUInt16 port,
         AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
 
 /**
@@ -211,7 +267,7 @@ AOO_API AooError aoo_ipEndpointToSockaddr(const AooChar *ipAddress, AooUInt16 po
  * \param [out] port port Number
  * \param [out] type (optional) IP type
  */
-AOO_API AooError aoo_sockaddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
+AOO_API AooError aoo_sockAddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
         AooChar *ipAddressBuffer, AooSize *ipAddressSize, AooUInt16 *port, AooSocketFlags *type);
 
 /**
