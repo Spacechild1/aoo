@@ -334,25 +334,35 @@ AOO_API AooError aoo_handleRelayMessage(
     // check if the embedded destination address is compatible with the given socket type.
     // TODO: handle true dual stack (IPv4 socket + IPv6 socket)
     auto check_addr = [&](ip_address& addr) {
+        assert(addr.valid());
+
         if (addr.is_ipv4_mapped()) {
             LOG_DEBUG("aoo_handleRelayMessage: relay destination must not be IPv4-mapped");
             return false;
         }
-        if ((socketType & kAooSocketIPv6) && addr.type() == ip_address::IPv4) {
-            if (socketType & kAooSocketIPv4Mapped) {
-                // map address to IPv4
+
+        if (addr.type() == ip_address::IPv6) {
+            if (socketType & kAooSocketIPv6) {
+                return true;
+            } else {
+                // cannot relay to IPv6 address with IPv4-only socket
+                LOG_DEBUG("aoo_handleRelayMessage: cannot relay to destination address " << addr);
+                return false;
+            }
+        } else {
+            assert(addr.type() == ip_address::IPv4);
+            if (socketType & kAooSocketIPv4) {
+                return true;
+            } else if (socketType & kAooSocketIPv4Mapped) {
+                // map IPv4 address to to IPv6
                 addr = addr.ipv4_mapped();
+                return true;
             } else {
                 // cannot relay to IPv4 address with IPv6-only socket
                 LOG_DEBUG("aoo_handleRelayMessage: cannot relay to destination address " << addr);
                 return false;
             }
-        } else if ((socketType & kAooSocketIPv4) && addr.type() == ip_address::IPv6) {
-            // cannot relay to IPv6 address with IPv4-only socket
-            LOG_DEBUG("aoo_handleRelayMessage: cannot relay to destination address " << addr);
-            return false;
         }
-        return true;
     };
 
     if (binmsg_check(data, size)) {

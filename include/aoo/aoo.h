@@ -153,6 +153,13 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
  * \param socketType the socket type; one of the following values:
  *        #kAooSocketIPv4, #kAooSocketIPv6 or #kAooSocketDualStack
  * \return error code
+ *
+ * \note In case of a "real" dual stack setup (i.e. dedicated
+ *       IPv6 socket + IPv4 socket), you must pass the flags
+ *       `kAooSocketIPv4 | kAooSocketIPv6` to `socketType`.
+ *       The send function will be called with either an
+ *       IPv4 or IPv6 address and you must forward it to
+ *       the corresponding socket.
  */
 AOO_API AooError aoo_handleRelayMessage(
         const AooByte *data, AooInt32 size,

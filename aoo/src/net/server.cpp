@@ -1558,6 +1558,7 @@ void Server::handle_relay(const AooByte *data, AooSize size, const ip_address& a
             LOG_DEBUG("AooClient: cannot relay to destination address " << addr);
             return false;
         }
+        // ip_address::Unspec -> always pass
         return true;
     };
 

@@ -79,6 +79,11 @@ int main(int argc, char *argv[])
             kAooSocketIPv6, kAooErrorNotPermitted
         },
         params {
+            ip_address("127.0.0.1", 9999),
+            ip_address("127.0.0.1", 9998),
+            kAooSocketIPv6 | kAooSocketIPv4, kAooOk
+        },
+        params {
             ip_address("::1", 9999),
             ip_address("::1", 9998),
             kAooSocketIPv4, kAooErrorNotPermitted
@@ -87,10 +92,15 @@ int main(int argc, char *argv[])
             ip_address("::1", 9999),
             ip_address("::1", 9998),
             kAooSocketIPv6, kAooOk
+        },
+        params {
+            ip_address("::1", 9999),
+            ip_address("::1", 9998),
+            kAooSocketIPv6 | kAooSocketIPv4, kAooOk
         }
     };
 
-    // construct test message
+    // create test message (/aoo/peer/ping ...)
     AooId group = 5;
     AooId user = 7;
     AooNtpTime time = aoo_getCurrentNtpTime();
@@ -116,7 +126,7 @@ int main(int argc, char *argv[])
                 std::cout << " (binary)";
             std::cout << std::endl;
 
-            // create relay message
+            // 1) create relay message
             AooByte outbuf[AOO_MAX_PACKET_SIZE];
             auto outsize = net::write_relay_message(outbuf, sizeof(outbuf),
                                                     msgbuf, msg.Size(), p.dst, binary);
@@ -125,7 +135,7 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
             }
 
-            // forward relay message
+            // 2) forward relay message
             auto result = aoo_handleRelayMessage(outbuf, outsize, p.src.address(), p.src.length(),
                                                  send_func, nullptr, p.flags);
             if (result != p.expected) {
@@ -138,7 +148,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            // parse relay message
+            // 3) parse relay message
             AooMsgType type;
             AooId id;
             AooInt32 offset;
@@ -152,6 +162,7 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
             }
 
+            // 4) check if embedded message matches the original
             if (binary) {
                 ip_address addr;
                 auto onset = binmsg_read_relay(inbuf, insize, addr);
