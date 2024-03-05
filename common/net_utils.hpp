@@ -4,9 +4,15 @@
 #include "aoo/aoo_defines.h"
 #include "aoo/aoo_types.h"
 
+#include <cassert>
+#include <cstring>
 #include <ostream>
 #include <string>
 #include <vector>
+
+#ifndef AOO_USE_IPv6
+#define AOO_USE_IPv6 1
+#endif
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -16,16 +22,16 @@
 #define NOMINMAX
 #endif
 #include <winsock2.h>
+#if AOO_USE_IPv6
+#include <ws2ipdef.h>
+#endif
 typedef int socklen_t;
 struct sockaddr;
 #else
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <errno.h>
-#endif
-
-#ifndef AOO_USE_IPv6
-#define AOO_USE_IPv6 1
-#endif
+#endif // _WIN32
 
 namespace aoo {
 
@@ -51,19 +57,54 @@ public:
         IPv6
     };
 
+    static const socklen_t max_length = 32;
+
     static std::vector<ip_address> resolve(const std::string& host, uint16_t port,
                                            ip_type type, bool ipv4mapped = false);
 
     ip_address();
+
     ip_address(socklen_t size);
-    ip_address(const struct sockaddr *sa, socklen_t len);
-    ip_address(const AooSockAddr& addr);
+
+    // NB: for convenience 'sa' may be NULL!
+    ip_address(const struct sockaddr *sa, socklen_t len) {
+        if (sa) {
+            assert(len > 0 && len <= max_length);
+            memcpy(data_, sa, len);
+            length_ = len;
+        } else {
+            assert(len == 0);
+            clear();
+        }
+    }
+
+    ip_address(const AooSockAddr &addr)
+        : ip_address((const struct sockaddr *)addr.data, addr.size) {}
+
     ip_address(uint16_t port, ip_type type); // "any" address
+
     ip_address(const std::string& ip, uint16_t port, ip_type type = ip_type::Unspec);
+
     ip_address(const AooByte *bytes, AooSize size, uint16_t port, ip_type type);
 
-    ip_address(const ip_address& other);
-    ip_address& operator=(const ip_address& other);
+    ip_address(const ip_address& other){
+        if (other.length_ > 0) {
+            memcpy(data_, &other.data_, other.length_);
+            length_ = other.length_;
+        } else {
+            clear();
+        }
+    }
+
+    ip_address& operator=(const ip_address& other){
+        if (other.length_ > 0) {
+            memcpy(data_, &other.data_, other.length_);
+            length_ = other.length_;
+        } else {
+            clear();
+        }
+        return *this;
+    }
 
     void clear();
 
@@ -98,11 +139,11 @@ public:
     void unmap();
 
     const struct sockaddr *address() const {
-        return (const struct sockaddr *)&address_;
+        return (const struct sockaddr *)data_;
     }
 
     struct sockaddr *address_ptr() {
-        return (struct sockaddr *)&address_;
+        return (struct sockaddr *)data_;
     }
 
     socklen_t length() const {
@@ -115,17 +156,19 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const ip_address& addr);
 
-    static const socklen_t max_length = 32;
 private:
     static const char *get_name(const struct sockaddr *addr);
     // large enough to hold both sockaddr_in
     // and sockaddr_in6 (max. 32 bytes)
-    struct {
-        int16_t __ss_family;
-        char __ss_pad1[6];
-        int64_t __ss_align;
-        char __ss_pad2[16];
-    } address_;
+    union {
+        sockaddr_in addr_in_;
+#if AOO_USE_IPv6
+        sockaddr_in6 addr_in6_;
+#endif
+        uint16_t family_;
+        uint64_t align_;
+        AooByte data_[max_length];
+    };
     socklen_t length_;
 
     void check();

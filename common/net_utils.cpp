@@ -4,10 +4,6 @@
 
 #include "net_utils.hpp"
 
-#include "aoo/aoo_config.h"
-#include "aoo/aoo_defines.h"
-#include "aoo/aoo_types.h"
-
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #else
@@ -17,14 +13,12 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <netdb.h>
-#include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #endif
 
-#include <cassert>
-#include <stdio.h>
+#include <cstdio>
 #include <cstring>
 #include <algorithm>
 
@@ -35,10 +29,10 @@ namespace aoo {
 //------------------------ ip_address ------------------------//
 
 ip_address::ip_address(){
-    static_assert(sizeof(address_) == max_length,
+    static_assert(sizeof(data_) == max_length,
                   "wrong max_length value");
 #if AOO_USE_IPv6
-    static_assert(sizeof(address_) >= sizeof(sockaddr_in6),
+    static_assert(sizeof(data_) >= sizeof(sockaddr_in6),
                   "ip_address can't hold IPv6 sockaddr");
 #endif
     clear();
@@ -49,21 +43,6 @@ ip_address::ip_address(socklen_t size) {
     length_ = size;
 }
 
-ip_address::ip_address(const struct sockaddr *sa, socklen_t len){
-    if (sa && len > 0) {
-        memcpy(&address_, sa, len);
-        length_ = len;
-    } else {
-        clear();
-    }
-#if 0
-    check();
-#endif
-}
-
-ip_address::ip_address(const AooSockAddr &addr)
-    : ip_address((const struct sockaddr *)addr.data, addr.size) {}
-
 ip_address::ip_address(const AooByte *bytes, AooSize size,
                        uint16_t port, ip_type type) {
     switch (type) {
@@ -71,30 +50,30 @@ ip_address::ip_address(const AooByte *bytes, AooSize size,
     case IPv6:
     {
         assert(size == 16);
+#if 1
+        memset(&addr_in6_, 0, sizeof(addr_in6_));
+#endif
+        addr_in6_.sin6_family = AF_INET6;
+        addr_in6_.sin6_port = htons(port);
+        memcpy(&addr_in6_.sin6_addr, bytes, size);
 
-        sockaddr_in6 sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sin6_family = AF_INET6;
-        sa.sin6_port = htons(port);
-        memcpy(&sa.sin6_addr, bytes, size);
+        length_ = sizeof(addr_in6_);
 
-        memcpy(&address_, &sa, sizeof(sa));
-        length_ = sizeof(sa);
         break;
     }
 #endif
     case IPv4:
     {
         assert(size == 4);
+#if 1
+        memset(&addr_in_, 0, sizeof(addr_in_));
+#endif
+        addr_in_.sin_family = AF_INET;
+        addr_in_.sin_port = htons(port);
+        memcpy(&addr_in_.sin_addr, bytes, size);
 
-        sockaddr_in sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sin_family = AF_INET;
-        sa.sin_port = htons(port);
-        memcpy(&sa.sin_addr, bytes, size);
+        length_ = sizeof(addr_in_);
 
-        memcpy(&address_, &sa, sizeof(sa));
-        length_ = sizeof(sa);
         break;
     }
     default:
@@ -106,14 +85,16 @@ ip_address::ip_address(const AooByte *bytes, AooSize size,
 #endif
 }
 
-void ip_address::clear(){
-    memset(&address_, 0, sizeof(address_));
-    address_ptr()->sa_family = AF_UNSPEC;
+void ip_address::clear() {
+#if 1
+    memset(data_, 0, sizeof(data_));
+#endif
+    family_ = AF_UNSPEC;
     length_ = 0;
 }
 
 void ip_address::check() {
-    auto f = address()->sa_family;
+    auto f = family_;
 #if AOO_USE_IPv6
     bool ok = (f == AF_INET6 || f == AF_INET || f == AF_UNSPEC);
 #else
@@ -210,7 +191,9 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t po
         errno = HOST_NOT_FOUND;
     #endif
     }
+
     freeaddrinfo(ailist);
+
     return result;
 }
 
@@ -239,8 +222,9 @@ ip_address::ip_address(uint16_t port, ip_type type) {
     struct addrinfo *ailist;
     int err = getaddrinfo(nullptr, portstr, &hints, &ailist);
     if (err == 0){
-        memcpy(&address_, ailist->ai_addr, ailist->ai_addrlen);
+        memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
         length_ = ailist->ai_addrlen;
+
         freeaddrinfo(ailist);
     } else {
         // fail
@@ -286,8 +270,9 @@ ip_address::ip_address(const std::string& ip, uint16_t port, ip_type type) {
         }
     #endif
         // otherwise just take the first result
-        memcpy(&address_, ailist->ai_addr, ailist->ai_addrlen);
+        memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
         length_ = ailist->ai_addrlen;
+
         freeaddrinfo(ailist);
     } else {
         // fail
@@ -298,49 +283,24 @@ ip_address::ip_address(const std::string& ip, uint16_t port, ip_type type) {
 #endif
 }
 
-ip_address::ip_address(const ip_address& other){
-    if (other.length_ > 0) {
-        memcpy(&address_, &other.address_, other.length_);
-        length_ = other.length_;
-    } else {
-        clear();
-    }
-#if 0
-    check();
-#endif
-}
-
-ip_address& ip_address::operator=(const ip_address& other){
-    if (other.length_ > 0) {
-        memcpy(&address_, &other.address_, other.length_);
-        length_ = other.length_;
-    } else {
-        clear();
-    }
-#if 0
-    check();
-#endif
-    return *this;
-}
-
 bool ip_address::operator==(const ip_address& other) const {
-    if (address()->sa_family == other.address()->sa_family){
-        switch (address()->sa_family){
+    if (family_ == other.family_){
+        switch (family_){
         case AF_INET:
         {
-            auto a = (const struct sockaddr_in *)&address_;
-            auto b = (const struct sockaddr_in *)&other.address_;
-            return (a->sin_addr.s_addr == b->sin_addr.s_addr)
-                    && (a->sin_port == b->sin_port);
+            auto& a = addr_in_;
+            auto& b = other.addr_in_;
+            return (a.sin_addr.s_addr == b.sin_addr.s_addr)
+                    && (a.sin_port == b.sin_port);
         }
     #if AOO_USE_IPv6
         case AF_INET6:
         {
-            auto a = (const struct sockaddr_in6 *)&address_;
-            auto b = (const struct sockaddr_in6 *)&other.address_;
-            return !memcmp(a->sin6_addr.s6_addr, b->sin6_addr.s6_addr,
+            auto& a = addr_in6_;
+            auto& b = other.addr_in6_;
+            return !memcmp(a.sin6_addr.s6_addr, b.sin6_addr.s6_addr,
                            sizeof(struct in6_addr))
-                    && (a->sin6_port == b->sin6_port);
+                    && (a.sin6_port == b.sin6_port);
         }
     #endif
         default:
@@ -352,9 +312,11 @@ bool ip_address::operator==(const ip_address& other) const {
 
 std::ostream& operator<<(std::ostream& os, const ip_address& addr) {
     switch (addr.address()->sa_family) {
+#if AOO_USE_IPv6
     case AF_INET6:
         os << "[" << addr.name() << "]:" << addr.port();
         break;
+#endif
     case AF_INET:
         os << addr.name() << ":" << addr.port();
         break;
@@ -398,7 +360,7 @@ const char * ip_address::get_name(const sockaddr *addr){
 
 const char* ip_address::name() const {
     if (length_ > 0) {
-        return get_name((const sockaddr *)&address_);
+        return get_name((const sockaddr *)data_);
     } else {
         return "";
     }
@@ -417,12 +379,12 @@ const char* ip_address::name_unmapped() const {
 }
 
 uint16_t ip_address::port() const {
-    switch (address()->sa_family){
+    switch (family_){
     case AF_INET:
-        return ntohs(reinterpret_cast<const sockaddr_in *>(address())->sin_port);
+        return ntohs(addr_in_.sin_port);
 #if AOO_USE_IPv6
     case AF_INET6:
-        return ntohs(reinterpret_cast<const sockaddr_in6 *>(address())->sin6_port);
+        return ntohs(addr_in6_.sin6_port);
 #endif
     default:
         return 0;
@@ -430,12 +392,12 @@ uint16_t ip_address::port() const {
 }
 
 const AooByte* ip_address::address_bytes() const {
-    switch (address()->sa_family){
+    switch (family_){
     case AF_INET:
-        return (const AooByte *)&reinterpret_cast<const sockaddr_in *>(address())->sin_addr;
+        return (const AooByte *)&addr_in_.sin_addr;
 #if AOO_USE_IPv6
     case AF_INET6:
-        return (const AooByte *)&reinterpret_cast<const sockaddr_in6 *>(address())->sin6_addr;
+        return (const AooByte *)&addr_in6_.sin6_addr;
 #endif
     default:
         return nullptr;
@@ -443,11 +405,13 @@ const AooByte* ip_address::address_bytes() const {
 }
 
 size_t ip_address::address_size() const {
-    switch (type()) {
-    case IPv6:
-        return 16;
-    case IPv4:
+    switch(family_){
+    case AF_INET:
         return 4;
+#if AOO_USE_IPv6
+    case AF_INET6:
+        return 16;
+#endif
     default:
         return 0;
     }
@@ -458,7 +422,7 @@ bool ip_address::valid() const {
 }
 
 ip_address::ip_type ip_address::type() const {
-    switch(address()->sa_family){
+    switch(family_){
     case AF_INET:
         return IPv4;
 #if AOO_USE_IPv6
@@ -472,9 +436,8 @@ ip_address::ip_type ip_address::type() const {
 
 bool ip_address::is_ipv4_mapped() const {
 #if AOO_USE_IPv6
-    if (address()->sa_family == AF_INET6){
-        auto addr = reinterpret_cast<const sockaddr_in6 *>(&address_);
-        auto w = (uint16_t *)addr->sin6_addr.s6_addr;
+    if (family_ == AF_INET6) {
+        auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         return (w[0] == 0) && (w[1] == 0) && (w[2] == 0) && (w[3] == 0) &&
                (w[4] == 0) && (w[5] == 0xffff);
     }
@@ -484,10 +447,9 @@ bool ip_address::is_ipv4_mapped() const {
 
 ip_address ip_address::ipv4_mapped() const {
 #if AOO_USE_IPv6
-    if (type() == IPv4) {
-        auto addr = reinterpret_cast<const sockaddr_in *>(&address_);
+    if (family_ == AF_INET6) {
         uint16_t w[8] = { 0, 0, 0, 0, 0, 0xffff };
-        memcpy(&w[6], &addr->sin_addr.s_addr, 4);
+        memcpy(&w[6], &addr_in_.sin_addr.s_addr, 4);
         return ip_address((const AooByte *)&w, 16, port(), IPv6);
     }
 #endif
@@ -496,9 +458,8 @@ ip_address ip_address::ipv4_mapped() const {
 
 ip_address ip_address::unmapped() const {
 #if AOO_USE_IPv6
-    if (is_ipv4_mapped()){
-        auto addr = reinterpret_cast<const sockaddr_in6 *>(&address_);
-        auto w = (uint16_t *)addr->sin6_addr.s6_addr;
+    if (is_ipv4_mapped()) {
+        auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         return ip_address((const AooByte *)&w[6], 4, port(), IPv4);
     }
 #endif
@@ -508,8 +469,7 @@ ip_address ip_address::unmapped() const {
 void ip_address::unmap() {
 #if AOO_USE_IPv6
     if (is_ipv4_mapped()){
-        auto addr = reinterpret_cast<const sockaddr_in6 *>(&address_);
-        auto w = (uint16_t *)addr->sin6_addr.s6_addr;
+        auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         *this = ip_address((const AooByte *)&w[6], 4, port(), IPv4);
     }
 #endif
