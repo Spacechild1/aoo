@@ -95,8 +95,6 @@ and also helped reviving the Virtual IEM Computer Music Ensemble [^VICE] within 
 
 `pd`      - Pd external
 
-`sc`      - SC extension
-
 `server`  - the `aooserver` command line program
 
 `tests`   - test suite
@@ -150,12 +148,6 @@ The Pd external is available on Deken (in Pd -> Help -> "Find externals" search 
 
 ---
 
-### SC extension
-
-TODO
-
----
-
 ### The aooserver command line program
 
 If you want to host your own (private or public) AOO server, you only have to run
@@ -187,17 +179,6 @@ Run `aooserver -h` to see all available options.
 5. Set `PD_INSTALLDIR` to the desired installation path (if you're not happy with the default).
 
 If you do *not* want to build the Pd external, set `AOO_BUILD_PD_EXTERNAL` to `OFF`!
-
-
-#### SuperCollider
-
-1. Clone the SuperCollider source code from https://github.com/supercollider/supercollider.
-2. The `AOO_BUILD_SC_EXTENSION` CMake variable must be `ON`
-3. Set `SC_INCLUDEDIR` to the `supercollider` folder (which should contain the subfolders `common` and `include`)
-4. Set `SC_INSTALLDIR` to the desired installation path (if you're not happy with the default).
-5. Set `SC_SUPERNOVA` to `ON` if you want to also build a Supernova version.
-
-If you do *not* want to build the SC extension, set `AOO_BUILD_SC_EXTENSION` to `OFF`!
 
 
 #### Opus
@@ -261,8 +242,6 @@ These are the most important project options:
 
 * `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. Default: `ON`.
 
-* `AOO_BUILD_SC_EXTENSION` (BOOL) - Build the SuperCollider extension. Default: `ON`
-
 * `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` command line program. Default: `ON`
 
 * `AOO_CODEC_OPUS` (BOOL) - Enable/disable built-in Opus support
@@ -279,7 +258,7 @@ These are the most important project options:
 
 * `AOO_NET` (BOOL) - Build with integrated networking support (`AooClient` and `AooServer`).
   Disable it if you don't need it and want to reduce code size.
-  **NOTE**: It is required for the Pd and SC extensions. Default: `ON`.
+  **NOTE**: It is required for the Pd external. Default: `ON`.
 
 
 `cmake-gui` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.

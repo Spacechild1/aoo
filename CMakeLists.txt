@@ -278,16 +278,6 @@ if (AOO_BUILD_PD_EXTERNAL)
     add_subdirectory("pd")
 endif()
 
-# SC extension
-option(AOO_BUILD_SC_EXTENSION "build SC extension" ON)
-if (AOO_BUILD_SC_EXTENSION)
-    if (NOT AOO_NET)
-        message(FATAL_ERROR "SC extension requires AOO_NET")
-    endif()
-    message(STATUS "\n*** SC extension ***\n")
-    add_subdirectory("sc")
-endif()
-
 # aooserver binary
 option(AOO_BUILD_SERVER "build AOO server application" ON)
 if (AOO_BUILD_SERVER)
