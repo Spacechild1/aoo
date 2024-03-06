@@ -40,13 +40,13 @@ variables:
   - rm -f Pd.zip
   - mv "${PD_PATH}"/*/* "${PD_PATH}"
 
-# NOTE: we have to use absolute paths for PD_INSTALL_DIR and SC_INSTALLDIR.
+# NOTE: we have to use absolute paths for PD_INSTALL_DIR and SC_INSTALL_DIR.
 # For some reason, relative paths (including '.') are not appended to CMAKE_INSTALL_PREFIX
 # as they should be, instead they are resolved to the source directory *before* getting passed to CMake.
 .script:cmake: &script_cmake
   - prefix="$(pwd)/build/${CI_JOB_NAME}"
   - rm -rf build build_shared
-  # static library, Pd external, server, tests, examples and documentation
+  # static AOO library, Pd external, SC extension, AOO server, tests, examples and documentation
   - cmake -H. -Bbuild -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
@@ -55,8 +55,8 @@ variables:
     -DAOO_BUILD_DOCUMENTATION=${DOXYGEN}
     -DAOO_BUILD_PD_EXTERNAL=ON -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin"
     -DPD_INSTALL_DIR="${prefix}/pd" -DPD_EXTENSION=${PD_EXTENSION}
-#    -DPD_BUILD_SC_EXTENSION -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
-  # shared library
+    -DAOO_BUILD_SC_EXTENSION=ON -DSC_INCLUDE_DIR="${SC_PATH}" -DSC_INSTALL_DIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
+  # shared AOO library
   - cmake -H. -Bbuild_shared -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
@@ -74,7 +74,7 @@ variables:
   - codesign --force --sign - "${dir}/aoo/lib/libaoo.dylib"
   - codesign --force --sign - "${dir}/aoo/bin/aooserver"
   - codesign --force --sign - "${dir}/pd/aoo/aoo.${PD_EXTENSION}"
-  # - find ${dir}/sc/aoo/plugins -name "*.scx" -exec codesign --force --sign - {} \;
+  - find "${dir}/sc/aoo/plugins" -name "*.scx" -exec codesign --force --sign - {} \;
 
 ### build snippets
 .script:make: &script_make
@@ -96,7 +96,7 @@ variables:
     paths:
       - "build/${CI_JOB_NAME}/aoo"
       - "build/${CI_JOB_NAME}/pd/aoo"
-      # - "build/${CI_JOB_NAME}/sc/aoo"
+      - "build/${CI_JOB_NAME}/sc/aoo"
     # we only need the job artifacts to create the packages
     expire_in: 1h
 
@@ -116,7 +116,7 @@ variables:
     - test "x${TARGETDEBARCH}" != "x" &&
       { export CC=${TARGETARCH}-gcc; export CXX=${TARGETARCH}-g++; }
     - git submodule update --init
-#    - *script_sc
+    - *script_sc
     - *script_pd
     - *script_cmake
 
@@ -150,7 +150,7 @@ variables:
   before_script:
   # TODO: install doxygen (homebrew is too slow...)
     - git submodule update --init
-#    - *script_sc
+    - *script_sc
     - *script_pd
     - *script_cmake
   after_script:
@@ -169,7 +169,7 @@ variables:
   before_script:
     - pacman --noconfirm -S ${MINGW_PACKAGE_PREFIX}-cmake doxygen
     - git submodule update --init
-#    - *script_sc
+    - *script_sc
     - *script_pd_app
     - *script_cmake
 
@@ -217,7 +217,7 @@ variables:
     paths:
       - ./aoo*
       - ./pd*
-      # - ./sc*
+      - ./sc*
     expire_in: 1d
   before_script:
     - *package_deps
@@ -232,10 +232,10 @@ variables:
     - rm -rf ./sc
     - mkdir aoo
     - mkdir pd
-    # - mkdir sc
+    - mkdir sc
     - mv build/${JOBNAME}/aoo .
     - mv build/${JOBNAME}/pd .
-    # - mv ${JOBNAME}/build/sc ./sc
+    - mv build/${JOBNAME}/sc ./sc
 
 .package_deken: &package_deken
   stage: deploy
@@ -250,7 +250,6 @@ variables:
   before_script:
     - *package_deps
   script:
-# Deken:
     - rm -f ./*.dek
     - rm -rf ./pd/aoo
     - mkdir -p ./pd/aoo

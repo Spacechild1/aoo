@@ -184,7 +184,7 @@ Follow these instructions if you want to build the Pd external.
 
    Linux: `sudo apt-get install pure-data-dev`
 
-2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
+2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`.
 
 3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
 
@@ -197,7 +197,21 @@ set `AOO_INSTALL_LIBRARY` to `OFF` to prevent the `aoo` library from being insta
 
 ---
 
-### 2.1.4 PortAudio
+### 2.1.4 SuperCollider
+
+1. Clone the SuperCollider source code from https://github.com/supercollider/supercollider.
+
+2. The `AOO_BUILD_SC_EXTENSION` CMake variable must be `ON`.
+
+3. Set `SC_INCLUDE_DIR` to the `supercollider` folder (which should contain the subfolders `common` and `include`)
+
+4. Set `SC_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
+
+5. Set `SC_SUPERNOVA` to `ON` if you want to also build the Supernova version.
+
+---
+
+### 2.1.5 PortAudio
 
 PortAudio is required for the example programs (`AOO_BUILD_EXAMPLES=ON`).
 
@@ -205,13 +219,13 @@ By default, the local portaudio in `deps/portaudio` will be used. If for some re
 
 ---
 
-### 2.1.5 Doxygen
+### 2.1.6 Doxygen
 
 Doxygen is required for building the API documentation (`AOO_BUILD_DOCUMENTATION=ON`).
 
 ---
 
-### 2.1.6 macOS
+### 2.1.7 macOS
 
 By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
 
@@ -250,6 +264,8 @@ These are the most important project options:
 - `AOO_BUILD_EXAMPLES` (BOOL) - Build the example programs. (Default = `OFF`)
 
 - `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. (Default = `OFF`)
+
+* `AOO_BUILD_SC_EXTENSION` (BOOL) - Build the SuperCollider extension. (Default = `OFF`)
 
 - `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` program. (Default = `OFF`)
 

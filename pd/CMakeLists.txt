@@ -93,8 +93,8 @@ else()
 endif()
 message(STATUS "Pd extension: ${SUFFIX}")
 
+# output name
 set_target_properties(pd PROPERTIES
-    # output name
     PREFIX "" # no prefix!
     OUTPUT_NAME "aoo"
     SUFFIX ${SUFFIX})
@@ -119,8 +119,14 @@ endif()
 # installation
 # TODO: install PDB file (Visual Studio)
 install(TARGETS pd DESTINATION "${PD_INSTALL_DIR}/aoo")
-install(FILES "aoo_send~-help.pd" "aoo_receive~-help.pd"
-    "aoo_client-help.pd" "aoo_server-help.pd"
-    "mc_aoo_send~.pd" "mc_aoo_receive~.pd"
-    "../README.md" "../LICENSE"
+
+install(FILES
+    "aoo_send~-help.pd"
+    "aoo_receive~-help.pd"
+    "aoo_client-help.pd"
+    "aoo_server-help.pd"
+    "mc_aoo_send~.pd"
+    "mc_aoo_receive~.pd"
+    "../README.md"
+    "../LICENSE"
     DESTINATION "${PD_INSTALL_DIR}/aoo")

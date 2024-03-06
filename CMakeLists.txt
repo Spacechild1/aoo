@@ -147,7 +147,8 @@ option(AOO_USE_OPUS "use Opus codec" ON)
 
 option(AOO_BUILD_DOCUMENTATION "build API documentation" OFF)
 option(AOO_BUILD_EXAMPLES "build examples" OFF)
-option(AOO_BUILD_PD_EXTERNAL "build Pd external" OFF)
+option(AOO_BUILD_PD_EXTERNAL "build Pure Data external" OFF)
+option(AOO_BUILD_SC_EXTENSION "build SuperCollider extension" OFF)
 option(AOO_BUILD_SERVER "build AOO server program" OFF)
 option(AOO_BUILD_SHARED_LIBRARY "build shared AOO library" OFF)
 option(AOO_BUILD_TESTS "build test suite" OFF)
@@ -417,11 +418,22 @@ add_subdirectory(aoo)
 # Pd external
 #-----------------------------------------------------------------
 if (AOO_BUILD_PD_EXTERNAL)
-    message(STATUS "\n*** Pd external ***\n")
+    message(STATUS "\n*** Pure Data external ***\n")
     if (NOT AOO_NET)
         message(FATAL_ERROR "Pd external requires AOO_NET")
     endif()
     add_subdirectory(pd)
+endif()
+
+#-----------------------------------------------------------------
+# SC extension
+#-----------------------------------------------------------------
+if (AOO_BUILD_SC_EXTENSION)
+    if (NOT AOO_NET)
+        message(FATAL_ERROR "SuperCollider extension requires AOO_NET")
+    endif()
+    message(STATUS "\n*** SuperCollider extension ***\n")
+    add_subdirectory(sc)
 endif()
 
 #-----------------------------------------------------------------

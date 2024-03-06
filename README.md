@@ -86,6 +86,8 @@ Since then it has been used in several art projects and software applications.
 
 `pd`       - Pd external
 
+`sc`       - SC extension
+
 `server`   - the `aooserver` command line program
 
 `tests`    - test suite
@@ -130,6 +132,12 @@ Objects:
 For documentation see the corresponding help patches.
 
 The Pd external is available on Deken (in Pd -> Help -> "Find externals" search for "aoo".)
+
+---
+
+# SC extension
+
+TODO
 
 ---
 
