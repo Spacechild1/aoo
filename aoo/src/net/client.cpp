@@ -458,6 +458,26 @@ AooError AOO_CALL aoo::net::Client::handlePacket(
     }
 }
 
+AOO_API AooError AOO_CALL AooClient_sendPacket(
+    AooClient *client, const AooByte *data,
+    AooInt32 size, const void *addr, AooAddrSize len)
+{
+    return client->sendPacket(data, size, addr, len);
+}
+
+AooError AOO_CALL aoo::net::Client::sendPacket(
+    const AooByte *data, AooInt32 size,
+    const void *addr, AooAddrSize len)
+{
+    auto cmd = std::make_unique<packet_cmd>(
+        data, size, ip_address((const sockaddr *)addr, len));
+    push_command(std::move(cmd));
+
+    notify(); // !
+
+    return kAooOk;
+}
+
 AOO_API AooError AOO_CALL AooClient_setEventHandler(
     AooClient *sink, AooEventHandler fn, void *user, AooEventMode mode)
 {

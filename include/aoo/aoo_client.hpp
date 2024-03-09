@@ -127,6 +127,26 @@ public:
         const AooByte *data, AooInt32 size,
         const void *address, AooAddrSize addrlen) = 0;
 
+    /** \brief send UDP packet to the given socket address
+     *
+     * This is typically used for "side-channels", e.g. non-AOO messages
+     * exchanged over the same socket. See als the `messageHandler` member
+     * in `AooClientSettings`.
+     *
+     * The packet is not sent out immediately; it is queued and will be
+     * subsequently sent by the (send) network thread.
+     *
+     * \note Threadsafe and reentrant.
+     *
+     * \param data the packet data
+     * \param size the packet size
+     * \param address the destination socket address
+     * \param addrlen the socket address length
+     */
+    virtual AooError AOO_CALL sendPacket(
+        const AooByte *data, AooInt32 size,
+        const void *address, AooAddrSize addrlen) = 0;
+
     /** \brief set event handler function and event handling mode
      *
      * \attention Not threadsafe - only call in the beginning!

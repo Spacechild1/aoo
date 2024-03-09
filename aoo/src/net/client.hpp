@@ -242,6 +242,10 @@ public:
             const AooByte *data, AooInt32 n,
             const void *addr, AooAddrSize len) override;
 
+    AooError AOO_CALL sendPacket(
+        const AooByte *data, AooInt32 n,
+        const void *addr, AooAddrSize len) override;
+
     AooError AOO_CALL setEventHandler(
             AooEventHandler fn, void *user, AooEventMode mode) override;
 
@@ -750,6 +754,36 @@ public:
         }
         aoo::metadata data_;
         AooFlag flags_;
+    };
+
+    struct packet_cmd : icommand
+    {
+        packet_cmd(const AooByte *data, size_t size,
+                   const ip_address& addr) {
+            // NB: the packet may be empty!
+            if (size > 0) {
+                data_ = (AooByte*)aoo::allocate(size);
+                memcpy(data_, data, size);
+                size_ = size;
+            }
+            addr_ = addr;
+        }
+
+        packet_cmd(const packet_cmd&) = delete;
+
+        ~packet_cmd() {
+            if (data_) {
+                aoo::deallocate(data_, size_);
+            }
+        }
+
+        void perform(Client& c) override {
+            c.udp_sendfn_(data_, size_, addr_);
+        }
+    private:
+        ip_address addr_;
+        AooByte *data_ = nullptr;
+        size_t size_ = 0;
     };
 };
 

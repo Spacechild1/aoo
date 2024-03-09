@@ -57,6 +57,11 @@ AOO_API AooError AOO_CALL AooClient_handlePacket(
         AooClient *client, const AooByte *data, AooInt32 size,
         const void *address, AooAddrSize addrlen);
 
+/** \copydoc AooClient::sendPacket() */
+AOO_API AooError AOO_CALL AooClient_sendPacket(
+    AooClient *client, const AooByte *data, AooInt32 size,
+    const void *address, AooAddrSize addrlen);
+
 /** \copydoc AooClient::setEventHandler() */
 AOO_API AooError AOO_CALL AooClient_setEventHandler(
         AooClient *client, AooEventHandler fn, void *user, AooEventMode mode);
