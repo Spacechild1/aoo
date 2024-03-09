@@ -81,7 +81,7 @@ public:
     /** \brief stop the AOO client from another thread */
     virtual AooError AOO_CALL stop() = 0;
 
-    /** \brief send outgoing messages
+    /** \brief send outgoing UDP messages
      *
      * \note Threadsafe; call on the network thread
      *
@@ -118,9 +118,9 @@ public:
      *
      * \note Threadsafe, but not reentrant; call on the network thread
      *
-     * \param data the message data
-     * \param size the message size
-     * \param address the remote socket address
+     * \param data the packet data
+     * \param size the packet size
+     * \param address the source socket address
      * \param addrlen the socket address length
      */
     virtual AooError AOO_CALL handlePacket(

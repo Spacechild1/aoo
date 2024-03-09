@@ -106,6 +106,9 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         return err;
     }
 
+    message_handler_ = settings.messageHandler;
+    user_data_ = settings.userData;
+
     // in case run() has been called in non-blocking mode
     close();
 
@@ -410,8 +413,17 @@ AooError AOO_CALL aoo::net::Client::handlePacket(
     AooId id;
     AooInt32 onset;
     auto err = aoo_parsePattern(data, size, &type, &id, &onset);
-    if (err != kAooOk){
-        LOG_WARNING("AooClient: not an AOO NET message!");
+    if (err != kAooOk) {
+        if (message_handler_) {
+            // pass to user-provided default message handler
+            if (auto err = message_handler_(user_data_, data, size, addr, len);
+                err != kAooOk) {
+                LOG_DEBUG("AooClient: could not handle message: "
+                          << aoo_strerror(err));
+            }
+        } else {
+            LOG_WARNING("AooClient: not an AOO message!");
+        }
         return kAooErrorBadFormat;
     }
 

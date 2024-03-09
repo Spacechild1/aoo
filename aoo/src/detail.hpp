@@ -200,6 +200,7 @@ struct metadata {
             data_.assign(md->data, md->data + md->size);
         }
     }
+
     AooDataType type() const { return type_; }
     const AooByte *data() const { return data_.data(); }
     AooSize size() const { return data_.size(); }

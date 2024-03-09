@@ -83,6 +83,7 @@ public:
 
     ip_address(uint16_t port, ip_type type); // "any" address
 
+    // TODO: make realtime safe!
     ip_address(const std::string& ip, uint16_t port, ip_type type = ip_type::Unspec);
 
     ip_address(const AooByte *bytes, AooSize size, uint16_t port, ip_type type);

@@ -419,7 +419,7 @@ typedef void (AOO_CALL *AooEventHandler)(
 
 /*------------------------------------------------------------------*/
 
-/** \brief send function
+/** \brief UDP send function
  *
  * The function type that is passed to #AooSource,
  * #AooSink or #AooClient for sending outgoing network packets.
@@ -438,6 +438,27 @@ typedef AooInt32 (AOO_CALL *AooSendFunc)(
         /** optional flags */
         /* TODO do we need this? */
         AooFlag flags
+);
+
+/*------------------------------------------------------------------*/
+
+/** \brief UDP receive function
+ *
+ * Used in #AooSettings.
+ * \return #kAooOk if the message could be handled,
+ * or an error otherwise.
+ */
+typedef AooError (AOO_CALL *AooReceiveFunc)(
+    /** the user data */
+    void *user,
+    /** the packet content */
+    const AooByte *data,
+    /** the packet size in bytes */
+    AooInt32 size,
+    /** the source socket address */
+    const void *address,
+    /** the source socket address length */
+    AooAddrSize addrlen
 );
 
 /*------------------------------------------------------------------*/
@@ -463,16 +484,20 @@ typedef struct AooClientSettings
     /** socket type; by default, it will try to create a dual-stack socket.
      *  If you use an external UDP socket, you must specify the socket type. */
     AooSocketFlags socketType;
+    /** (optional) user data passed to callback functions, e.g. `sendFunc`
+     * or `messageHandler`. */
+    void *userData;
     /** (optional) UDP send function; only for external UDP socket */
     AooSendFunc sendFunc;
-    /** (optional) user data for UDP send function */
-    void *userData;
+    /** (optional) default handler for non-AOO messages; typically used
+     * to implement message "side-channels" */
+    AooReceiveFunc messageHandler;
 } AooClientSettings;
 
 /** \brief default initializer for AooClientSettings struct */
 #define AOO_CLIENT_SETTINGS_INIT() \
-    { AOO_STRUCT_SIZE(AooClientSettings, userData), 0, 0, \
-        kAooSocketDefault, NULL, NULL }
+    { AOO_STRUCT_SIZE(AooClientSettings, messageHandler), 0, 0, \
+        kAooSocketDefault, NULL, NULL, NULL }
 
 /*------------------------------------------------------------------*/
 

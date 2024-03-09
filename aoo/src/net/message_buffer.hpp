@@ -13,6 +13,7 @@ namespace net {
 struct sent_message {
     sent_message(const metadata& data, aoo::time_tag tt, int32_t sequence,
                  int32_t num_frames, int32_t frame_size, float resend_interval);
+
     // methods
     bool need_resend(aoo::time_tag now);
 
@@ -97,13 +98,13 @@ public:
 
     received_message(received_message&& other) noexcept;
 
+    received_message& operator=(received_message&& other) noexcept;
+
     ~received_message() {
         if (data_) {
             aoo::deallocate(data_, size_);
         }
     }
-
-    received_message& operator=(received_message&& other) noexcept;
 
     void init(AooDataType type, time_tag tt, int32_t num_frames,
               int32_t size);

@@ -372,6 +372,8 @@ private:
     int tcp_socket_ = -1;
     udp_client udp_client_;
     sendfn udp_sendfn_;
+    AooReceiveFunc message_handler_ = nullptr;
+    void *user_data_ = nullptr;
     osc_stream_receiver receiver_;
     ip_address local_ipv4_addr_;
     ip_address global_ipv6_addr_;
