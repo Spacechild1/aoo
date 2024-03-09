@@ -2156,10 +2156,6 @@ Client::group_membership * Client::find_group_membership(AooId id) {
 //---------------------- udp_client ------------------------//
 
 AooError udp_client::setup(Client& client, AooClientSettings& settings) {
-    if (settings.portNumber == 0) {
-        return kAooErrorBadArgument;
-    }
-
     // NB: socketType will be modified!
     auto& type = settings.socketType;
     if ((type & kAooSocketIPv4Mapped) &&
@@ -2169,10 +2165,11 @@ AooError udp_client::setup(Client& client, AooClientSettings& settings) {
     }
 
     bool external = settings.options & kAooClientExternalUDPSocket;
-    if (external && (type == 0)) {
-        // external UDP socket needs IP flags
+    // external UDP socket needs IP flags and non-zero port number!
+    if (external && (type == 0 || settings.portNumber == 0)) {
         return kAooErrorBadArgument;
-    } else if (type == 0) {
+    }
+    if (type == 0) {
         type = kAooSocketDualStack; // default
     }
 
