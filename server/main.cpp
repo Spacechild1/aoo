@@ -279,7 +279,7 @@ int main(int argc, const char **argv) {
     });
 
     auto udp_thread = std::thread([]() {
-        auto err = g_server->receiveUDP(kAooFalse);
+        auto err = g_server->receive(kAooFalse);
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {

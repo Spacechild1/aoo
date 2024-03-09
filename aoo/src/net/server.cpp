@@ -193,13 +193,13 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
     }
 }
 
-AOO_API AooError AOO_CALL AooServer_receiveUDP(
+AOO_API AooError AOO_CALL AooServer_receive(
     AooServer *server, AooBool nonBlocking)
 {
-    return server->receiveUDP(nonBlocking);
+    return server->receive(nonBlocking);
 }
 
-AooError AOO_CALL aoo::net::Server::receiveUDP(AooBool nonBlocking) {
+AooError AOO_CALL aoo::net::Server::receive(AooBool nonBlocking) {
     try {
         if (nonBlocking) {
             return udp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;

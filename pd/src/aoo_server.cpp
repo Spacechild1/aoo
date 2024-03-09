@@ -68,7 +68,7 @@ void t_aoo_server::run() {
 }
 
 void t_aoo_server::receive() {
-    auto err = x_server->receiveUDP(kAooFalse);
+    auto err = x_server->receive(kAooFalse);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {

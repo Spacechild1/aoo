@@ -39,7 +39,7 @@ AOO_API AooError AOO_CALL AooServer_run(
         AooServer *server, AooBool nonBlocking);
 
 /** \copydoc AooServer::receiveUDP() */
-AOO_API AooError AOO_CALL AooServer_receiveUDP(
+AOO_API AooError AOO_CALL AooServer_receive(
         AooServer *server, AooBool nonBlocking);
 
 /** \copydoc AooServer::handlePacket() */

@@ -53,7 +53,7 @@ public:
 
     AooError AOO_CALL run(AooBool nonBlocking) override;
 
-    AooError AOO_CALL receiveUDP(AooBool nonBlocking) override;
+    AooError AOO_CALL receive(AooBool nonBlocking) override;
 
     AooError AOO_CALL handlePacket(
             const AooByte *data, AooInt32 size,

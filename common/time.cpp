@@ -51,6 +51,7 @@ system_time_fn get_system_time = [](){
 // OSC time stamp (NTP time)
 time_tag time_tag::now(){
 #if 1
+    // a) use OS specific clock
 #if defined(_WIN32)
     // make sure to get the highest precision
     // LATER try to use GetSystemTimePreciseAsFileTime
@@ -75,7 +76,7 @@ time_tag time_tag::now(){
     auto nanos = v.tv_usec * 1000;
 #endif // _WIN32
 #else
-    // use system clock (1970 epoch)
+    // b) use std system clock (1970 epoch)
     auto epoch = std::chrono::system_clock::now().time_since_epoch();
     auto s = std::chrono::duration_cast<std::chrono::seconds>(epoch);
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch - s);

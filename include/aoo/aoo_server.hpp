@@ -81,7 +81,7 @@ public:
     virtual AooError AOO_CALL run(AooBool nonBlocking) = 0;
 
     /** \brief receive and handle UDP packets (from internal UDP socket) */
-    virtual AooError AOO_CALL receiveUDP(AooBool nonBlocking) = 0;
+    virtual AooError AOO_CALL receive(AooBool nonBlocking) = 0;
 
     /** \brief handle UDP packet from external UDP socket */
     virtual AooError AOO_CALL handlePacket(
