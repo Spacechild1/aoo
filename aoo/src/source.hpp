@@ -74,12 +74,12 @@ struct sink_request {
 // has to be synchronized with any format change.
 struct sink_desc {
 #if AOO_NET
-    sink_desc(const ip_address& addr, int32_t id,
-              AooId stream_id, const ip_address& relay, bool binary)
-        : ep(addr, id, relay, binary), stream_id_(stream_id) {}
+    sink_desc(const ip_address& addr, const ip_address& relay,
+              int32_t id, bool binary, AooId stream_id)
+        : ep(addr, relay, id, binary), stream_id_(stream_id) {}
 #else
-    sink_desc(const ip_address& addr, int32_t id, AooId stream_id)
-        : ep(addr, id), stream_id_(stream_id) {}
+    sink_desc(const ip_address& addr, int32_t id, bool binary, AooId stream_id)
+        : ep(addr, id, binary), stream_id_(stream_id) {}
 #endif // USE_AOO_NEt
     sink_desc(const sink_desc& other) = delete;
     sink_desc& operator=(const sink_desc& other) = delete;

@@ -97,20 +97,20 @@ inline ip_address osc_read_address(osc::ReceivedMessageArgumentIterator& it) {
 
 struct endpoint {
     endpoint() = default;
-    endpoint(const ip_address& _address, int32_t _id)
-        : address(_address), id(_id) {}
+    endpoint(const ip_address& _address, int32_t _id, bool _binary)
+        : address(_address), id(_id), binary(_binary) {}
 #if AOO_NET
-    endpoint(const ip_address& _address, int32_t _id,
-             const ip_address& _relay, bool _binary)
-        : address(_address), relay(_relay), binary(_binary), id(_id) {}
+    endpoint(const ip_address& _address, const ip_address& _relay,
+             int32_t _id, bool _binary)
+        : address(_address), relay(_relay), id(_id), binary(_binary) {}
 #endif
     // data
     ip_address address;
 #if AOO_NET
     ip_address relay;
-    bool binary;
 #endif
     AooId id = 0;
+    bool binary = false;
 
     void send(const osc::OutboundPacketStream& msg, const sendfn& fn) const {
         send((const AooByte *)msg.Data(), msg.Size(), fn);

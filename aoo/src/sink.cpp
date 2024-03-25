@@ -794,9 +794,9 @@ source_desc * Sink::add_source(const ip_address& addr, AooId id){
             }
         }
     }
-    auto it = sources_.emplace_front(addr, id, relay, elapsed_time(), binary_.load());
+    auto it = sources_.emplace_front(addr, relay, id, binary_.load(), elapsed_time());
 #else
-    auto it = sources_.emplace_front(addr, id, elapsed_time());
+    auto it = sources_.emplace_front(addr, id, binary_.load(), elapsed_time());
 #endif
     return &(*it);
 }
@@ -1123,13 +1123,13 @@ AooError Sink::handle_pong_message(const osc::ReceivedMessage& msg,
 //----------------------- source_desc --------------------------//
 
 #if AOO_NET
-source_desc::source_desc(const ip_address& addr, AooId id,
-                         const ip_address& relay, double time,
-                         bool binary)
-    : ep(addr, id, relay, binary), last_packet_time_(time)
+source_desc::source_desc(const ip_address& addr, const ip_address& relay,
+                         AooId id, bool binary, double time)
+    : ep(addr, relay, id, binary), last_packet_time_(time)
 #else
-source_desc::source_desc(const ip_address& addr, AooId id, double time)
-    : ep(addr, id), last_packet_time_(time)
+source_desc::source_desc(const ip_address& addr, AooId id,
+                         bool binary, double time)
+    : ep(addr, id, binary), last_packet_time_(time)
 #endif
 {
     // resendqueue_.reserve(256);

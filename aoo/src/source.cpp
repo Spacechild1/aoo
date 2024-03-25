@@ -1132,9 +1132,9 @@ sink_desc * Source::do_add_sink(const ip_address& addr, AooId id, AooId stream_i
             }
         }
     }
-    auto it = sinks_.emplace_front(addr, id, stream_id, relay, binary_.load());
+    auto it = sinks_.emplace_front(addr, relay, id, binary_.load(), stream_id);
 #else
-    auto it = sinks_.emplace_front(addr, id, stream_id);
+    auto it = sinks_.emplace_front(addr, id, binary_.load(), stream_id);
 #endif
     // send /start if needed!
     if (is_running() && it->is_active()){
@@ -2471,7 +2471,7 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
     }
     // Tell the remote side that we have stopped. If the sink is NULL, just use
     // the remote address (this does not work if the sink is relayed!)
-    sink_request r(request_type::stop, sink ? sink->ep : endpoint(addr, id));
+    sink_request r(request_type::stop, sink ? sink->ep : endpoint(addr, id, binary_.load()));
     r.stop.stream = token; // use remote stream id!
     push_request(r);
     LOG_DEBUG("AooSource: resend " << kAooMsgStop << " message");

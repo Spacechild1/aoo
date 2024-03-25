@@ -136,10 +136,10 @@ class Sink;
 class source_desc {
 public:
 #if AOO_NET
-    source_desc(const ip_address& addr, AooId id,
-                const ip_address& relay, double time, bool binary);
+    source_desc(const ip_address& addr, const ip_address& relay,
+                AooId id, bool binary, double time);
 #else
-    source_desc(const ip_address& addr, AooId id, double time);
+    source_desc(const ip_address& addr, AooId id, bool binary, double time);
 #endif
 
     source_desc(const source_desc& other) = delete;
