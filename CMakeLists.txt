@@ -159,6 +159,15 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     add_compile_options("-Werror=return-type")
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCXX)
+    # report stack usage
+    option(AOO_STACK_USAGE "report stack usage" OFF)
+    mark_as_advanced(AOO_STACK_USAGE)
+    if (AOO_STACK_USAGE)
+        add_compile_options("-fstack-usage")
+    endif()
+endif()
+
 # global optimization flags
 if (MSVC)
     add_compile_options("/fp:fast")
