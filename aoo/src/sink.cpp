@@ -357,7 +357,10 @@ AooError AOO_CALL aoo::Sink::control(
     case kAooCtlSetInviteTimeout:
     {
         CHECKARG(AooSeconds);
-        auto timeout = std::max<AooSeconds>(0, as<AooSeconds>(ptr));
+        auto timeout = as<AooSeconds>(ptr);
+        if (timeout < 0) {
+            timeout = kAooInfinite;
+        }
         invite_timeout_.store(timeout);
         break;
     }
@@ -1145,10 +1148,10 @@ source_desc::~source_desc() {
 }
 
 bool source_desc::check_active(const Sink& s) {
-    auto elapsed = s.elapsed_time();
     auto timeout = s.source_timeout();
     if (timeout >= 0) {
         // check source idle timeout
+        auto elapsed = s.elapsed_time();
         auto delta = elapsed - last_packet_time_.load(std::memory_order_relaxed);
         if (delta >= timeout) {
             return false; // source timeout
@@ -1523,13 +1526,9 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
     } else if (state == source_state::uninvite) {
         // ignore data and send uninvite request. only try for a certain
         // amount of time to avoid spamming the source.
+        auto timeout = s.invite_timeout();
         auto delta = s.elapsed_time() - invite_start_time_.load(std::memory_order_relaxed);
-        if (delta < s.invite_timeout()){
-            LOG_DEBUG("AooSink: request uninvite (elapsed: " << delta << ")");
-            request r(request_type::uninvite);
-            r.uninvite.token = d.stream_id;
-            push_request(r);
-        } else {
+        if (timeout >= 0 && delta >= timeout) {
             // transition into 'timeout' state, but only if the state
             // hasn't changed in between.
             if (state_.compare_exchange_strong(state, source_state::timeout)) {
@@ -1541,6 +1540,11 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
             LOG_VERBOSE("AooSink: " << ep << ": uninvitation timed out");
             auto e = make_event<source_event>(kAooEventUninviteTimeout, ep);
             s.send_event(std::move(e), kAooThreadLevelNetwork);
+        } else {
+            LOG_DEBUG("AooSink: request uninvite (elapsed: " << delta << ")");
+            request r(request_type::uninvite);
+            r.uninvite.token = d.stream_id;
+            push_request(r);
         }
         return kAooOk;
     } else if (state == source_state::timeout) {
@@ -2877,9 +2881,10 @@ void source_desc::send_invitations(const Sink &s, const sendfn &fn){
         return;
     }
 
+    auto timeout = s.invite_timeout();
     auto now = s.elapsed_time();
     auto delta = now - invite_start_time_.load(std::memory_order_acquire);
-    if (delta >= s.invite_timeout()){
+    if (timeout >= 0 && delta >= timeout){
         // transition into 'timeout' state, but only if the state
         // hasn't changed in between.
         if (state_.compare_exchange_strong(state, source_state::timeout)){
