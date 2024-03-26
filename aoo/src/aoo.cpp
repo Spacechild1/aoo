@@ -594,7 +594,7 @@ AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
     if (type) {
         switch (addr.type()) {
         case aoo::ip_address::IPv6:
-            *type = addr.is_ipv4_mapped() ? kAooSocketIPv4Mapped : kAooSocketIPv6;
+            *type = addr.is_ipv4_mapped() ? kAooSocketDualStack : kAooSocketIPv6;
             break;
         case aoo::ip_address::IPv4:
             *type = kAooSocketIPv4;
