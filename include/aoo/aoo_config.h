@@ -25,6 +25,11 @@
 # define AOO_CUSTOM_ALLOCATOR 0
 #endif
 
+/** \brief IPv6 support */
+#ifndef AOO_USE_IPv6
+#define AOO_USE_IPv6 1
+#endif
+
 /** \brief default UDP packet size */
 #ifndef AOO_PACKET_SIZE
 # define AOO_PACKET_SIZE 512
