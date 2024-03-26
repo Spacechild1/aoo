@@ -53,6 +53,7 @@ ip_address::ip_address(const AooByte *bytes, AooSize size,
 #if 1
         memset(&addr_in6_, 0, sizeof(addr_in6_));
 #endif
+        // NB: we don't need to set 'sin6_len' (if present)
         addr_in6_.sin6_family = AF_INET6;
         addr_in6_.sin6_port = htons(port);
         memcpy(&addr_in6_.sin6_addr, bytes, size);
@@ -68,6 +69,7 @@ ip_address::ip_address(const AooByte *bytes, AooSize size,
 #if 1
         memset(&addr_in_, 0, sizeof(addr_in_));
 #endif
+        // NB: we don't need to set 'sin_len' (if present)
         addr_in_.sin_family = AF_INET;
         addr_in_.sin_port = htons(port);
         memcpy(&addr_in_.sin_addr, bytes, size);
@@ -89,12 +91,12 @@ void ip_address::clear() {
 #if 1
     memset(data_, 0, sizeof(data_));
 #endif
-    family_ = AF_UNSPEC;
+    addr_.sa_family = AF_UNSPEC;
     length_ = 0;
 }
 
 void ip_address::check() {
-    auto f = family_;
+    auto f = addr_.sa_family;
 #if AOO_USE_IPv6
     bool ok = (f == AF_INET6 || f == AF_INET || f == AF_UNSPEC);
 #else
@@ -284,8 +286,8 @@ ip_address::ip_address(const std::string& ip, uint16_t port, ip_type type) {
 }
 
 bool ip_address::operator==(const ip_address& other) const {
-    if (family_ == other.family_){
-        switch (family_){
+    if (addr_.sa_family == other.addr_.sa_family){
+        switch (addr_.sa_family){
         case AF_INET:
         {
             auto& a = addr_in_;
@@ -311,7 +313,7 @@ bool ip_address::operator==(const ip_address& other) const {
 }
 
 size_t ip_address::hash() const {
-    switch (family_) {
+    switch (addr_.sa_family) {
 #if AOO_USE_IPv6
     case AF_INET6:
     {
@@ -385,7 +387,7 @@ const char * ip_address::get_name(const sockaddr *addr){
 
 const char* ip_address::name() const {
     if (length_ > 0) {
-        return get_name((const sockaddr *)data_);
+        return get_name(&addr_);
     } else {
         return "";
     }
@@ -404,7 +406,7 @@ const char* ip_address::name_unmapped() const {
 }
 
 uint16_t ip_address::port() const {
-    switch (family_){
+    switch (addr_.sa_family){
     case AF_INET:
         return ntohs(addr_in_.sin_port);
 #if AOO_USE_IPv6
@@ -417,7 +419,7 @@ uint16_t ip_address::port() const {
 }
 
 const AooByte* ip_address::address_bytes() const {
-    switch (family_){
+    switch (addr_.sa_family){
     case AF_INET:
         return (const AooByte *)&addr_in_.sin_addr;
 #if AOO_USE_IPv6
@@ -430,7 +432,7 @@ const AooByte* ip_address::address_bytes() const {
 }
 
 size_t ip_address::address_size() const {
-    switch(family_){
+    switch(addr_.sa_family){
     case AF_INET:
         return 4;
 #if AOO_USE_IPv6
@@ -447,7 +449,7 @@ bool ip_address::valid() const {
 }
 
 ip_address::ip_type ip_address::type() const {
-    switch(family_){
+    switch(addr_.sa_family){
     case AF_INET:
         return IPv4;
 #if AOO_USE_IPv6
@@ -461,7 +463,7 @@ ip_address::ip_type ip_address::type() const {
 
 bool ip_address::is_ipv4_mapped() const {
 #if AOO_USE_IPv6
-    if (family_ == AF_INET6) {
+    if (addr_.sa_family == AF_INET6) {
         auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         return (w[0] == 0) && (w[1] == 0) && (w[2] == 0) && (w[3] == 0) &&
                (w[4] == 0) && (w[5] == 0xffff);
@@ -472,7 +474,7 @@ bool ip_address::is_ipv4_mapped() const {
 
 ip_address ip_address::ipv4_mapped() const {
 #if AOO_USE_IPv6
-    if (family_ == AF_INET6) {
+    if (addr_.sa_family == AF_INET6) {
         uint16_t w[8] = { 0, 0, 0, 0, 0, 0xffff };
         memcpy(&w[6], &addr_in_.sin_addr.s_addr, 4);
         return ip_address((const AooByte *)&w, 16, port(), IPv6);

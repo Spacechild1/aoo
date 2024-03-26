@@ -95,7 +95,7 @@ public:
 
     ip_address& operator=(const ip_address& other){
         if (other.length_ > 0) {
-            memcpy(data_, &other.data_, other.length_);
+            memcpy(data_, other.data_, other.length_);
             length_ = other.length_;
         } else {
             clear();
@@ -164,7 +164,10 @@ private:
 #if AOO_USE_IPv6
         sockaddr_in6 addr_in6_;
 #endif
-        uint16_t family_;
+        // NB: on some systems (macOS, BSD, ESP32) 'sockaddr' starts with a
+        // 'sa_len` field and 'sa_family' is only uint8_t! Therefore we must
+        // always access the family through 'sockaddr'.
+        sockaddr addr_;
         uint64_t align_;
         AooByte data_[max_length];
     };
