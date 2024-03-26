@@ -380,7 +380,9 @@ private:
     void *user_data_ = nullptr;
     osc_stream_receiver receiver_;
     ip_address local_ipv4_addr_;
+#if AOO_USE_IPv6
     ip_address global_ipv6_addr_;
+#endif
     std::vector<std::string> interfaces_;
     sync::mutex interface_mutex_; // TODO: replace with seqlock?
     int event_socket_ = -1;

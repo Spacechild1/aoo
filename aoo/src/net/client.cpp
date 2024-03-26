@@ -133,9 +133,12 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     };
 
     local_ipv4_addr_.clear();
+#if AOO_USE_IPv6
     global_ipv6_addr_.clear();
+#endif
     int sock = socket_udp(0);
 
+#if AOO_USE_IPv6
     // try to get global IPv6 address
     try {
         auto ipv6_addr = get_address(sock, "2001:4860:4860::8888", 80, ip_address::IPv6, false);
@@ -145,6 +148,7 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         LOG_VERBOSE("AooClient: could not get global IPv6 address");
         LOG_DEBUG(e.what());
     }
+#endif
 
     // try to get private IPv4 address
     try {
@@ -1237,9 +1241,11 @@ void Client::perform(const login_cmd& cmd) {
     if (local_ipv4_addr_.valid()) {
         addrlist.push_back(local_ipv4_addr_);
     }
+#if AOO_USE_IPv6
     if (global_ipv6_addr_.valid()) {
         addrlist.push_back(global_ipv6_addr_);
     }
+#endif
     // add public IP address
     if (cmd.public_ip_.valid()) {
         addrlist.push_back(cmd.public_ip_);
