@@ -165,10 +165,11 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t po
     char portstr[10]; // largest port is 65535
     snprintf(portstr, sizeof(portstr), "%d", port);
 
-    struct addrinfo *ailist;
+    struct addrinfo *ailist = nullptr;
     int err = getaddrinfo(!host.empty() ? host.c_str() : nullptr,
                           portstr, &hints, &ailist);
-    if (err == 0){
+    if (err == 0) {
+        assert(ailist != nullptr);
     #if DEBUG_ADDRINFO
         fprintf(stderr, "resolved '%s' to:\n", host.empty() ? "any" : host.c_str());
     #endif
@@ -185,16 +186,16 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t po
     #if DEBUG_ADDRINFO
         fflush(stderr);
     #endif
+        freeaddrinfo(ailist);
     } else {
-        // LATER think about how to correctly handle error. Throw exception?
+        // LATER think about how to correctly handle error.
+        // Use gai_strerror() and throw exception?
     #ifdef _WIN32
         WSASetLastError(WSAHOST_NOT_FOUND);
     #else
         errno = HOST_NOT_FOUND;
     #endif
     }
-
-    freeaddrinfo(ailist);
 
     return result;
 }
@@ -226,7 +227,6 @@ ip_address::ip_address(uint16_t port, ip_type type) {
     if (err == 0){
         memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
         length_ = ailist->ai_addrlen;
-
         freeaddrinfo(ailist);
     } else {
         // fail
