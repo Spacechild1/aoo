@@ -631,7 +631,7 @@ static void aoo_send_channel(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
     if (x->get_sink_arg(argc, argv, addr, id, true)){
         int32_t chn = atom_getfloat(argv + 3);
         AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
-        x->x_source->setSinkChannelOnset(ep, chn);
+        x->x_source->setSinkChannelOffset(ep, chn);
     }
 }
 
@@ -739,7 +739,7 @@ static void aoo_send_add(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 
         if (argc > 4){
             int channel = atom_getfloat(argv + 4);
-            x->x_source->setSinkChannelOnset(ep, channel);
+            x->x_source->setSinkChannelOffset(ep, channel);
         }
 
         x->add_sink(addr, id);

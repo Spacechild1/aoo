@@ -280,16 +280,16 @@ AOO_INLINE AooError AooSource_getStreamTimeSendInterval(AooSource *source, AooSe
     return AooSource_control(source, kAooCtlGetStreamTimeSendInterval, 0, AOO_ARG(*s));
 }
 
-/** \copydoc AooSource::setSinkChannelOnset() */
-AOO_INLINE AooError AooSource_setSinkChannelOnset(
+/** \copydoc AooSource::setSinkChannelOffset() */
+AOO_INLINE AooError AooSource_setSinkChannelOffset(
         AooSource *source, const AooEndpoint *sink, AooInt32 onset)
 {
-    return AooSource_control(source, kAooCtlSetChannelOnset, (AooIntPtr)sink, AOO_ARG(onset));
+    return AooSource_control(source, kAooCtlSetSinkChannelOffset, (AooIntPtr)sink, AOO_ARG(onset));
 }
 
-/** \copydoc AooSource::getSinkChannelOnset() */
-AOO_INLINE AooError AooSource_getSinkChannelOnset(
+/** \copydoc AooSource::getSinkChannelOffset() */
+AOO_INLINE AooError AooSource_getSinkChannelOffset(
         AooSource *source, const AooEndpoint *sink, AooInt32 *onset)
 {
-    return AooSource_control(source, kAooCtlGetChannelOnset, (AooIntPtr)sink, AOO_ARG(*onset));
+    return AooSource_control(source, kAooCtlGetSinkChannelOffset, (AooIntPtr)sink, AOO_ARG(*onset));
 }

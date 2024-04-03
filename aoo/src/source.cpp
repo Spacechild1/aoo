@@ -206,7 +206,7 @@ AooError AOO_CALL aoo::Source::control(
         assert(size >= sizeof(AooFormat));
         return get_format(as<AooFormat>(ptr), size);
     // set/get channel onset
-    case kAooCtlSetChannelOnset:
+    case kAooCtlSetSinkChannelOffset:
     {
         CHECKARG(int32_t);
         GETSINKARG
@@ -216,7 +216,7 @@ AooError AOO_CALL aoo::Source::control(
                     << " on channel " << chn);
         break;
     }
-    case kAooCtlGetChannelOnset:
+    case kAooCtlGetSinkChannelOffset:
     {
         CHECKARG(int32_t);
         GETSINKARG
@@ -429,8 +429,12 @@ AOO_API AooError AOO_CALL AooSource_codecControl(
 
 AooError AOO_CALL aoo::Source::codecControl(
         AooCtl ctl, AooIntPtr index, void *data, AooSize size) {
+    if (index != 0) {
+        // per-sink encoders are not implemented (yet)
+        return kAooErrorNotImplemented;
+    }
     // we don't know which controls are setters and which
-    // are getters, so we just take a writer lock for either way.
+    // are getters, so we just take a writer lock either way.
     unique_lock lock(update_mutex_);
     if (encoder_){
         return AooEncoder_control(encoder_.get(), ctl, data, size);

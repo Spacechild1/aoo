@@ -431,19 +431,20 @@ public:
         return control(kAooCtlGetStreamTimeSendInterval, 0, AOO_ARG(s));
     }
 
-    /** \brief Set the sink channel onset
+    /** \brief Set the sink channel offset
      *
-     * Set channel onset of the given sink where the source signal should be received.
-     * For example, if the channel onset is 5, a 2-channel source signal will be summed
-     * into sink channels 5 and 6. The default is 0 (= the first channel).
+     * Set the starting channel where the source signal should be received
+     * in the given sink. For example, if the channel offset is 5, a 2-channel
+     * source signal will be summed into sink channels 5 and 6.
+     * The default is 0 (= the first channel).
      */
-    AooError setSinkChannelOnset(const AooEndpoint& sink, AooInt32 onset) {
-        return control(kAooCtlSetChannelOnset, (AooIntPtr)&sink, AOO_ARG(onset));
+    AooError setSinkChannelOffset(const AooEndpoint& sink, AooInt32 onset) {
+        return control(kAooCtlSetSinkChannelOffset, (AooIntPtr)&sink, AOO_ARG(onset));
     }
 
-    /** \brief Get the sink channel onset for the given sink */
-    AooError getSinkChannelOnset(const AooEndpoint& sink, AooInt32& onset) {
-        return control(kAooCtlSetChannelOnset, (AooIntPtr)&sink, AOO_ARG(onset));
+    /** \brief Get the sink channel offset for the given sink */
+    AooError getSinkChannelOffset(const AooEndpoint& sink, AooInt32& onset) {
+        return control(kAooCtlSetSinkChannelOffset, (AooIntPtr)&sink, AOO_ARG(onset));
     }
 protected:
     ~AooSource(){} // non-virtual!
