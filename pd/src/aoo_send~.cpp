@@ -558,7 +558,7 @@ static void aoo_send_format(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         // Prevent user from accidentally creating huge number of channels.
         // This also helps to catch an issue with old patches (before 2.0-pre3),
         // which would pass the block size as the channel count because the
-        // "channel" argument hasn't been added yet.
+        // "channels" argument hasn't been added yet.
         // NB: don't do this in multi-channel mode because the actual channel
         // count may change after the fact!
         // NB: neither do this for the "null" codec (= pure message streams)
@@ -622,9 +622,9 @@ static void aoo_send_uninvite(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv
     }
 }
 
-static void aoo_send_channel(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
+static void aoo_send_sink_channel(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
-    if (!x->check(argc, argv, 4, "channel")) return;
+    if (!x->check(argc, argv, 4, "sink_channel")) return;
 
     aoo::ip_address addr;
     AooId id;
@@ -737,10 +737,17 @@ static void aoo_send_add(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         bool active = argc > 3 ? atom_getfloat(argv + 3) : true;
         x->x_source->addSink(ep, active);
 
-        if (argc > 4){
+#if 0
+        // not yet implemented
+        if (argc > 4) {
             int channel = atom_getfloat(argv + 4);
             x->x_source->setSinkChannelOffset(ep, channel);
         }
+        if (argc > 5) {
+            int channel = atom_getfloat(argv + 5);
+            x->x_source->setSinkChannelOffset(ep, channel);
+        }
+#endif
 
         x->add_sink(addr, id);
 
@@ -1139,8 +1146,8 @@ void aoo_send_tilde_setup(void)
                     gensym("codec_set"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_codec_get,
                     gensym("codec_get"), A_SYMBOL, A_NULL);
-    class_addmethod(aoo_send_class, (t_method)aoo_send_channel,
-                    gensym("channel"), A_GIMME, A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_sink_channel,
+                    gensym("sink_channel"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_packetsize,
                     gensym("packetsize"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_ping,
