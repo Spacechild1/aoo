@@ -318,7 +318,7 @@ t_node * t_node::get(t_pd *obj, int port, void *x, AooId id)
     t_symbol *s = gensym(buf);
     // find or create node
     auto y = (t_node_proxy *)pd_findbyclass(s, node_proxy_class);
-    if (y){
+    if (y) {
         node = y->x_node;
     } else {
         try {

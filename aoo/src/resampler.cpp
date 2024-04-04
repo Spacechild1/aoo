@@ -26,6 +26,8 @@ const char* dynamic_resampler::method_to_string(resample_method method) {
         return "hold";
     case resample_method::linear:
         return "linear";
+    case resample_method::cubic:
+        return "cubic";
     default:
         return "?";
     }
@@ -39,30 +41,26 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
                               int32_t srfrom, int32_t srto, bool fixed_sr,
                               int32_t nchannels, AooResampleMethod mode) {
     ideal_ratio_ = (double)srto / (double)srfrom;
-    if (fixed_sr) {
-        if (srfrom == srto) {
-            method_ = resample_method::none; // no resampling required
-        } else if (srto < srfrom && (srfrom % srto) == 0) {
-            // downsampling with (fixed) integer ratio
-            method_ = resample_method::skip;
-        } else {
-            switch (mode) {
-            case kAooResampleHold:
-                method_ = resample_method::hold;
-                break;
-            case kAooResampleLinear:
-                method_ = resample_method::linear;
-                break;
-            case kAooResampleCubic:
-                method_ = resample_method::cubic;
-                break;
-            default:
-                LOG_ERROR("bad resample method");
-                method_ = resample_method::linear;
-            }
-        }
+    if (fixed_sr && srfrom == srto) {
+        method_ = resample_method::none; // no resampling required
+    } else if (fixed_sr && srto < srfrom && (srfrom % srto) == 0) {
+        // downsampling with (fixed) integer ratio
+        method_ = resample_method::skip;
     } else {
-        method_ = resample_method::linear;
+        switch (mode) {
+        case kAooResampleHold:
+            method_ = resample_method::hold;
+            break;
+        case kAooResampleLinear:
+            method_ = resample_method::linear;
+            break;
+        case kAooResampleCubic:
+            method_ = resample_method::cubic;
+            break;
+        default:
+            LOG_ERROR("bad resample method");
+            method_ = resample_method::linear;
+        }
     }
     fixed_sr_ = fixed_sr;
     bool reblock = !fixed_n || nfrom != nto;
