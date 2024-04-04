@@ -233,6 +233,48 @@ static void aoo_receive_buffersize(t_aoo_receive *x, t_floatarg f)
     x->x_sink->setBufferSize(f * 0.001);
 }
 
+// <ip> <port> <id> <codec> <option> [<value>]
+static void aoo_receive_codec_set(t_aoo_receive *x, t_symbol *s, int argc, t_atom *argv){
+    if (!x->check(argc, argv, 6, "codec_set")) return;
+#if 0
+    aoo::ip_address addr;
+    AooId id = 0;
+    if (!x->get_source_arg(argc, argv, addr, id, true)) {
+        return;
+    }
+    AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
+#endif
+    auto codec = atom_getsymbol(argv + 3);
+    auto opt = atom_getsymbol(argv + 4);
+    // no codec options yet
+    pd_error(x,"%s: unknown parameter '%s' for codec '%s'",
+             classname(x), opt->s_name, codec->s_name);
+}
+
+// <ip> <port> <id> <codec> <option>
+// replies with <ip> <port> <id> <codec> <option> <value>
+static void aoo_receive_codec_get(t_aoo_receive *x, t_symbol *s, int argc, t_atom *argv) {
+    if (!x->check(argc, argv, 5, "codec_get")) return;
+#if 0
+    aoo::ip_address addr;
+    AooId id = 0;
+    if (!x->get_source_arg(argc, argv, addr, id, true)) {
+        return;
+    }
+    AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
+#endif
+    auto codec = atom_getsymbol(argv + 3);
+    auto opt = atom_getsymbol(argv + 4);
+#if 0
+    t_atom msg[6];
+    std::copy(argv, argv + 5, msg);
+#endif
+    // no codec options yet
+    pd_error(x, "%s: unknown parameter '%s' for codec '%s'",
+             classname(x), opt->s_name, codec->s_name);
+    return;
+}
+
 static void aoo_receive_resample_method(t_aoo_receive *x, t_symbol *s)
 {
     AooResampleMethod method;
@@ -902,6 +944,10 @@ void aoo_receive_tilde_setup(void)
                     gensym("latency"), A_FLOAT, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_buffersize,
                     gensym("buffersize"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_receive_class, (t_method)aoo_receive_codec_set,
+                    gensym("codec_set"), A_GIMME, A_NULL);
+    class_addmethod(aoo_receive_class, (t_method)aoo_receive_codec_get,
+                    gensym("codec_get"), A_GIMME, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_resample_method,
                     gensym("resample_method"), A_SYMBOL, A_NULL);
     class_addmethod(aoo_receive_class, (t_method)aoo_receive_dynamic_resampling,
