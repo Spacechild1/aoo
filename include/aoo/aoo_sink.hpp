@@ -176,7 +176,8 @@ public:
      *
      * Not to be used directly. */
     virtual AooError AOO_CALL codecControl(
-            AooCtl ctl, AooIntPtr index, void *data, AooSize size) = 0;
+            const AooChar *codec, AooCtl ctl, AooIntPtr index,
+            void *data, AooSize size) = 0;
 
     /*--------------------------------------------*/
     /*         type-safe control functions        */

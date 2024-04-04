@@ -244,7 +244,8 @@ class Source final : public AooSource, rt_memory_pool_client {
     AooError AOO_CALL control(AooCtl ctl, AooIntPtr index,
                               void *ptr, AooSize size) override;
 
-    AooError AOO_CALL codecControl(AooCtl ctl, AooIntPtr index, void *ptr, AooSize size) override;
+    AooError AOO_CALL codecControl(const AooChar *codec, AooCtl ctl, AooIntPtr index,
+                                   void *ptr, AooSize size) override;
 
     //----------------------- semi-public methods -------------------//
 

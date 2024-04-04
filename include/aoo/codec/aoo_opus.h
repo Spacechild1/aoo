@@ -24,7 +24,8 @@ struct AooSource;
 
 /** \cond DO_NOT_DOCUMENT */
 AOO_API AooError AOO_CALL AooSource_codecControl(
-        AooSource *source,  AooCtl ctl, AooIntPtr index,
+        AooSource *source, const AooChar *codec,
+        AooCtl ctl, AooIntPtr index,
         void *data, AooSize size);
 /** \endcond */
 
@@ -74,16 +75,16 @@ AOO_INLINE void AooFormatOpus_init(
  */
 AOO_INLINE AooError AooSource_setOpusBitrate(
         AooSource *src, const AooEndpoint *sink, opus_int32 bitrate) {
-    return AooSource_codecControl(
-                src, OPUS_SET_BITRATE_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_SET_BITRATE_REQUEST, (AooIntPtr)sink,
                 &bitrate, sizeof(bitrate));
 }
 
 /** \brief get bitrate */
 AOO_INLINE AooError AooSource_getOpusBitrate(
         AooSource *src, const AooEndpoint *sink, opus_int32 *bitrate) {
-    return AooSource_codecControl(
-                src, OPUS_GET_BITRATE_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_GET_BITRATE_REQUEST, (AooIntPtr)sink,
                 bitrate, sizeof(*bitrate));
 }
 
@@ -95,16 +96,16 @@ AOO_INLINE AooError AooSource_getOpusBitrate(
  */
 AOO_INLINE AooError AooSource_setOpusComplexity(
         AooSource *src, const AooEndpoint *sink, opus_int32 complexity) {
-    return AooSource_codecControl(
-                src, OPUS_SET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_SET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
                 &complexity, sizeof(complexity));
 }
 
 /** \brief get complexity */
 AOO_INLINE AooError AooSource_getOpusComplexity(
         AooSource *src, const AooEndpoint *sink, opus_int32 *complexity) {
-    return AooSource_codecControl(
-                src, OPUS_GET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_GET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
                 complexity, sizeof(*complexity));
 }
 
@@ -117,16 +118,16 @@ AOO_INLINE AooError AooSource_getOpusComplexity(
  */
 AOO_INLINE AooError AooSource_setOpusSignalType(
         AooSource *src, const AooEndpoint *sink, opus_int32 signalType) {
-    return AooSource_codecControl(
-                src, OPUS_SET_SIGNAL_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_SET_SIGNAL_REQUEST, (AooIntPtr)sink,
                 &signalType, sizeof(signalType));
 }
 
 /** \brief get signal type */
 AOO_INLINE AooError AooSource_getOpusSignalType(
         AooSource *src, const AooEndpoint *sink, opus_int32 *signalType) {
-    return AooSource_codecControl(
-                src, OPUS_GET_SIGNAL_REQUEST, (AooIntPtr)sink,
+    return AooSource_codecControl(src, kAooCodecOpus,
+                OPUS_GET_SIGNAL_REQUEST, (AooIntPtr)sink,
                 signalType, sizeof(*signalType));
 }
 

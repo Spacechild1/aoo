@@ -92,7 +92,8 @@ AOO_API AooError AOO_CALL AooSource_control(
 
 /** \copydoc AooSource::codecControl() */
 AOO_API AooError AOO_CALL AooSource_codecControl(
-        AooSource *source,  AooCtl ctl, AooIntPtr index, void *data, AooSize size);
+        AooSource *source, const AooChar *codec, AooCtl ctl, AooIntPtr index,
+        void *data, AooSize size);
 
 /*--------------------------------------------*/
 /*         type-safe control functions        */

@@ -76,8 +76,8 @@ AOO_API AooError AOO_CALL AooSink_control(
 
 /** \copydoc AooSink::codecControl() */
 AOO_API AooError AOO_CALL AooSink_codecControl(
-        AooSink *sink, AooCtl ctl, AooIntPtr index,
-        void *data, AooSize size);
+        AooSink *sink, const AooChar *codec, AooCtl ctl,
+        AooIntPtr index, void *data, AooSize size);
 
 /*--------------------------------------------*/
 /*         type-safe control functions        */

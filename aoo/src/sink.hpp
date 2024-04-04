@@ -155,7 +155,8 @@ public:
 
     AooError get_format(AooFormat& format, size_t size);
 
-    AooError codec_control(AooCtl ctl, void *data, AooSize size);
+    AooError codec_control(const AooChar *codec, AooCtl ctl,
+                           void *data, AooSize size);
 
     // methods
     void reset(const Sink& s);
@@ -335,8 +336,8 @@ public:
     AooError AOO_CALL control(AooCtl ctl, AooIntPtr index,
                               void *ptr, AooSize size) override;
 
-    AooError AOO_CALL codecControl(
-            AooCtl ctl, AooIntPtr index, void *data, AooSize size) override;
+    AooError AOO_CALL codecControl(const AooChar *codec, AooCtl ctl,
+            AooIntPtr index, void *data, AooSize size) override;
 
     // getters
     AooId id() const { return id_.load(); }

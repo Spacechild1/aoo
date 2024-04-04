@@ -422,12 +422,13 @@ AooError AOO_CALL aoo::Source::control(
 }
 
 AOO_API AooError AOO_CALL AooSource_codecControl(
-        AooSource *source, AooCtl ctl, AooIntPtr index, void *data, AooSize size)
+        AooSource *source, const AooChar *codec, AooCtl ctl,
+        AooIntPtr index, void *data, AooSize size)
 {
-    return source->codecControl(ctl, index, data, size);
+    return source->codecControl(codec, ctl, index, data, size);
 }
 
-AooError AOO_CALL aoo::Source::codecControl(
+AooError AOO_CALL aoo::Source::codecControl(const AooChar *codec,
         AooCtl ctl, AooIntPtr index, void *data, AooSize size) {
     if (index != 0) {
         // per-sink encoders are not implemented (yet)
@@ -436,8 +437,14 @@ AooError AOO_CALL aoo::Source::codecControl(
     // we don't know which controls are setters and which
     // are getters, so we just take a writer lock either way.
     unique_lock lock(update_mutex_);
-    if (encoder_){
-        return AooEncoder_control(encoder_.get(), ctl, data, size);
+    if (encoder_) {
+        if (!strcmp(encoder_->cls->name, codec)) {
+            return AooEncoder_control(encoder_.get(), ctl, data, size);
+        } else {
+            LOG_ERROR("AooSource: tried to pass '" << codec << "' codec option to '"
+                      << encoder_->cls->name << "' encoder");
+            return kAooErrorBadArgument;
+        }
     } else {
         return kAooErrorNotInitialized;
     }

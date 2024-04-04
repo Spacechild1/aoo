@@ -390,14 +390,20 @@ AooError AOO_CALL aoo::Sink::control(
 }
 
 AOO_API AooError AOO_CALL AooSink_codecControl(
-        AooSink *sink, AooCtl ctl, AooIntPtr index, void *data, AooSize size)
+        AooSink *sink, const AooChar *codec, AooCtl ctl,
+        AooIntPtr index, void *data, AooSize size)
 {
-    return sink->codecControl(ctl, index, data, size);
+    return sink->codecControl(codec, ctl, index, data, size);
 }
 
-AooError AOO_CALL aoo::Sink::codecControl(
+AooError AOO_CALL aoo::Sink::codecControl(const AooChar *codec,
         AooCtl ctl, AooIntPtr index, void *data, AooSize size) {
-    return kAooErrorNotImplemented;
+    source_lock lock(sources_);
+    auto src = get_source_arg(index);
+    if (!src) {
+        return kAooErrorNotFound;
+    }
+    return src->codec_control(codec, ctl, data, size);
 }
 
 AOO_API AooError AOO_CALL AooSink_handleMessage(
@@ -1175,13 +1181,19 @@ AooError source_desc::get_format(AooFormat &format, size_t size){
     }
 }
 
-AooError source_desc::codec_control(
-        AooCtl ctl, void *data, AooSize size) {
+AooError source_desc::codec_control(const AooChar *codec, AooCtl ctl,
+                                    void *data, AooSize size) {
     // we don't know which controls are setters and which
     // are getters, so we just take a writer lock for either way.
     unique_lock lock(mutex_);
-    if (decoder_){
-        return AooDecoder_control(decoder_.get(), ctl, data, size);
+    if (decoder_) {
+        if (!strcmp(decoder_->cls->name, codec)) {
+            return AooEncoder_control(decoder_.get(), ctl, data, size);
+        } else {
+            LOG_ERROR("AooSource: tried to pass '" << codec << "' codec option to '"
+                      << decoder_->cls->name << "' decoder");
+            return kAooErrorBadArgument;
+        }
     } else {
         return kAooErrorNotInitialized;
     }
