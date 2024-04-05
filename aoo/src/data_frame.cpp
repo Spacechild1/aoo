@@ -37,7 +37,7 @@ data_frame* data_frame_allocator::allocate(int32_t size) {
                                                  std::memory_order_relaxed));
     frame->size = size;
 #if DEBUG_DATA_FRAME_ALLOCATOR
-    auto num_frames = num_frames_.fetch_add(1, std::memory_order_relaxed) + 1;
+    auto num_frames = num_frames_.fetch_add(1, std::memory_order_acquire) + 1;
     LOG_DEBUG("data_frame_allocator: allocate frame (size: "
               << size << " bytes, total frames: " << num_frames << ")");
 #endif
@@ -48,11 +48,19 @@ void data_frame_allocator::deallocate(data_frame *frame) {
     if (!frame) {
         return;
     }
+    assert(frame->header.bin_index >= 0 && frame->header.frame_index >= 0);
 #if DEBUG_DATA_FRAME_ALLOCATOR
-    auto num_frames = num_frames_.fetch_sub(1, std::memory_order_relaxed) - 1;
+    auto num_frames = num_frames_.fetch_sub(1, std::memory_order_release) - 1;
     LOG_DEBUG("data_frame_allocator: deallocate frame (size: "
               << frame->header.size << " bytes, remaining frames: " << num_frames << ")");
+    assert(num_frames >= 0);
 #endif
+#if 1
+    // catch double free
+    assert(frame->header.size != (int32_t)0xdeadbeef);
+    frame->header.size = (int32_t)0xdeadbeef;
+#endif
+    // add to free list
     auto index = frame->header.bin_index;
     frame->header.next = bins_[index].load(std::memory_order_relaxed);
     // check if the head has changed and update it atomically.
@@ -70,9 +78,13 @@ void data_frame_allocator::release_memory() {
     for (auto& b : bins_) {
         auto ptr = b.exchange(nullptr, std::memory_order_relaxed);
         while (ptr) {
+            assert(ptr->bin_index >= 0 && ptr->frame_index >= 0);
             auto next = ptr->next;
             auto alloc_size = bin_to_alloc_size(ptr->bin_index);
-            assert((alloc_size - sizeof(data_frame_header)) >= ptr->size);
+#if 0
+            LOG_DEBUG("data_frame: bin index = " << ptr->bin_index << ", frame index = "
+                      << ptr->frame_index << ", alloc size = " << alloc_size);
+#endif
             aoo::deallocate(ptr, alloc_size);
 #if DATA_FRAME_LEAK_DETECTION
             num_alloc_bytes_.fetch_sub(alloc_size, std::memory_order_relaxed);

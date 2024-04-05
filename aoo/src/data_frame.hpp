@@ -99,7 +99,7 @@ private:
 struct data_frame_storage {
     static constexpr size_t frame_limit = 256;
     static constexpr size_t small_frame_limit =
-        2 + frame_limit / (sizeof(data_frame*) * CHAR_BIT);
+        2 + frame_limit / (sizeof(uintptr_t) * CHAR_BIT);
 
     data_frame_storage() : data_{} {}
 
