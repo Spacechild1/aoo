@@ -154,7 +154,7 @@ template<typename Alloc>
 struct stream_message : Alloc {
     stream_message() = default;
     stream_message(uint64_t _time, int32_t _channel,
-                   AooDataType _type, const char *_data, AooSize _size)
+                   AooDataType _type, const char *_data, int32_t _size)
         : time(_time), channel(_channel), type(_type), size(_size) {
         data = (char *)Alloc::allocate(size);
         memcpy(data, _data, size);
@@ -186,7 +186,7 @@ struct stream_message : Alloc {
     int32_t channel = 0;
     AooDataType type = 0;
     char *data = nullptr;
-    AooSize size = 0;
+    int32_t size = 0;
 };
 
 using rt_stream_message = stream_message<rt_allocator<char>>;

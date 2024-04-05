@@ -581,10 +581,10 @@ typedef struct AooStreamMessage
     AooInt32 channel;
     /** the message type */
     AooDataType type;
+    /** the data size in bytes */
+    AooInt32 size;
     /** the data content */
     const AooByte *data;
-    /** the data size in bytes */
-    AooSize size;
 } AooStreamMessage;
 
 /** max. stream message size */

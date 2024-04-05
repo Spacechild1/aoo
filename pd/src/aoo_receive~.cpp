@@ -614,7 +614,8 @@ static void aoo_receive_queue_tick(t_aoo_receive *x)
     while (!queue.empty()){
         if (queue.top().time <= now) {
             auto& m = queue.top().data;
-            AooStreamMessage msg { 0, m.channel, m.type, m.data.data(), m.data.size() };
+            AooStreamMessage msg { 0, m.channel, m.type,
+                                 (int32_t)m.data.size(), m.data.data() };
             x->dispatch_stream_message(msg, m.address, m.id);
             queue.pop();
         } else {
