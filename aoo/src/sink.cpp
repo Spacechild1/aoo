@@ -2063,9 +2063,6 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
     // we have to check the stream_id (again) because the stream
     // might have changed in between!
     if (d.stream_id != stream_id_) {
-        if (d.frame) {
-            frame_allocator_.deallocate(d.frame);
-        }
         LOG_DEBUG("AooSink: ignore data packet from previous stream");
         return false;
     }
@@ -2579,6 +2576,7 @@ void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
 }
 
 void source_desc::flush_packet_queue() {
+    LOG_DEBUG("AooSink: flush packet queue");
     packet_queue_.consume_all([&](auto& packet) {
         if (packet.frame) {
             frame_allocator_.deallocate(packet.frame);
