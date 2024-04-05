@@ -492,7 +492,12 @@ static std::unordered_map<std::string_view, AooDataType> g_data_type_map = {
     { "midi", kAooDataMIDI },
     { "fudi", kAooDataFUDI },
     { "json", kAooDataJSON },
-    { "xml", kAooDataXML }
+    { "xml", kAooDataXML },
+    { "float32", kAooDataFloat32 },
+    { "float64", kAooDataFloat64 },
+    { "int16", kAooDataInt16 },
+    { "int32", kAooDataInt32 },
+    { "int64", kAooDataInt64 }
 };
 
 static std::array g_data_type_names {
@@ -502,10 +507,15 @@ static std::array g_data_type_names {
     "midi",
     "fudi",
     "json",
-    "xml"
+    "xml",
+    "float32",
+    "float64",
+    "int16",
+    "int32",
+    "int64"
 };
 
-static_assert(g_data_type_names.size() == kAooDataXML + 1,
+static_assert(g_data_type_names.size() == kAooDataInt64 + 1,
               "missing data type");
 
 AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {

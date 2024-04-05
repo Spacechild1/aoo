@@ -553,6 +553,16 @@ AOO_ENUM(AooDataType)
     kAooDataJSON,
     /** XML (UTF-8 encoded) */
     kAooDataXML,
+    /** 32-bit float array (big-endian!) */
+    kAooDataFloat32,
+    /** 64-bit float array (big-endian!) */
+    kAooDataFloat64,
+    /** 16-bit int array (big-endian!) */
+    kAooDataInt16,
+    /** 32-bit int array (big-endian!) */
+    kAooDataInt32,
+    /** 64-bit int array (big-endian!) */
+    kAooDataInt64,
     /** start of user specified types */
     kAooDataUser = 1000
 };
