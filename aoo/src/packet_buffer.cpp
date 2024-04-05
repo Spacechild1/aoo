@@ -200,61 +200,61 @@ void jitter_buffer::resize(int32_t n) {
     data_.resize(n);
 }
 
-received_block* jitter_buffer::find(int32_t seq){
+received_block* jitter_buffer::find(int32_t seq) {
     // first try the end, as we most likely have to complete the most recent block
     if (empty()){
         return nullptr;
     } else if (back().sequence == seq){
         return &back();
     }
-#if 0
-    // linear search
-    if (head_ > tail_){
-        for (int32_t i = tail_; i < head_; ++i){
-            if (data_[i].sequence == seq){
-                return &data_[i];
+    if (size_ < search_threshold) {
+        // linear search
+        if (head_ > tail_){
+            for (int32_t i = tail_; i < head_; ++i){
+                if (data_[i].sequence == seq){
+                    return &data_[i];
+                }
             }
-        }
-    } else {
-        for (int32_t i = 0; i < head_; ++i){
-            if (data_[i].sequence == seq){
-                return &data_[i];
-            }
-        }
-        for (int32_t i = tail_; i < capacity(); ++i){
-            if (data_[i].sequence == seq){
-                return &data_[i];
-            }
-        }
-    }
-    return nullptr;
-#else
-    // binary search
-    // (blocks are always pushed in chronological order)
-    auto dofind = [&](auto begin, auto end) -> received_block * {
-        auto result = std::lower_bound(begin, end, seq, [](auto& a, auto& b){
-            return a.sequence < b;
-        });
-        if (result != end && result->sequence == seq){
-            return &(*result);
         } else {
-            return nullptr;
+            for (int32_t i = 0; i < head_; ++i){
+                if (data_[i].sequence == seq){
+                    return &data_[i];
+                }
+            }
+            for (int32_t i = tail_; i < capacity(); ++i){
+                if (data_[i].sequence == seq){
+                    return &data_[i];
+                }
+            }
         }
-    };
-
-    auto begin = data_.data();
-    if (head_ > tail_){
-        // [tail, head]
-        return dofind(begin + tail_, begin + head_);
+        return nullptr;
     } else {
-        // [begin, head] + [tail, end]
-        auto result = dofind(begin, begin + head_);
-        if (!result){
-            result = dofind(begin + tail_, begin + data_.capacity());
+        // binary search
+        // (blocks are always pushed in chronological order)
+        auto dofind = [&](auto begin, auto end) -> received_block * {
+            auto result = std::lower_bound(begin, end, seq, [](auto& a, auto& b){
+                return a.sequence < b;
+            });
+            if (result != end && result->sequence == seq){
+                return &(*result);
+            } else {
+                return nullptr;
+            }
+        };
+
+        auto begin = data_.data();
+        if (head_ > tail_){
+            // [tail, head]
+            return dofind(begin + tail_, begin + head_);
+        } else {
+            // [begin, head] + [tail, end]
+            auto result = dofind(begin, begin + head_);
+            if (!result){
+                result = dofind(begin + tail_, begin + data_.capacity());
+            }
+            return result;
         }
-        return result;
     }
-#endif
 }
 
 received_block* jitter_buffer::push(int32_t seq){

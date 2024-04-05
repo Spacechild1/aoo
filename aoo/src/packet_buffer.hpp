@@ -191,6 +191,7 @@ public:
     using iterator = base_iterator<received_block, jitter_buffer>;
     using const_iterator = base_iterator<const received_block, const jitter_buffer>;
 
+    static constexpr int32_t search_threshold = 10;
     static constexpr int32_t sentinel = INT32_MIN;
 
     jitter_buffer(data_frame_allocator& alloc) : alloc_(alloc) {}
