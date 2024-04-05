@@ -462,16 +462,13 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
 
             if (e.metadata) {
                 // <ip> <port> <id> <type> <data...>
-                auto count = e.metadata->size + 4;
+                auto count = 4 + (e.metadata->size / datatype_element_size(e.metadata->type));
                 t_atom *vec = (t_atom *)alloca(count * sizeof(t_atom));
                 // copy endpoint
                 memcpy(vec, msg, 3 * sizeof(t_atom));
-                // type
-                datatype_to_atom(e.metadata->type, vec[3]);
-                // data
-                for (int i = 0; i < e.metadata->size; ++i){
-                    SETFLOAT(vec + 4 + i, (uint8_t)e.metadata->data[i]);
-                }
+                // copy data
+                data_to_atoms(*e.metadata, count - 3, vec + 3);
+
                 outlet_anything(x->x_msgout, gensym("invite"), count, vec);
             } else {
                 outlet_anything(x->x_msgout, gensym("invite"), 3, msg);
@@ -792,15 +789,14 @@ static void aoo_send_start(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         if (!atom_to_datatype(*argv, metadata.type, x)) {
             return;
         }
-        auto size = argc - 1;
-        if (!size) {
+        argc--; argv++;
+        if (!argc) {
             pd_error(x, "%s: metadata must not be empty", classname(x));
             return;
         }
+        auto size = argc * datatype_element_size(metadata.type);
         auto data = (AooByte *)alloca(size);
-        for (int i = 0; i < size; i++) {
-            data[i] = atom_getfloat(&argv[i + 1]);
-        }
+        atoms_to_data(metadata.type, argc, argv, data, size);
         metadata.size = size;
         metadata.data = data;
 
@@ -851,7 +847,7 @@ static void aoo_send_list(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
     if (!x->check("list")) return;
 
-    if (argc < 3) {
+    if (argc < 2) {
         return;
     }
 
@@ -862,12 +858,15 @@ static void aoo_send_list(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
     if (!atom_to_datatype(argv[1], msg.type, x)) {
         return;
     }
-    auto size = argc - 2;
-    auto buffer = (AooByte *)alloca(size);
-    for (int i = 0; i < size; ++i) {
-        buffer[i] = (AooByte)atom_getfloat(argv + i + 2);
+    argc -= 2; argv += 2;
+    if (!argc) {
+        pd_error(x, "%s: data must not be empty", classname(x));
+        return;
     }
-    msg.data = buffer;
+    auto size = argc * datatype_element_size(msg.type);
+    auto buf = (AooByte *)alloca(size);
+    atoms_to_data(msg.type, argc, argv, buf, size);
+    msg.data = buf;
     msg.size = size;
 
     if (auto err = x->x_source->addStreamMessage(msg); err != kAooOk) {

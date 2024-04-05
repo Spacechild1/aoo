@@ -178,15 +178,14 @@ static void aoo_receive_invite(t_aoo_receive *x, t_symbol *s, int argc, t_atom *
             if (!atom_to_datatype(argv[3], metadata.type, x)) {
                 return;
             }
-            auto size = argc - 4;
-            if (!size) {
+            argc -= 4; argv += 4;
+            if (!argc) {
                 pd_error(x, "%s: metadata must not be empty", classname(x));
                 return;
             }
+            auto size = argc * datatype_element_size(metadata.type);
             auto data = (AooByte *)alloca(size);
-            for (int i = 0; i < size; i++) {
-                data[i] = atom_getfloat(&argv[i + 4]);
-            }
+            atoms_to_data(metadata.type, argc, argv, data, size);
             metadata.size = size;
             metadata.data = data;
 
@@ -512,16 +511,13 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
             auto& e = event->streamStart;
             if (e.metadata){
                 // <ip> <port> <id> <type> <data...>
-                auto count = e.metadata->size + 4;
+                auto count = 4 + (e.metadata->size / datatype_element_size(e.metadata->type));
                 auto vec = (t_atom *)alloca(count * sizeof(t_atom));
                 // copy endpoint
                 memcpy(vec, msg, 3 * sizeof(t_atom));
-                // type
-                datatype_to_atom(e.metadata->type, vec[3]);
-                // data
-                for (int i = 0; i < e.metadata->size; ++i){
-                    SETFLOAT(vec + 4 + i, (uint8_t)e.metadata->data[i]);
-                }
+                // copy data
+                data_to_atoms(*e.metadata, count - 3, vec + 3);
+
                 outlet_anything(x->x_msgout, gensym("start"), count, vec);
             } else {
                 outlet_anything(x->x_msgout, gensym("start"), 3, msg);
@@ -632,7 +628,7 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
                                             const aoo::ip_address& address, AooId id) {
     // 5 extra atoms for endpoint (host, port, ID) + message (channel, type)
     // NB: in case of "fake" stream messages, we just over-allocate.
-    auto size = msg.size + 5;
+    auto size = 5 + (msg.size / datatype_element_size(msg.type));
     auto vec = (t_atom *)alloca(sizeof(t_atom) * size);
     if (!x_node->serialize_endpoint(address, id, 3, vec)) {
         bug("dispatch_stream_message: serialize_endpoint");
@@ -653,14 +649,8 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
 
         outlet_anything(x_msgout, gensym("time"), 4, vec);
     } else {
-        // channel
-        SETFLOAT(&vec[3], msg.channel);
-        // message type
-        datatype_to_atom(msg.type, vec[4]);
-        // message content
-        for (int i = 0; i < msg.size; ++i) {
-            SETFLOAT(&vec[i + 5], msg.data[i]);
-        }
+        // message
+        stream_message_to_atoms(msg, size - 3, vec + 3);
 
         outlet_anything(x_msgout, gensym("msg"), size, vec);
     }

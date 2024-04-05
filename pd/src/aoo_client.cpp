@@ -232,7 +232,6 @@ void t_aoo_client::send_message(int argc, t_atom *argv, AooId group, AooId user)
         return;
     }
 
-    // TODO: should we rather set the type via a message?
     AooDataType type;
     if (!atom_to_datatype(*argv, type, this)) {
         return;
@@ -251,11 +250,11 @@ void t_aoo_client::send_message(int argc, t_atom *argv, AooId group, AooId user)
 #endif
     }
 
-    auto buf = (AooByte *)alloca(argc);
-    for (int i = 0; i < argc; ++i){
-        buf[i] = (AooByte)atom_getfloat(argv + i);
-    }
-    AooData data { type, buf, (AooSize)argc };
+    int count = datatype_element_size(type) * argc;
+    auto buf = (AooByte *)alloca(count);
+    atoms_to_data(type, argc, argv, buf, count);
+
+    AooData data { type, buf, (AooSize)count };
 
     AooFlag flags = x_reliable ? kAooMessageReliable : 0;
     x_node->client()->sendMessage(group, user, data, time.value(), flags);
@@ -469,7 +468,7 @@ void t_aoo_client::dispatch_message(t_float delay, AooId group, AooId user,
     }
 
     // <offset> <group> <user> <type> <data...>
-    auto size = msg.size + 4;
+    auto size = 4 + (msg.size / datatype_element_size(msg.type));
     // prevent possible stack overflow with huge messages
     auto vec = (t_atom *)((size > MAXPDSTRING) ?
         getbytes(size * sizeof(t_atom)) : alloca(size * sizeof(t_atom)));
@@ -477,10 +476,7 @@ void t_aoo_client::dispatch_message(t_float delay, AooId group, AooId user,
     SETFLOAT(&vec[0], delay);
     SETSYMBOL(&vec[1], peer->group_name);
     SETSYMBOL(&vec[2], peer->user_name);
-    datatype_to_atom(msg.type, vec[3]);
-    for (int i = 0; i < msg.size; ++i){
-        SETFLOAT(&vec[i + 4], (uint8_t)msg.data[i]);
-    }
+    data_to_atoms(msg, size - 3, vec + 3);
 
     outlet_anything(x_msgout, gensym("msg"), size, vec);
 

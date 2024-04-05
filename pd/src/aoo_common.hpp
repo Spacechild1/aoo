@@ -105,7 +105,14 @@ int format_to_atoms(const AooFormat &f, int argc, t_atom *argv);
 
 bool atom_to_datatype(const t_atom &a, AooDataType& type, void *x);
 
-void datatype_to_atom(AooDataType type, t_atom& a);
+int datatype_element_size(AooDataType type);
+
+int atoms_to_data(AooDataType type, int argc, const t_atom *argv,
+                  AooByte *data, AooSize size);
+
+int data_to_atoms(const AooData& data, int argc, t_atom *argv);
+
+int stream_message_to_atoms(const AooStreamMessage& data, int argc, t_atom *argv);
 
 /*//////////////////////////// priority queue ////////////////////////////////*/
 

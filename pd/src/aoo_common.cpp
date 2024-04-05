@@ -5,6 +5,8 @@
 
 #include "aoo_common.hpp"
 
+#include "common/utils.hpp"
+
 #include "aoo/codec/aoo_null.h"
 #include "aoo/codec/aoo_pcm.h"
 #if AOO_USE_CODEC_OPUS
@@ -233,6 +235,13 @@ bool atom_to_datatype(const t_atom &a, AooDataType& type, void *x) {
         if (result != kAooDataUnspecified) {
             type = result;
             return true;
+        } else if (!strcmp(str, "f")) {
+            if (sizeof(t_float) == 8) {
+                type = kAooDataFloat64;
+            } else {
+                type = kAooDataFloat32;
+            }
+            return true;
         } else {
             pd_error(x, "%s: unknown data type '%s'", classname(x), str);
         }
@@ -242,7 +251,108 @@ bool atom_to_datatype(const t_atom &a, AooDataType& type, void *x) {
     return false;
 }
 
-void datatype_to_atom(AooDataType type, t_atom& a) {
-    auto str = aoo_dataTypeToString(type);
-    SETSYMBOL(&a, *str ? gensym(str) : gensym("unknown"));
+int datatype_element_size(AooDataType type) {
+    switch (type) {
+    case kAooDataFloat32:
+        return 4;
+    case kAooDataFloat64:
+        return 8;
+    case kAooDataInt16:
+        return 2;
+    case kAooDataInt32:
+        return 4;
+    case kAooDataInt64:
+        return 8;
+    default:
+        return 1;
+    }
+}
+
+int data_to_atoms(const AooData& data, int argc, t_atom *argv) {
+    assert(data.size != 0);
+    auto numatoms = data.size / datatype_element_size(data.type) + 1;
+    if (numatoms > argc) {
+        return 0;
+    }
+
+    switch (data.type) {
+    case kAooDataFloat32:
+    case kAooDataFloat64:
+    case kAooDataInt16:
+    case kAooDataInt32:
+    case kAooDataInt64:
+        SETSYMBOL(argv, gensym("f"));
+        break;
+    default:
+        SETSYMBOL(argv, gensym(aoo_dataTypeToString(data.type)));
+        break;
+    }
+
+    auto ptr = data.data;
+    for (int i = 1; i < numatoms; ++i) {
+        t_floatarg f;
+        switch (data.type) {
+        case kAooDataFloat32:
+            f = aoo::read_bytes<float>(ptr);
+            break;
+        case kAooDataFloat64:
+            f = aoo::read_bytes<double>(ptr);
+            break;
+        case kAooDataInt16:
+            f = aoo::read_bytes<int16_t>(ptr);
+            break;
+        case kAooDataInt32:
+            f = aoo::read_bytes<int32_t>(ptr);
+            break;
+        case kAooDataInt64:
+            f = aoo::read_bytes<int64_t>(ptr);
+            break;
+        default:
+            f = *ptr++;
+            break;
+        }
+        SETFLOAT(argv + i, f);
+    }
+    assert(ptr <= (data.data + data.size));
+    return numatoms;
+}
+
+int stream_message_to_atoms(const AooStreamMessage& msg, int argc, t_atom *argv) {
+    assert(argc > 2);
+    SETFLOAT(argv, msg.channel);
+    AooData data { msg.type, msg.data, (AooSize)msg.size };
+    return data_to_atoms(data, argc - 1, argv + 1) + 1;
+}
+
+int atoms_to_data(AooDataType type, int argc, const t_atom *argv,
+                  AooByte *data, AooSize size) {
+    auto numbytes = argc * datatype_element_size(type);
+    if (numbytes > size) {
+        return 0;
+    }
+    auto ptr = data;
+    for (int i = 0; i < argc; ++i) {
+        auto f = atom_getfloat(argv + i);
+        switch (type) {
+        case kAooDataFloat32:
+            aoo::write_bytes<float>(f, ptr);
+            break;
+        case kAooDataFloat64:
+            aoo::write_bytes<double>(f, ptr);
+            break;
+        case kAooDataInt16:
+            aoo::write_bytes<int16_t>(f, ptr);
+            break;
+        case kAooDataInt32:
+            aoo::write_bytes<int32_t>(f, ptr);
+            break;
+        case kAooDataInt64:
+            aoo::write_bytes<int64_t>(f, ptr);
+            break;
+        default:
+            *ptr++ = (AooByte)f;
+            break;
+        }
+    }
+    return numbytes;
 }
