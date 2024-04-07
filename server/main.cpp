@@ -247,7 +247,7 @@ int main(int argc, const char **argv) {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -269,7 +269,7 @@ int main(int argc, const char **argv) {
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
-                msg = aoo::socket_strerror(aoo::socket_errno());
+                msg = aoo::socket::strerror(aoo::socket::get_last_error());
             } else {
                 msg = aoo_strerror(err);
             }
@@ -283,7 +283,7 @@ int main(int argc, const char **argv) {
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
-                msg = aoo::socket_strerror(aoo::socket_errno());
+                msg = aoo::socket::strerror(aoo::socket::get_last_error());
             } else {
                 msg = aoo_strerror(err);
             }

@@ -18,30 +18,17 @@
 
 namespace aoo {
 
-class tcp_error : public std::exception {
+class tcp_error : public socket_error {
 public:
-    tcp_error(int code, std::string msg)
-        : code_(code), msg_(std::move(msg)) {}
+    using socket_error::socket_error;
 
-    const char *what() const noexcept override {
-        return msg_.c_str();
-    }
-
-    int code() const { return code_; }
-private:
-    int code_;
-    std::string msg_;
+    tcp_error(const socket_error& e)
+        : socket_error(e) {}
 };
 
 class tcp_server
 {
 public:
-#ifdef _WIN32
-    static const int invalid_socket = (int)INVALID_SOCKET;
-#else
-    static const int invalid_socket = -1;
-#endif
-
     tcp_server() {}
     ~tcp_server() { do_close(); }
 
@@ -68,12 +55,12 @@ public:
 private:
     struct client {
         ip_address address;
-        int socket;
+        tcp_socket socket;
         AooId id;
     };
 
     void accept_client();
-    void handle_accept_error(int code, const ip_address& addr);
+    void handle_accept_error(const accept_error& e);
     void receive_from_clients();
     void handle_client_error(const client& c, int code) {
         receive_handler_(c.id, code, nullptr, 0, c.address);
@@ -81,8 +68,8 @@ private:
     void close_and_remove_client(int index);
     void do_close();
 
-    int listen_socket_ = invalid_socket;
-    int event_socket_ = invalid_socket;
+    tcp_socket listen_socket_;
+    udp_socket event_socket_;
     int last_error_ = 0;
     std::atomic<bool> running_{false};
 

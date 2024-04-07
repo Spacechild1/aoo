@@ -120,14 +120,13 @@ private:
 };
 
 bool t_node_imp::resolve(t_symbol *host, int port, aoo::ip_address& addr) const {
-    auto result = aoo::ip_address::resolve(host->s_name, port, x_type, x_ipv4mapped);
-    if (!result.empty()){
+    try {
+        auto result = aoo::ip_address::resolve(host->s_name, port, x_type, x_ipv4mapped);
+        assert(!result.empty());
         addr = result.front();
         return true;
-    } else {
-        char buf[MAXPDSTRING];
-        aoo::socket_strerror(aoo::socket_errno(), buf, sizeof(buf));
-        pd_error(nullptr, "%s", buf);
+    } catch (const aoo::resolve_error& e) {
+        pd_error(nullptr, "%s", e.what());
         return false;
     }
 }
@@ -218,7 +217,7 @@ void t_node_imp::run_client() {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -279,7 +278,7 @@ void t_node_imp::send() {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -296,7 +295,7 @@ void t_node_imp::receive() {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -356,7 +355,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
     if (auto err = client->setup(settings); err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }

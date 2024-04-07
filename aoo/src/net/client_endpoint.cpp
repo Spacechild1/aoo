@@ -83,7 +83,11 @@ void client_endpoint::send_message(const osc::OutboundPacketStream& msg) const {
     auto size = msg.Size() + 4;
     // we know that the buffer is not really constant
     aoo::to_bytes<int32_t>(msg.Size(), const_cast<char *>(data));
-    if (replyfn_((const AooByte *)data, size) < 0) {
+    try {
+        replyfn_((const AooByte *)data, size);
+    } catch (const socket_error& e) {
+        LOG_WARNING("AooServer: send() failed for client "
+                    << id_ << ": " << e.what());
         // TODO handle error
     }
 }

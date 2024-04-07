@@ -32,9 +32,81 @@ struct sockaddr;
 
 namespace aoo {
 
+//-------------------- socket --------------------//
+
+class socket_error;
+
+namespace socket {
+
+int init();
+
+int get_last_error();
+
+void set_last_error(int err);
+
+int strerror(int err, char *buf, int size);
+
+std::string strerror(int err);
+
+void print_error(int err, const char *label = nullptr);
+
+void print_last_error(const char *label = nullptr);
+
+} // socket
+
+#ifdef _WIN32
+using socket_type = SOCKET;
+constexpr socket_type invalid_socket = INVALID_SOCKET;
+#else
+using socket_type = int;
+constexpr socket_type invalid_socket = -1;
+#endif
+
+//-------------- socket_error --------------//
+
+class socket_error : public std::exception {
+public:
+    enum socket_error_code {
+#ifdef _WIN32
+        timeout = WSAETIMEDOUT,
+        abort = WSAECONNABORTED,
+        would_block = WSAEWOULDBLOCK
+#else
+        timeout = ETIMEDOUT,
+        abort = ECONNABORTED,
+        would_block = EWOULDBLOCK
+#endif
+    };
+
+    socket_error() = default;
+
+    socket_error(int err)
+        : err_(err), msg_(socket::strerror(err)) {}
+
+    socket_error(int err, std::string msg)
+        : err_(err), msg_(std::move(msg)) {}
+
+    const char* what() const noexcept override {
+        return msg_.c_str();
+    }
+
+    int code() const {
+        return err_;
+    }
+private:
+    int err_ = 0;
+    std::string msg_;
+};
+
 //-------------- ip_address --------------//
 
 using port_type = uint16_t;
+
+class resolve_error : public socket_error {
+public:
+    resolve_error(int err, std::string msg)
+        : socket_error(err, std::move(msg)) {}
+};
 
 class ip_address {
 public:
@@ -46,12 +118,11 @@ public:
 
     static const socklen_t max_length = 32;
 
+    // throws resolve_error on failure!
     static std::vector<ip_address> resolve(const std::string& host, port_type port,
                                            ip_type type, bool ipv4mapped = false);
 
     ip_address();
-
-    ip_address(socklen_t size);
 
     // NB: for convenience 'sa' may be NULL!
     ip_address(const struct sockaddr *sa, socklen_t len) {
@@ -96,7 +167,7 @@ public:
 
     void clear();
 
-    void resize(socklen_t size);
+    void reserve();
 
     bool operator==(const ip_address& other) const;
 
@@ -167,73 +238,17 @@ private:
     void check();
 };
 
-//-------------------- socket --------------------//
-
-namespace socket {
-
-int init();
-
-int get_last_error();
-
-void set_last_error(int err);
-
-int strerror(int err, char *buf, int size);
-
-std::string strerror(int err);
-
-void print_error(int err, const char *label = nullptr);
-
-void print_last_error(const char *label = nullptr);
-
-} // socket
-
-#ifdef _WIN32
-using socket_type = SOCKET;
-constexpr socket_type invalid_socket = INVALID_SOCKET;
-#else
-using socket_type = int;
-constexpr socket_type invalid_socket = -1;
-#endif
-
-//-------------- socket_error --------------//
-
-class socket_error : public std::exception {
-public:
-    enum socket_error_code {
-#ifdef _WIN32
-        timeout = WSAETIMEDOUT,
-        abort = WSAECONNABORTED,
-        would_block = WSAEWOULDBLOCK
-#else
-        timeout = ETIMEDOUT,
-        abort = ECONNABORTED,
-        would_block = EWOULDBLOCK
-#endif
-    };
-
-    socket_error(int err)
-        : err_(err), msg_(socket::strerror(err)) {}
-
-    socket_error(int err, std::string_view msg)
-        : err_(err), msg_(msg) {}
-
-    const char* what() const noexcept override {
-        return msg_.c_str();
-    }
-
-    int error() const {
-        return err_;
-    }
-private:
-    std::string msg_;
-    int err_;
-};
+//------------------------ base_socket --------------------//
 
 enum shutdown_method {
     shutdown_receive = 0,
     shutdown_send = 1,
     shutdown_both = 2
 };
+
+struct socket_tag {};
+struct port_tag {};
+struct family_tag {};
 
 class base_socket {
 public:
@@ -245,7 +260,15 @@ public:
 
     AooSocketFlags flags() const;
 
-    bool close() noexcept;
+    socket_type native_handle() const {
+        return socket_;
+    }
+
+    void close() noexcept;
+
+    bool is_open() const {
+        return socket_ != invalid_socket;
+    }
 
     bool shutdown(shutdown_method method) noexcept;
 
@@ -253,18 +276,16 @@ public:
 
     ip_address peer() const;
 
-    void bind(port_type port);
-
     void bind(const ip_address& addr);
 
     int send(const void *buf, int size);
 
     int receive(void *buf, int size) {
-        return do_receive(buf, size, nullptr, -1).first;
+        return do_receive(buf, size, nullptr, -1).second;
     }
 
     int receive(void *buf, int size, ip_address& address) {
-        return do_receive(buf, size, &address, -1).first;
+        return do_receive(buf, size, &address, -1).second;
     }
 
     std::pair<bool, int> receive(void *buf, int size, double timeout) {
@@ -285,19 +306,24 @@ public:
 
     void set_non_blocking(bool b);
 
+#ifndef _WIN32
     bool non_blocking() const;
+#endif
 
     void set_reuse_port(bool b);
 
     bool reuse_port() const;
 
     int error() const;
-
-    socket_type native_handle() const;
 protected:
-    base_socket() {}
+    base_socket(socket_type sock = invalid_socket)
+        : socket_(sock) {}
 
     ~base_socket() { close(); }
+
+    base_socket(const base_socket&) = delete;
+
+    base_socket& operator=(const base_socket& other) = delete;
 
     base_socket(base_socket&& other) noexcept
         : socket_(std::exchange(other.socket_, invalid_socket)) {}
@@ -309,18 +335,23 @@ protected:
 
     std::pair<bool, int> do_receive(void *buf, int size, ip_address* addr, double timeout);
 
-    socket_type socket_ = invalid_socket;
+    socket_type socket_;
 };
+
+//-------------------------- udp_socket ------------------------//
 
 class udp_socket : public base_socket {
 public:
     udp_socket() = default;
 
-    udp_socket(ip_address::ip_type family);
+    udp_socket(socket_tag, socket_type sock)
+        : base_socket(sock) {}
 
-    udp_socket(port_type port, bool reuse_port = false);
+    udp_socket(family_tag, ip_address::ip_type family, bool dualstack = true);
 
-    udp_socket(const ip_address& addr, bool reuse_port = false);
+    udp_socket(port_tag, port_type port, bool reuse_port = false);
+
+    explicit udp_socket(const ip_address& addr, bool reuse_port = false);
 
     udp_socket(udp_socket&& other)
         : base_socket(std::forward<base_socket>(other)) {}
@@ -335,15 +366,34 @@ public:
     bool signal() noexcept;
 };
 
+//-------------------------- tcp_socket ------------------------//
+
+class accept_error : public socket_error {
+public:
+    accept_error(int err, const ip_address& addr)
+        : socket_error(err), addr_(addr) {}
+
+    const ip_address& address() const {
+        return addr_;
+    }
+private:
+    ip_address addr_;
+};
+
 class tcp_socket : public base_socket {
 public:
+    using from_port = port_tag;
+
     tcp_socket() = default;
 
-    tcp_socket(ip_address::ip_type family);
+    tcp_socket(socket_tag, socket_type sock)
+        : base_socket(sock) {}
 
-    tcp_socket(port_type port, bool reuse_port = false);
+    tcp_socket(family_tag, ip_address::ip_type family, bool dualstack = true);
 
-    tcp_socket(const ip_address& addr, bool reuse_port = false);
+    tcp_socket(port_tag, port_type port, bool reuse_port = false);
+
+    explicit tcp_socket(const ip_address& addr, bool reuse_port = false);
 
     tcp_socket(tcp_socket&& other)
         : base_socket(std::forward<base_socket>(other)) {}
@@ -353,9 +403,14 @@ public:
         return *this;
     }
 
-    void listen(int backlog);
+    void listen(int backlog = SOMAXCONN);
 
-    ip_address accept();
+    void set_nodelay(bool b);
+
+    bool nodelay() const;
+
+    // throws accept error
+    std::pair<tcp_socket, ip_address> accept();
 };
 
 } // aoo

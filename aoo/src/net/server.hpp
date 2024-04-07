@@ -295,7 +295,12 @@ private:
                     const void *address, AooAddrSize addrlen, AooFlag) {
         aoo::ip_address addr((const struct sockaddr *)address, addrlen);
         auto& server = static_cast<Server *>(user)->udp_server_;
-        return server.send(addr, data, size);
+        try {
+            return server.send(addr, data, size);
+        } catch (const socket_error& e) {
+            socket::set_last_error(e.code());
+            return -1;
+        }
     }
 };
 

@@ -85,11 +85,11 @@ AooError AOO_CALL aoo::net::Server::setup(AooServerSettings& settings) {
             });
         } catch (const aoo::udp_error& e) {
             LOG_ERROR("AooServer: failed to start UDP server: " << e.what());
-            aoo::socket_set_errno(e.code());
+            aoo::socket::set_last_error(e.code());
             return kAooErrorSocket;
         }
         // update socket flags
-        type = socket_get_flags(udp_server_.socket());
+        type = udp_server_.socket().flags();
     }
 
     try {
@@ -98,7 +98,7 @@ AooError AOO_CALL aoo::net::Server::setup(AooServerSettings& settings) {
             [this](auto... args) { handle_client_data(args...); });
     } catch (const aoo::tcp_error& e) {
         LOG_ERROR("AooServer: failed to start TCP server: " << e.what());
-        aoo::socket_set_errno(e.code());
+        aoo::socket::set_last_error(e.code());
         return kAooErrorSocket;
     }
 
@@ -187,7 +187,7 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
         return kAooOk;
     }  catch (const aoo::tcp_error& e) {
         LOG_ERROR("AooServer: TCP server failed: " << e.what());
-        aoo::socket_set_errno(e.code());
+        aoo::socket::set_last_error(e.code());
 
         return kAooErrorSocket;
     }
@@ -209,7 +209,7 @@ AooError AOO_CALL aoo::net::Server::receive(AooBool nonBlocking) {
         }
     } catch (const aoo::udp_error& e) {
         LOG_ERROR("AooServer: UDP server error: " << e.what());
-        socket_set_errno(e.code());
+        aoo::socket::set_last_error(e.code());
         return kAooErrorSocket;
     }
 }
@@ -913,7 +913,7 @@ void Server::handle_client_data(AooId id, int err, const AooByte *data,
         remove_client(id, kAooOk);
     } else {
         // socket error
-        remove_client(id, kAooErrorSocket, socket_strerror(err));
+        remove_client(id, kAooErrorSocket, socket::strerror(err));
     }
 }
 

@@ -28,7 +28,7 @@ namespace aoo {
 
 //------------------------ ip_address ------------------------//
 
-ip_address::ip_address(){
+ip_address::ip_address() {
     static_assert(sizeof(data_) == max_length,
                   "wrong max_length value");
 #if AOO_USE_IPv6
@@ -36,11 +36,6 @@ ip_address::ip_address(){
                   "ip_address can't hold IPv6 sockaddr");
 #endif
     clear();
-}
-
-ip_address::ip_address(socklen_t size) {
-    clear();
-    length_ = size;
 }
 
 ip_address::ip_address(const AooByte *bytes, AooSize size,
@@ -95,6 +90,11 @@ void ip_address::clear() {
     length_ = 0;
 }
 
+void ip_address::reserve() {
+    clear();
+    length_ = max_length;
+}
+
 void ip_address::check() {
     auto f = addr_.sa_family;
 #if AOO_USE_IPv6
@@ -108,10 +108,6 @@ void ip_address::check() {
     }
 }
 
-void ip_address::resize(socklen_t size) {
-    length_ = size;
-}
-
 std::vector<ip_address> ip_address::resolve(const std::string &host, port_type port,
                                             ip_type type, bool ipv4mapped){
     std::vector<ip_address> result;
@@ -121,7 +117,11 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
         fprintf(stderr, "don't resolve empty host\n");
         fflush(stderr);
     #endif
-        return result;
+#ifdef _WIN32
+        throw resolve_error(WSAEINVAL, socket::strerror(WSAEINVAL));
+#else
+        throw resolve_error(EINVAL, socket::strerror(EINVAL));
+#endif
     }
 
     struct addrinfo hints;
@@ -188,12 +188,19 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
     #endif
         freeaddrinfo(ailist);
     } else {
-        // LATER think about how to correctly handle error.
-        // Use gai_strerror() and throw exception?
     #ifdef _WIN32
-        WSASetLastError(WSAHOST_NOT_FOUND);
+        // MS recommends using WSAGetLastError() instead of gai_strerror()!
+        // see https://learn.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-gai_strerrora
+        auto e = WSAGetLastError();
+        throw resolve_error(e, socket::strerror(e));
     #else
-        errno = HOST_NOT_FOUND;
+        if (err == EAI_SYSTEM) {
+            auto e = errno;
+            throw resolve_error(e, socket::strerror(e));
+        } else {
+            // TODO: what should we pass as the error code?
+            throw resolve_error(HOST_NOT_FOUND, gai_strerror(err));
+        }
     #endif
     }
 
@@ -563,7 +570,7 @@ int strerror(int err, char *buf, int size) {
     len += snprintf(buf + len, size - len, " [%d]", err);
     return len;
 #else
-    return snprintf(buf, size, "%s [%d]", strerror(err), err);
+    return snprintf(buf, size, "%s [%d]", ::strerror(err), err);
 #endif
 }
 
@@ -618,7 +625,7 @@ int get_int_option(socket_type socket, int level, int option, int& value) {
     return getsockopt(socket, level, option, (char *)&value, &len);
 }
 
-std::pair<socket_type, ip_address> create_from_port(port_type port, int protocol) {
+std::pair<socket_type, ip_address> create_from_port(int protocol, port_type port) {
 #if AOO_USE_IPv6
     // prefer IPv6 (dual stack), but fall back to IPv4 if disabled
     ip_address bindaddr;
@@ -645,11 +652,12 @@ std::pair<socket_type, ip_address> create_from_port(port_type port, int protocol
     return std::pair(sock, bindaddr);
 }
 
-socket_type create_from_family(ip_address::ip_type family, int protocol) {
+socket_type create_from_family(int protocol, ip_address::ip_type family, bool dualstack) {
     socket_type sock = invalid_socket;
     if (family == ip_address::IPv6) {
+#if AOO_USE_IPv6
         sock = ::socket(AF_INET6, protocol, 0);
-        if (sock != invalid_socket) {
+        if (sock != invalid_socket && dualstack) {
             // make dual stack socket by listening to both IPv4 and IPv6 packets
             if (set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false) != 0){
                 fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
@@ -657,6 +665,7 @@ socket_type create_from_family(ip_address::ip_type family, int protocol) {
                 // TODO: fall back to IPv4?
             }
         }
+#endif
     } else {
         sock = ::socket(AF_INET, protocol, 0);
     }
@@ -731,12 +740,24 @@ bool base_socket::shutdown(shutdown_method how) noexcept {
     return ::shutdown(socket_, how) != 0;
 }
 
-bool base_socket::close() noexcept {
-#ifdef _WIN32
-    return closesocket(socket_) != 0;
-#else
-    return close(socket_) != 0;
-#endif
+void base_socket::close() noexcept {
+    if (socket_ != invalid_socket) {
+        fprintf(stderr, "close socket %d\n", (int)socket_);
+        fflush(stderr);
+    #ifdef _WIN32
+        closesocket(socket_);
+    #else
+        ::close(socket_);
+    #endif
+        socket_ = invalid_socket;
+    }
+}
+
+void base_socket::bind(const ip_address& addr) {
+    // finally bind the socket
+    if (::bind(socket_, addr.address(), addr.length()) != 0) {
+        throw socket_error(socket::get_last_error());
+    }
 }
 
 int base_socket::send(const void *buf, int size) {
@@ -771,13 +792,17 @@ std::pair<bool, int> base_socket::do_receive(void *buf, int size,
     }
     int ret = 0;
     if (addr) {
-        addr->resize(ip_address::max_length);
+        addr->reserve();
         ret = ::recvfrom(socket_, (char *)buf, size, 0,
                          addr->address_ptr(), addr->length_ptr());
     } else {
-        ret = recv(socket_, (char *)buf, size, 0);
+        ret = ::recv(socket_, (char *)buf, size, 0);
     }
-    return { true, ret };
+    if (ret >= 0) {
+        return { true, ret };
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
 }
 
 #define DEBUG_SOCKET_BUFFER 1
@@ -843,15 +868,27 @@ void base_socket::set_non_blocking(bool b) {
     if (ioctlsocket(socket_, FIONBIO, &modearg) != NO_ERROR)
         throw socket_error(socket::get_last_error());
 #else
-    int sockflags = fcntl(socket, F_GETFL, 0);
+    int flags = fcntl(socket_, F_GETFL, 0);
     if (b)
-        sockflags |= O_NONBLOCK;
+        flags |= O_NONBLOCK;
     else
-        sockflags &= ~O_NONBLOCK;
-    if (fcntl(socket, F_SETFL, sockflags) < 0)
+        flags &= ~O_NONBLOCK;
+    if (fcntl(socket_, F_SETFL, flags) < 0)
         throw socket_error(socket::get_last_error());
 #endif
 }
+
+#ifndef _WIN32
+bool base_socket::non_blocking() const {
+#ifdef _WIN32
+    // TODO: Windows does not let us query the socket flags...
+    return false;
+#else
+    int flags = fcntl(socket_, F_GETFL, 0);
+    return flags & O_NONBLOCK;
+#endif
+}
+#endif
 
 // kudos to https://stackoverflow.com/a/46062474/6063908
 void base_socket::connect(const ip_address& addr, double timeout) {
@@ -861,7 +898,13 @@ void base_socket::connect(const ip_address& addr, double timeout) {
         }
     } else {
         // set nonblocking and connect
+        // NB: non_blocking() doesn't work on Windows, so we just
+        // assume that our socket is always blocking.
+#if 1
+        bool was_blocking = true;
+#else
         bool was_blocking = !non_blocking();
+#endif
         if (was_blocking) {
             set_non_blocking(true);
         }
@@ -953,18 +996,18 @@ bool base_socket::reuse_port() const {
 
 //------------------------ udp_socket -------------------------//
 
-udp_socket::udp_socket(ip_address::ip_type family) {
-    socket_ = create_from_family(family, SOCK_DGRAM);
+udp_socket::udp_socket(family_tag, ip_address::ip_type family, bool dualstack) {
+    socket_ = create_from_family(SOCK_DGRAM, family, dualstack);
 }
 
 udp_socket::udp_socket(const ip_address& addr, bool reuse_port) {
-    auto sock = create_from_family(addr.type(), SOCK_DGRAM);
+    auto sock = create_from_family(SOCK_DGRAM, addr.type(), true);
     try_bind(sock, addr, reuse_port);
     socket_ = sock;
 }
 
-udp_socket::udp_socket(port_type port, bool reuse_port) {
-    auto [sock, bindaddr] = create_from_port(port, SOCK_DGRAM);
+udp_socket::udp_socket(port_tag, port_type port, bool reuse_port) {
+    auto [sock, bindaddr] = create_from_port(SOCK_DGRAM, port);
     try_bind(sock, bindaddr, reuse_port);
     socket_ = sock;
 }
@@ -991,7 +1034,7 @@ bool udp_socket::signal() noexcept {
         send(nullptr, 0, addr);
         return true;
     } catch (const socket_error& e) {
-        socket::print_error(e.error(), "udp_socket: could not signal");
+        socket::print_error(e.code(), "udp_socket: could not signal");
         return false;
     }
 }
@@ -1000,32 +1043,32 @@ bool udp_socket::signal() noexcept {
 
 namespace {
 
-static void set_nodelay(socket_type sock) {
+static void enable_nodelay(socket_type sock) {
     // disable Nagle's algorithm
-    if (set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true)) {
+    if (set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true) != 0) {
         socket::print_last_error("tcp_socket: could not set TCP_NODELAY");
     }
 }
 
 } // namespace
 
-tcp_socket::tcp_socket(ip_address::ip_type family) {
-    auto sock = create_from_family(family, SOCK_STREAM);
-    set_nodelay(sock);
+tcp_socket::tcp_socket(family_tag, ip_address::ip_type family, bool dualstack) {
+    auto sock = create_from_family(SOCK_STREAM, family, dualstack);
+    enable_nodelay(sock);
     socket_ = sock;
 }
 
 tcp_socket::tcp_socket(const ip_address& addr, bool reuse_port) {
-    auto sock = create_from_family(addr.type(), SOCK_STREAM);
+    auto sock = create_from_family(SOCK_STREAM, addr.type(), true);
     try_bind(sock, addr, reuse_port);
-    set_nodelay(sock);
+    enable_nodelay(sock);
     socket_ = sock;
 }
 
-tcp_socket::tcp_socket(port_type port, bool reuse_port) {
-    auto [sock, bindaddr] = create_from_port(port, SOCK_STREAM);
+tcp_socket::tcp_socket(port_tag, port_type port, bool reuse_port) {
+    auto [sock, bindaddr] = create_from_port(SOCK_STREAM, port);
     try_bind(sock, bindaddr, reuse_port);
-    set_nodelay(sock);
+    enable_nodelay(sock);
     socket_ = sock;
 }
 
@@ -1035,13 +1078,33 @@ void tcp_socket::listen(int backlog) {
     }
 }
 
-ip_address tcp_socket::accept() {
-    ip_address addr;
-    addr.resize(ip_address::max_length);
-    if (::accept(socket_, addr.address_ptr(), addr.length_ptr()) == 0) {
-        return addr;
-    } else {
+void tcp_socket::set_nodelay(bool b) {
+    if (set_int_option(socket_, IPPROTO_TCP, TCP_NODELAY, b) != 0) {
         throw socket_error(socket::get_last_error());
+    }
+}
+
+bool tcp_socket::nodelay() const {
+    int b;
+    if (get_int_option(socket_, IPPROTO_TCP, TCP_NODELAY, b) != 0) {
+        throw socket_error(socket::get_last_error());
+    }
+    return b;
+}
+
+std::pair<tcp_socket, ip_address> tcp_socket::accept() {
+    ip_address addr;
+    addr.reserve();
+    auto sock = ::accept(socket_, addr.address_ptr(), addr.length_ptr());
+    if (sock != invalid_socket) {
+#if 1
+        // disable Nagle's algorithm
+        enable_nodelay(sock);
+#endif
+        return { tcp_socket(socket_tag{}, sock), addr };
+    } else {
+        // address might be valid!
+        throw accept_error(socket::get_last_error(), addr);
     }
 }
 

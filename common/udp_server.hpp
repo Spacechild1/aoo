@@ -21,29 +21,17 @@
 
 namespace aoo {
 
-class udp_error : public std::exception {
+class udp_error : public socket_error {
 public:
-    udp_error(int code, std::string msg)
-        : code_(code), msg_(std::move(msg)) {}
+    using socket_error::socket_error;
 
-    const char *what() const noexcept override {
-        return msg_.c_str();
-    }
-
-    int code() const { return code_; }
-private:
-    int code_;
-    std::string msg_;
+    udp_error(const socket_error& e)
+        : socket_error(e) {}
 };
 
 class udp_server
 {
 public:
-#ifdef _WIN32
-    static const int invalid_socket = (int)INVALID_SOCKET;
-#else
-    static const int invalid_socket = -1;
-#endif
     static const size_t max_udp_packet_size = 65536;
 
     using receive_handler = std::function<void(const AooByte *data, AooSize size,
@@ -53,7 +41,7 @@ public:
     ~udp_server();
 
     int port() const { return bind_addr_.port(); }
-    int socket() const { return socket_; }
+    const udp_socket& socket() const { return socket_; }
     aoo::ip_address::ip_type type() const { return bind_addr_.type(); }
 
     udp_server(const udp_server&) = delete;
@@ -73,12 +61,14 @@ public:
     void stop();
     void notify();
 
-    int send(const aoo::ip_address& addr, const AooByte *data, AooSize size);
+    int send(const aoo::ip_address& addr, const AooByte *data, AooSize size) {
+        return socket_.send(data, size, addr);
+    }
 private:
     bool receive(double timeout);
     void do_close();
 
-    int socket_ = invalid_socket;
+    udp_socket socket_;
     aoo::ip_address bind_addr_;
     int send_buffer_size_ = 0;
     int receive_buffer_size_ = 0;

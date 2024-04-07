@@ -53,7 +53,7 @@ bool check_ping_message(const void *msg, int size,
 
 int main(int argc, char *argv[])
 {
-    socket_init();
+    socket::init();
 
     struct params {
         ip_address src;

@@ -56,7 +56,7 @@ void t_aoo_server::run() {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -72,7 +72,7 @@ void t_aoo_server::receive() {
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
-            msg = aoo::socket_strerror(aoo::socket_errno());
+            msg = aoo::socket::strerror(aoo::socket::get_last_error());
         } else {
             msg = aoo_strerror(err);
         }
@@ -214,7 +214,7 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
         if (auto err = x->x_server->setup(settings); err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
-                msg = aoo::socket_strerror(aoo::socket_errno());
+                msg = aoo::socket::strerror(aoo::socket::get_last_error());
             } else {
                 msg = aoo_strerror(err);
             }

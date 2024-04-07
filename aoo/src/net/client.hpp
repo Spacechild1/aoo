@@ -134,7 +134,12 @@ public:
                     const void *address, AooAddrSize addrlen, AooFlag) {
         aoo::ip_address addr((const struct sockaddr *)address, addrlen);
         auto& server = static_cast<udp_client *>(user)->udp_server_;
-        return server.send(addr, data, size);
+        try {
+            return server.send(addr, data, size);
+        } catch (const socket_error& e) {
+            socket::set_last_error(e.code());
+            return -1;
+        }
     }
 private:
     void send_server_message(const osc::OutboundPacketStream& msg, const sendfn& fn);
@@ -373,8 +378,10 @@ public:
     client_state current_state() const { return state_.load(); }
 private:
     // networking
-    int tcp_socket_ = -1;
+    tcp_socket tcp_socket_;
     udp_client udp_client_;
+    udp_socket event_socket_;
+    std::atomic<bool> quit_{false};
     sendfn udp_sendfn_;
     AooReceiveFunc message_handler_ = nullptr;
     void *user_data_ = nullptr;
@@ -385,8 +392,6 @@ private:
 #endif
     std::vector<std::string> interfaces_;
     sync::mutex interface_mutex_; // TODO: replace with seqlock?
-    int event_socket_ = -1;
-    std::atomic<bool> quit_{false};
     std::vector<char> sendbuffer_;
     aoo::sync::event send_event_;
     // dependants

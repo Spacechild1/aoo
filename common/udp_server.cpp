@@ -14,31 +14,30 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
     // Also, it can cause deadlocks when trying to signal the socket
     // and join the network thread.
     // TODO: figure out if some operating systems let UDP sockets linger.
-    auto sock = socket_udp(port, false);
-    if (sock < 0) {
-        auto e = socket_errno();
-        throw udp_error(e, socket_strerror(e));
-    }
+    try {
+        socket_ = udp_socket(port_tag{}, port, false);
 
-    if (socket_address(sock, bind_addr_) < 0) {
-        auto e = socket_errno(); // cache error
-        socket_close(sock);
-        throw udp_error(e, socket_strerror(e));
-    }
-
-    if (send_buffer_size_ > 0) {
-        if (aoo::socket_set_sendbufsize(sock, send_buffer_size_) < 0){
-            aoo::socket_error_print("setsendbufsize");
+        if (send_buffer_size_ > 0) {
+            try {
+                socket_.set_send_buffer_size(send_buffer_size_);
+            } catch (const socket_error& e) {
+                socket::print_error(e.code(),
+                    "udp_server: could not send send buffer size");
+            }
         }
-    }
 
-    if (receive_buffer_size_ > 0) {
-        if (aoo::socket_set_recvbufsize(sock, receive_buffer_size_) < 0){
-            aoo::socket_error_print("setrecvbufsize");
+        if (receive_buffer_size_ > 0) {
+            try {
+                socket_.set_receive_buffer_size(receive_buffer_size_);
+            } catch (const socket_error& e) {
+                socket::print_error(e.code(),
+                    "udp_server: could not send receive buffer size");
+            }
         }
+    } catch (const socket_error& e) {
+        throw udp_error(e);
     }
 
-    socket_ = sock;
     running_.store(true);
     threaded_ = threaded;
     if (threaded_) {
@@ -91,11 +90,11 @@ void udp_server::stop() {
     bool running = running_.exchange(false);
     if (running) {
         // wake up receive
-        if (!socket_signal(socket_)) {
+        if (!socket_.signal()) {
             // force wakeup by closing the socket.
             // this is not nice and probably undefined behavior,
             // the MSDN docs explicitly forbid it!
-            socket_close(socket_);
+            socket_.close();
         }
         if (threaded_) {
             // wake up main thread
@@ -112,15 +111,12 @@ void udp_server::notify() {
     if (threaded_) {
         event_.set(); // wake up main thread
     } else {
-        socket_signal(socket_);
+        socket_.signal();
     }
 }
 
 void udp_server::do_close() {
-    if (socket_ != invalid_socket) {
-        socket_close(socket_);
-    }
-    socket_ = invalid_socket;
+    socket_.close();
     bind_addr_.clear();
     if (thread_.joinable()) {
         thread_.join();
@@ -132,51 +128,47 @@ udp_server::~udp_server() {
     do_close();
 }
 
-int udp_server::send(const aoo::ip_address& addr, const AooByte *data, AooSize size) {
-    return ::sendto(socket_, (const char *)data, size, 0, addr.address(), addr.length());
-}
-
 bool udp_server::receive(double timeout) {
-    aoo::ip_address address;
-    auto result = socket_receive(socket_, buffer_.data(), buffer_.size(),
-                                 &address, timeout);
-    if (result > 0) {
-        if (threaded_) {
-            packet_queue_.produce([&](auto& packet){
-                packet.data.assign(buffer_.data(), buffer_.data() + result);
-                packet.address = address;
-            });
-            event_.set(); // notify main thread (if blocking)
+    try {
+        aoo::ip_address address;
+        auto [success, result] = socket_.receive(buffer_.data(), buffer_.size(),
+                                                 address, timeout);
+        if (success) {
+            if (result > 0) {
+                if (threaded_) {
+                    packet_queue_.produce([&, len=result](auto& packet){
+                        packet.data.assign(buffer_.data(), buffer_.data() + len);
+                        packet.address = address;
+                    });
+                    event_.set(); // notify main thread (if blocking)
+                } else {
+                    receive_handler_(buffer_.data(), result, address);
+                }
+            }
+            // ignore timeout or empty packet (used for signalling)
+            return true;
         } else {
-            receive_handler_(buffer_.data(), result, address);
+            // timeout
+            return false;
         }
-        return true;
-    } else if (result < 0) {
-        int e = socket_errno();
-    #ifdef _WIN32
+    } catch (const socket_error& e) {
+#ifdef _WIN32
         // ignore ICMP Port Unreachable message!
-        if (e == WSAECONNRESET) {
+        if (e.code() == WSAECONNRESET) {
             return true; // continue
-        } else if (e == WSAEWOULDBLOCK) {
-            return false; // timeout
         }
-    #else
-        if (e == EINTR){
+#else
+        if (e.code() == EINTR){
             return true; // continue
-        } else if (e == EWOULDBLOCK) {
-            return false; // timeout
         }
-    #endif
+#endif
         // notify main thread (if blocking)
         if (threaded_) {
             running_.store(false);
             event_.set();
         }
 
-        throw udp_error(e, socket_strerror(e));
-    } else {
-        // ignore timeout or empty packet (used for signalling)
-        return true;
+        throw udp_error(e);
     }
 }
 

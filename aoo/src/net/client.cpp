@@ -56,10 +56,11 @@ AOO_API AooClient * AOO_CALL AooClient_new(void) {
 }
 
 aoo::net::Client::Client() {
-    event_socket_= socket_udp(0);
-    if (event_socket_< 0){
+    try {
+        event_socket_= udp_socket(port_tag{}, 0);
+    } catch (const socket_error& e) {
         // TODO handle error
-        socket_error_print("socket_udp");
+        socket::print_error(e.code());
     }
 
     sendbuffer_.resize(AOO_MAX_PACKET_SIZE);
@@ -113,21 +114,13 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     close();
 
     // get private/global network interfaces
-    auto get_address = [](int sock, const char *host, int port,
+    auto get_address = [](udp_socket& sock, const char *host, int port,
                           ip_address::ip_type family, bool ipv4mapped) {
-        auto addrlist = ip_address::resolve(host, port, family, ipv4mapped);
-        if (!addrlist.empty()) {
-            if (socket_connect(sock, addrlist.front(), 0) == 0) {
-                ip_address result;
-                if (socket_address(sock, result) == 0) {
-                    return result;
-                } else {
-                    throw std::runtime_error("getsockname() failed: " + socket_strerror(socket_errno()));
-                }
-            } else {
-                throw std::runtime_error("connect() failed: " + socket_strerror(socket_errno()));
-            }
-        } else {
+        try {
+            auto addrlist = ip_address::resolve(host, port, family, ipv4mapped);
+            sock.connect(addrlist.front());
+            return sock.address();
+        } catch (const resolve_error& e) {
             throw std::runtime_error(std::string(ipv4mapped ? "IPv4" : "IPv6") + " networking not available");
         }
     };
@@ -136,7 +129,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
 #if AOO_USE_IPv6
     global_ipv6_addr_.clear();
 #endif
-    int sock = socket_udp(0);
+
+    udp_socket sock(port_tag{}, 0); // bind!
 
 #if AOO_USE_IPv6
     // try to get global IPv6 address
@@ -152,15 +146,13 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
 
     // try to get private IPv4 address
     try {
-        auto ipv4_addr = get_address(sock, "8.8.8.8", 80, socket_family(sock), true);
+        auto ipv4_addr = get_address(sock, "8.8.8.8", 80, sock.family(), true);
         local_ipv4_addr_ = ip_address(ipv4_addr.name_unmapped(), udp_client_.port()); // unmapped!
         LOG_DEBUG("AooClient: private IPv4 address: " << local_ipv4_addr_);
     } catch (const std::exception& e) {
         LOG_VERBOSE("AooClient: could not get private IPv4 address");
         LOG_DEBUG(e.what());
     }
-
-    socket_close(sock);
 
     return kAooOk;
 }
@@ -183,7 +175,7 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                 auto result = server_ping_timer_.update(now, settings);
                 if (result.state == ping_state::inactive) {
                     LOG_ERROR("AooClient: server not responding");
-                    close_with_error(network_error::timeout);
+                    close_with_error(socket_error::timeout);
                 } else if (result.ping) {
                     // send ping
                     auto msg = start_server_message();
@@ -246,7 +238,7 @@ AooError AOO_CALL aoo::net::Client::stop(){
         // force wakeup by closing the socket.
         // this is not nice and probably undefined behavior,
         // the MSDN docs explicitly forbid it!
-        socket_close(event_socket_);
+        event_socket_.close();
     }
     return kAooOk;
 }
@@ -1145,15 +1137,14 @@ void Client::perform(const connect_cmd& cmd)
         return;
     }
 
-    auto addrlist = ip_address::resolve(cmd.host_.name, cmd.host_.port,
-                                        udp_client_.address_family(),
-                                        udp_client_.use_ipv4_mapped());
-    if (addrlist.empty()){
-        int err = socket_errno();
-        auto errmsg = socket_strerror(err);
-        // LATER think about best way for error handling. Maybe exception?
-        LOG_ERROR("AooClient: could not resolve hostname: " << errmsg);
-        cmd.reply_error(kAooErrorSystem, err, errmsg.c_str());
+    ip_address_list addrlist;
+    try {
+        addrlist = ip_address::resolve(cmd.host_.name, cmd.host_.port,
+                                            udp_client_.address_family(),
+                                            udp_client_.use_ipv4_mapped());
+    } catch (const resolve_error& e) {
+        LOG_ERROR("AooClient: could not resolve hostname: " << e.what());
+        cmd.reply_error(kAooErrorSystem, e.code(), e.what());
         return;
     }
 
@@ -1180,20 +1171,21 @@ void Client::perform(const connect_cmd& cmd)
     state_.store(client_state::handshake);
 }
 
-std::pair<bool, int> Client::try_connect(const ip_host& server){
-    tcp_socket_= socket_tcp(0);
-    if (tcp_socket_< 0){
-        int err = socket_errno();
-        LOG_ERROR("AooClient: couldn't create socket: " << socket_strerror(err));
-        return { false, err };
+std::pair<bool, int> Client::try_connect(const ip_host& server) {
+    try {
+        tcp_socket_ = tcp_socket(port_tag{}, 0);
+    } catch (const socket_error& e) {
+        LOG_ERROR("AooClient: couldn't create socket: " << e.what());
+        return { false, e.code() };
     }
 
-    auto type = socket_family(tcp_socket_);
-    auto addrlist = ip_address::resolve(server.name, server.port, type, true);
-    if (addrlist.empty()) {
-        int err = socket_errno();
-        LOG_ERROR("AooClient: couldn't resolve host name: " << socket_strerror(err));
-        return { false, err };
+    auto type = tcp_socket_.family();
+    ip_address_list addrlist;
+    try {
+        addrlist = ip_address::resolve(server.name, server.port, type, true);
+    } catch (const resolve_error& e) {
+        LOG_ERROR("AooClient: couldn't resolve host name: " << e.what());
+        return { false, e.code() };
     }
     // sort IPv4(-mapped) first because it is more likely for an AOO server to be IP4-only than
     // to be IPv6-only
@@ -1205,18 +1197,21 @@ std::pair<bool, int> Client::try_connect(const ip_host& server){
     LOG_VERBOSE("AooClient: try to connect to " << server.name << " on port " << server.port);
     // try to connect to both addresses (just because the hostname resolves to IPv4
     // and IPv6 addresses does not mean that the AOO server actually supports both).
+    socket_error err;
     for (auto& addr : addrlist) {
         LOG_DEBUG("AooClient: try to connect to " << addr);
         // try to connect (LATER make timeout configurable)
-        if (socket_connect(tcp_socket_, addr, 5.0) == 0) {
+        try {
+            tcp_socket_.connect(addr, 5.0);
             LOG_VERBOSE("AooClient: successfully connected to " << addr);
             return { true, 0 };
+        } catch (const socket_error& e) {
+            err = e;
         }
     }
-    int err = socket_errno();
     LOG_ERROR("AooClient: couldn't connect to " << server.name << " on port "
-               << server.port << ": " << socket_strerror(err));
-    return { false, err };
+              << server.port << ": " << err.what());
+    return { false, err.code() };
 }
 
 void Client::perform(const login_cmd& cmd) {
@@ -1228,7 +1223,7 @@ void Client::perform(const login_cmd& cmd) {
     auto [success, err] = try_connect(connection_->host_);
     if (!success) {
         // send error response and close connection
-        auto msg = socket_strerror(err);
+        auto msg = socket::strerror(err);
         connection_->reply_error(kAooErrorSocket, err, msg.c_str());
         close();
         return;
@@ -1366,22 +1361,34 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
             auto ipv4mapped = udp_client_.use_ipv4_mapped();
             // 1) our own relay
             if (cmd.relay_.valid()) {
-                auto addrlist = ip_address::resolve(cmd.relay_.name, cmd.relay_.port,
-                                                    family, ipv4mapped);
-                m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                try {
+                    auto addrlist = ip_address::resolve(cmd.relay_.name, cmd.relay_.port,
+                                                        family, ipv4mapped);
+                    m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                } catch (const resolve_error& e) {
+                    LOG_WARNING("AooClient: cannot resolve group relay host '" << cmd.relay_.name << "'");
+                }
             }
             // 2) server group relay
             if (relay) {
                 if (*relay->hostName) {
-                    auto addrlist = ip_address::resolve(relay->hostName, relay->port,
-                                                        family, ipv4mapped);
-                    m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                    try {
+                        auto addrlist = ip_address::resolve(relay->hostName, relay->port,
+                                                            family, ipv4mapped);
+                        m.relay_list.insert(m.relay_list.end(), addrlist.begin(), addrlist.end());
+                    } catch (const resolve_error& e) {
+                        LOG_WARNING("AooClient: cannot resolve server relay host '" << relay->hostName << "'");
+                    }
                 } else {
                     // replace missing hostname with server IP address(es)
                     auto& host = connection_->host_;
-                    auto addrlist = ip_address::resolve(host.name, host.port, family, ipv4mapped);
-                    for (auto& addr : addrlist) {
-                        m.relay_list.emplace_back(addr.name(), relay->port);
+                    try {
+                        auto addrlist = ip_address::resolve(host.name, host.port, family, ipv4mapped);
+                        for (auto& addr : addrlist) {
+                            m.relay_list.emplace_back(addr.name(), relay->port);
+                        }
+                    } catch (const resolve_error& e) {
+                        LOG_WARNING("AooClient: cannot resolve server relay host '" << host.name << "'");
                     }
                 }
             }
@@ -1629,10 +1636,10 @@ bool Client::wait_for_event(float timeout){
     // LOG_DEBUG("AooClient: wait " << timeout << " seconds");
 
     struct pollfd fds[2];
-    fds[0].fd = event_socket_;
+    fds[0].fd = event_socket_.native_handle();
     fds[0].events = POLLIN;
     fds[0].revents = 0;
-    fds[1].fd = tcp_socket_;
+    fds[1].fd = tcp_socket_.native_handle();
     fds[1].events = POLLIN;
     fds[1].revents = 0;
 
@@ -1646,26 +1653,30 @@ bool Client::wait_for_event(float timeout){
     if (result == 0) {
         return false; // nothing to do or timeout
     } else if (result < 0) {
-        int err = socket_errno();
+        int err = socket::get_last_error();
         if (err == EINTR) {
             return true;
         } else {
             // fatal error
-            LOG_ERROR("AooClient: poll() failed: " << socket_strerror(err));
+            LOG_ERROR("AooClient: poll() failed: " << socket::strerror(err));
             throw error(kAooErrorSocket, "poll() failed");
         }
     }
 
     // event socket
-    if (fds[0].revents){
-        // read empty packet
-        char buf[64];
-        recv(event_socket_, buf, sizeof(buf), 0);
-        // LOG_DEBUG("AooClient: got signalled");
+    if (fds[0].revents) {
+        try {
+            // read empty packet
+            char buf[64];
+            event_socket_.receive(buf, sizeof(buf));
+            // LOG_DEBUG("AooClient: got signalled");
+        } catch (const socket_error& e) {
+            LOG_ERROR("AooClient: failed to receive from event socket: " << e.what());
+        }
     }
 
     // tcp socket
-    if (tcp_socket_>= 0 && fds[1].revents){
+    if (tcp_socket_.is_open() && fds[1].revents){
         if (fds[1].revents & POLLERR) {
             LOG_DEBUG("AooClient: POLLERR");
         }
@@ -1680,25 +1691,26 @@ bool Client::wait_for_event(float timeout){
 
 void Client::receive_data(){
     char buffer[AOO_MAX_PACKET_SIZE];
-    auto result = recv(tcp_socket_, buffer, sizeof(buffer), 0);
-    if (result > 0){
-        try {
-            receiver_.handle_message(buffer, result,
-                    [&](const osc::ReceivedPacket& packet) {
-                osc::ReceivedMessage msg(packet);
-                handle_server_message(msg, packet.Size());
-            });
-        } catch (const osc::Exception& e) {
-            LOG_ERROR("AooClient: exception in server TCP message: " << e.what());
-            close_with_error(network_error::abort);
+    try {
+        auto result = tcp_socket_.receive(buffer, sizeof(buffer));
+        if (result > 0) {
+            try {
+                receiver_.handle_message(buffer, result,
+                        [&](const osc::ReceivedPacket& packet) {
+                    osc::ReceivedMessage msg(packet);
+                    handle_server_message(msg, packet.Size());
+                });
+            } catch (const osc::Exception& e) {
+                LOG_ERROR("AooClient: exception in server TCP message: " << e.what());
+                close_with_error(socket_error::abort);
+            }
+        } else {
+            // connection closed by the remote server
+            close_with_error(0);
         }
-    } else if (result == 0) {
-        // connection closed by the remote server
-        close_with_error(0);
-    } else {
-        int err = socket_errno();
-        LOG_ERROR("AooClient: recv() failed (" << err << ")");
-        close_with_error(err);
+    } catch (const socket_error& e) {
+        LOG_ERROR("AooClient: recv() failed: " << e.what());
+        close_with_error(e.code());
     }
 }
 
@@ -1714,26 +1726,25 @@ osc::OutboundPacketStream Client::start_server_message(size_t extra) {
 }
 
 void Client::send_server_message(const osc::OutboundPacketStream& msg) {
-    if (tcp_socket_< 0) {
+    if (!tcp_socket_.is_open()) {
         LOG_ERROR("AooClient: send_server_message: invalid socket");
         return;
     }
     // prepend message size (int32_t)
     auto data = msg.Data() - 4;
     auto size = msg.Size() + 4;
-    // we know that the buffer is not really constnat
+    // we know that the buffer is not really constant
     aoo::to_bytes<int32_t>(msg.Size(), const_cast<char *>(data));
 
     size_t nbytes = 0;
     while (nbytes < size){
-        auto result = ::send(tcp_socket_, data + nbytes, size - nbytes, 0);
-        if (result >= 0){
+        try {
+            auto result = tcp_socket_.send(data + nbytes, size - nbytes);
             nbytes += result;
             // LOG_DEBUG("AooClient: sent " << res << " bytes");
-        } else {
-            auto err = socket_errno();
-            LOG_ERROR("AooClient: send() failed (" << err << ")");
-            close_with_error(err);
+        } catch (const socket_error& e) {
+            LOG_ERROR("AooClient: send() failed: " << e.what());
+            close_with_error(e.code());
             return;
         }
     }
@@ -1798,7 +1809,7 @@ void Client::handle_server_message(const osc::ReceivedMessage& msg, int32_t n){
     } catch (const osc::Exception& e){
         LOG_ERROR("AooClient: exception on handling TCP server message '" << msg.AddressPattern()
                   << "': " << e.what());
-        close_with_error(network_error::abort);
+        close_with_error(socket_error::abort);
     }
 }
 
@@ -1994,8 +2005,12 @@ void Client::handle_peer_join(const osc::ReceivedMessage& msg){
     ip_address_list user_relay;
     if (relay) {
         if (*relay->hostName) {
-            user_relay = aoo::ip_address::resolve(relay->hostName, relay->port,
-                                                  family, use_ipv4_mapped);
+            try {
+                user_relay = aoo::ip_address::resolve(relay->hostName, relay->port,
+                                                      family, use_ipv4_mapped);
+            } catch (const resolve_error& e) {
+                LOG_ERROR("AooClient: could not resolve peer relay host '" << relay->hostName << "'");
+            }
         } else {
             // replace missing hostname with peer IP address(es).
             // (the relay should support the same families as the peer itself.)
@@ -2122,7 +2137,7 @@ void Client::handle_pong(const osc::ReceivedMessage& msg) {
 
 bool Client::signal() {
     // LOG_DEBUG("aoo_client signal");
-    return socket_signal(event_socket_);
+    return event_socket_.signal();
 }
 
 void Client::close_with_error(int err) {
@@ -2131,16 +2146,15 @@ void Client::close_with_error(int err) {
     close();
 
     if (notify) {
-        auto msg = err != 0 ? "connection closed by server" : socket_strerror(err);
+        auto msg = err != 0 ? "connection closed by server" : socket::strerror(err);
         auto e = std::make_unique<disconnect_event>(err, std::move(msg));
         send_event(std::move(e));
     }
 }
 
 void Client::close() {
-    if (tcp_socket_>= 0){
-        socket_close(tcp_socket_);
-        tcp_socket_= -1;
+    if (tcp_socket_.is_open()){
+        tcp_socket_.close();
         LOG_VERBOSE("AooClient: closed connection");
     }
 
@@ -2222,11 +2236,11 @@ AooError udp_client::setup(Client& client, AooClientSettings& settings) {
             });
         } catch (const udp_error& e) {
             LOG_ERROR("AooClient: failed to start UDP socket: " << e.what());
-            socket_set_errno(e.code());
+            socket::set_last_error(e.code());
             return kAooErrorSocket;
         }
         // update socket flags
-        type = socket_get_flags(udp_server_.socket());
+        type = udp_server_.socket().flags();
         // update port number if picked by the OS!
         if (settings.portNumber == 0) {
             settings.portNumber = udp_server_.port();
@@ -2263,7 +2277,7 @@ AooError udp_client::receive(bool nonblocking) {
         }
     } catch (udp_error& e) {
         LOG_ERROR("AooClient: UDP error: " << e.what());
-        socket_set_errno(e.code());
+        socket::set_last_error(e.code());
         return kAooErrorSocket;
     }
 }

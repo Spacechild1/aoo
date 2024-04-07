@@ -621,10 +621,10 @@ AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
 AOO_API AooError AOO_CALL aoo_getLastSocketError(
     AooInt32 *errorCode, AooChar *errorMessageBuffer, AooSize *errorMessageSize)
 {
-    auto e = aoo::socket_errno();
+    auto e = aoo::socket::get_last_error();
     *errorCode = e;
     if (errorMessageBuffer) {
-        auto len = aoo::socket_strerror(e, errorMessageBuffer, *errorMessageSize);
+        auto len = aoo::socket::strerror(e, errorMessageBuffer, *errorMessageSize);
         // NB: 0 character excluded!
         if (len > 0 && len < *errorMessageSize) {
             *errorMessageSize = len;
@@ -797,7 +797,7 @@ AOO_API AooError AOO_CALL aoo_initialize(const AooSettings *settings) {
     static bool initialized = false;
     if (!initialized) {
     #if AOO_NET
-        aoo::socket_init();
+        aoo::socket::init();
     #endif
         // optional settings
         if (CHECK_SETTING(settings, logFunc) && settings->logFunc) {
