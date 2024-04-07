@@ -44,7 +44,7 @@ ip_address::ip_address(socklen_t size) {
 }
 
 ip_address::ip_address(const AooByte *bytes, AooSize size,
-                       uint16_t port, ip_type type) {
+                       port_type port, ip_type type) {
     switch (type) {
 #if AOO_USE_IPv6
     case IPv6:
@@ -112,7 +112,7 @@ void ip_address::resize(socklen_t size) {
     length_ = size;
 }
 
-std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t port,
+std::vector<ip_address> ip_address::resolve(const std::string &host, port_type port,
                                             ip_type type, bool ipv4mapped){
     std::vector<ip_address> result;
 
@@ -200,7 +200,7 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, uint16_t po
     return result;
 }
 
-ip_address::ip_address(uint16_t port, ip_type type) {
+ip_address::ip_address(port_type port, ip_type type) {
     // LATER optimize
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -237,7 +237,7 @@ ip_address::ip_address(uint16_t port, ip_type type) {
 #endif
 }
 
-ip_address::ip_address(const std::string& ip, uint16_t port, ip_type type) {
+ip_address::ip_address(const std::string& ip, port_type port, ip_type type) {
     if (ip.empty() || port <= 0) {
         clear();
         return;
@@ -405,7 +405,7 @@ const char* ip_address::name_unmapped() const {
     }
 }
 
-uint16_t ip_address::port() const {
+port_type ip_address::port() const {
     switch (addr_.sa_family){
     case AF_INET:
         return ntohs(addr_in_.sin_port);
@@ -504,7 +504,9 @@ void ip_address::unmap() {
 
 //------------------------ socket ----------------------------//
 
-int socket_init()
+namespace socket {
+
+int init()
 {
     static bool initialized = false;
     if (!initialized)
@@ -521,8 +523,7 @@ int socket_init()
     return 0;
 }
 
-int socket_errno()
-{
+int get_last_error() {
 #ifdef _WIN32
     return WSAGetLastError();
 #else
@@ -530,8 +531,7 @@ int socket_errno()
 #endif
 }
 
-void socket_set_errno(int err)
-{
+void set_last_error(int err) {
 #ifdef _WIN32
     WSASetLastError(err);
 #else
@@ -539,15 +539,7 @@ void socket_set_errno(int err)
 #endif
 }
 
-int socket_error(int socket) {
-    int error = 0;
-    socklen_t errlen = sizeof(error);
-    getsockopt(socket, SOL_SOCKET, SO_ERROR, (char *)&error, &errlen);
-    return error;
-}
-
-int socket_strerror(int err, char *buf, int size)
-{
+int strerror(int err, char *buf, int size) {
 #ifdef _WIN32
     wchar_t wbuf[1024];
     auto wlen = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0,
@@ -575,24 +567,22 @@ int socket_strerror(int err, char *buf, int size)
 #endif
 }
 
-std::string socket_strerror(int err){
+std::string strerror(int err) {
     char buf[1024];
-    if (socket_strerror(err, buf, 1024) > 0){
+    if (strerror(err, buf, 1024) > 0){
         return buf;
     } else {
         return std::string {};
     }
 }
 
-void socket_error_print(const char *label)
-{
-    int err = socket_errno();
+void print_error(int err, const char *label) {
     if (!err){
         return;
     }
 
     char str[1024];
-    socket_strerror(err, str, sizeof(str));
+    strerror(err, str, sizeof(str));
     if (label){
         fprintf(stderr, "%s: %s (%d)\n", label, str, err);
     } else {
@@ -600,278 +590,22 @@ void socket_error_print(const char *label)
     }
     fflush(stderr);
 
-    socket_set_errno(err); // restore errno!
+    set_last_error(err); // restore errno!
 }
 
-int socket_udp(uint16_t port, bool reuse_port)
-{
-#if AOO_USE_IPv6
-    // prefer IPv6 (dual stack), but fall back to IPv4 if disabled
-    ip_address bindaddr;
-    int sock = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (sock >= 0){
-        bindaddr = ip_address(port, ip_address::IPv6);
-        // make dual stack socket by listening to both IPv4 and IPv6 packets
-        if (socket_set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false) != 0){
-            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
-            fflush(stderr);
-            // TODO: fall back to IPv4?
-        }
-    } else {
-        sock = socket(AF_INET, SOCK_DGRAM, 0);
-        bindaddr = ip_address(port, ip_address::IPv4);
-    }
-#else
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    ip_address bindaddr(port, ip_address::IPv4);
-#endif
-    if (sock < 0) {
-        socket_error_print("socket_udp");
-        return -1;
-    }
-    if (reuse_port) {
-        // set SO_REUSEADDR
-        if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
-            fprintf(stderr, "socket_udp: couldn't set SO_REUSEADDR\n");
-            fflush(stderr);
-        }
-    }
-    // finally bind the socket
-    if (bind(sock, bindaddr.address(), bindaddr.length()) != 0){
-        auto err = socket_errno(); // cache errno
-        socket_error_print("bind");
-        socket_close(sock);
-        socket_set_errno(err); // restore errno
-        return -1;
-    }
-    return sock; // success
+void print_last_error(const char *label) {
+    print_error(get_last_error());
 }
 
-int socket_tcp(uint16_t port, bool reuse_port)
-{
-#if AOO_USE_IPv6
-    // prefer IPv6 (dualstack), but fall back to IPv4 if disabled
-    ip_address bindaddr;
-    int sock = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sock >= 0) {
-        bindaddr = ip_address(port, ip_address::IPv6);
-        // make dual stack socket by listening to both IPv4 and IPv6 packets
-        if (socket_set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false)) {
-            fprintf(stderr, "socket_tcp: couldn't set IPV6_V6ONLY\n");
-            fflush(stderr);
-            // TODO: fall back to IPv4?
-        }
-    } else {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
-        bindaddr = ip_address(port, ip_address::IPv4);
-    }
-#else
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    ip_address bindaddr = ip_address(port, ip_address::IPv4);
-#endif
-    if (sock < 0){
-        socket_error_print("socket_tcp");
-        return -1;
-    }
-    if (reuse_port) {
-        // set SO_REUSEADDR
-        if (socket_set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
-            fprintf(stderr, "socket_tcp: couldn't set SO_REUSEADDR\n");
-            fflush(stderr);
-        }
-    }
-    // disable Nagle's algorithm
-    if (socket_set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true)) {
-        fprintf(stderr, "socket_tcp: couldn't set TCP_NODELAY\n");
-        fflush(stderr);
-    }
-    // finally bind the socket
-    if (bind(sock, bindaddr.address(), bindaddr.length()) != 0) {
-        int err = socket_errno(); // cache errno
-        socket_error_print("bind");
-        socket_close(sock);
-        socket_set_errno(err); // restore errno
-        return -1;
-    }
-    return sock; // success
-}
+} // namespace "socket"
 
+namespace {
 
-int socket_address(int socket, ip_address& addr)
-{
-    sockaddr_storage ss;
-    socklen_t len = sizeof(ss);
-    if (getsockname(socket, (sockaddr *)&ss, &len) < 0){
-        return -1;
-    } else {
-        addr = ip_address((sockaddr *)&ss, len);
-        return 0;
-    }
-}
-
-int socket_peer(int socket, ip_address& addr)
-{
-    sockaddr_storage ss;
-    socklen_t len = sizeof(ss);
-    if (getpeername(socket, (sockaddr *)&ss, &len) < 0){
-        return -1;
-    } else {
-        addr = ip_address((sockaddr *)&ss, len);
-        return 0;
-    }
-}
-
-int socket_port(int socket){
-    ip_address addr;
-    if (socket_address(socket, addr) < 0){
-        socket_error_print("socket_port");
-        return -1;
-    } else {
-        return addr.port();
-    }
-}
-
-ip_address::ip_type socket_family(int socket){
-    ip_address addr;
-    if (socket_address(socket, addr) < 0){
-        socket_error_print("socket_family");
-        return ip_address::Unspec;
-    } else {
-        return addr.type();
-    }
-}
-
-int socket_shutdown(int socket, shutdown_method how) {
-    return shutdown(socket, how);
-}
-
-int socket_close(int socket)
-{
-#ifdef _WIN32
-    return closesocket(socket);
-#else
-    return close(socket);
-#endif
-}
-
-int socket_sendto(int socket, const void *buf, int size, const ip_address& addr)
-{
-    return sendto(socket, (const char *)buf, size, 0, addr.address(), addr.length());
-}
-
-int socket_receive(int socket, void *buf, int size,
-                   ip_address* addr, double timeout)
-{
-    if (timeout >= 0){
-        // non-blocking receive via poll()
-        struct pollfd p;
-        p.fd = socket;
-        p.revents = 0;
-        p.events = POLLIN;
-    #ifdef _WIN32
-        int result = WSAPoll(&p, 1, timeout * 1000);
-    #else
-        int result = poll(&p, 1, timeout * 1000);
-    #endif
-        if (result < 0){
-            socket_error_print("poll");
-            return -1; // poll failed
-        } else if (result == 0) {
-            // timeout
-        #ifdef _WIN32
-            SetLastError(WSAEWOULDBLOCK);
-        #else
-            errno = EWOULDBLOCK;
-        #endif
-            return -1;
-        }
-    }
-    if (addr) {
-        addr->resize(ip_address::max_length);
-        return recvfrom(socket, (char *)buf, size, 0,
-                        addr->address_ptr(), addr->length_ptr());
-    } else {
-        return recv(socket, (char *)buf, size, 0);
-    }
-}
-
-#define DEBUG_SOCKET_BUFFER 0
-
-int socket_set_sendbufsize(int socket, int bufsize)
-{
-    int oldsize = 0;
-    socket_get_int_option(socket, SOL_SOCKET, SO_SNDBUF, &oldsize);
-#if DEBUG_SOCKET_BUFFER
-    fprintf(stderr, "old recvbufsize: %d\n", oldsize);
-    fflush(stderr);
-#endif
-    // don't set a smaller buffer size than the default
-    if (bufsize < oldsize){
-        return 0;
-    }
-    int result = socket_set_int_option(socket, SOL_SOCKET, SO_SNDBUF, bufsize);
-#if DEBUG_SOCKET_BUFFER
-    if (result == 0){
-        int newsize = -1;
-        socket_get_int_option(socket, SOL_SOCKET, SO_SNDBUF, &newsize);
-        fprintf(stderr, "new recvbufsize: %d\n", newsize);
-        fflush(stderr);
-    }
-#endif
-    return result;
-}
-
-int socket_set_recvbufsize(int socket, int bufsize)
-{
-    int oldsize = 0;
-    socket_get_int_option(socket, SOL_SOCKET, SO_RCVBUF, &oldsize);
-#if DEBUG_SOCKET_BUFFER
-    fprintf(stderr, "old recvbufsize: %d\n", oldsize);
-    fflush(stderr);
-#endif
-    // don't set a smaller buffer size than the default
-    if (bufsize < oldsize){
-        return 0;
-    }
-    int result = socket_set_int_option(socket, SOL_SOCKET, SO_RCVBUF, bufsize);
-#if DEBUG_SOCKET_BUFFER
-    if (result == 0){
-        int newsize = -1;
-        socket_get_int_option(socket, SOL_SOCKET, SO_RCVBUF, &newsize);
-        fprintf(stderr, "new recvbufsize: %d\n", newsize);
-        fflush(stderr);
-    }
-#endif
-    return result;
-}
-
-bool socket_signal(int socket)
-{
-    // wake up blocking recv() by sending an empty packet to itself
-    ip_address addr;
-    if (socket_address(socket, addr) < 0){
-        socket_error_print("getsockname");
-        return false;
-    }
-    if (addr.type() == ip_address::ip_type::IPv6){
-        addr = ip_address("::1", addr.port(), addr.type());
-    } else {
-        addr = ip_address("127.0.0.1", addr.port(), addr.type());
-    }
-
-    if (sendto(socket, 0, 0, 0, addr.address(), addr.length()) < 0){
-        socket_error_print("sendto");
-        return false;
-    } else {
-        return true;
-    }
-}
-
-int socket_set_int_option(int socket, int level, int option, int value) {
+int set_int_option(socket_type socket, int level, int option, int value) {
     return setsockopt(socket, level, option, (const char *)&value, sizeof(value));
 }
 
-int socket_get_int_option(int socket, int level, int option, int* value) {
+int get_int_option(socket_type socket, int level, int option, int& value) {
     // On Windows on there is a horrible bug in getsockopt(): for some boolean options
     // it would only write a single byte, even though the documentation clearly
     // states that the type should be DWORD or BOOL (both are 32-bit integers).
@@ -879,95 +613,308 @@ int socket_get_int_option(int socket, int level, int option, int* value) {
     // As a consequence, the upper 3 bytes of 'optval' will contain garbage.
     // A simple workaround is to initialize it with 0; this works because Windows
     // is always little endian.
-    *value = 0;
-    socklen_t len = sizeof(*value);
-    return getsockopt(socket, level, option, (char *)value, &len);
+    value = 0;
+    socklen_t len = sizeof(value);
+    return getsockopt(socket, level, option, (char *)&value, &len);
 }
 
-int socket_set_nonblocking(int socket, bool nonblocking)
-{
+std::pair<socket_type, ip_address> create_from_port(port_type port, int protocol) {
+#if AOO_USE_IPv6
+    // prefer IPv6 (dual stack), but fall back to IPv4 if disabled
+    ip_address bindaddr;
+    socket_type sock = ::socket(AF_INET6, protocol, 0);
+    if (sock != invalid_socket) {
+        bindaddr = ip_address(port, ip_address::IPv6);
+        // make dual stack socket by listening to both IPv4 and IPv6 packets
+        if (set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false) != 0){
+            fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
+            fflush(stderr);
+            // TODO: fall back to IPv4?
+        }
+    } else {
+        sock = ::socket(AF_INET, protocol, 0);
+        bindaddr = ip_address(port, ip_address::IPv4);
+    }
+#else
+    socket_type sock = ::socket(AF_INET, protocol, 0);
+    ip_address bindaddr(port, ip_address::IPv4);
+#endif
+    if (sock == invalid_socket) {
+        throw socket_error(socket::get_last_error());
+    }
+    return std::pair(sock, bindaddr);
+}
+
+socket_type create_from_family(ip_address::ip_type family, int protocol) {
+    socket_type sock = invalid_socket;
+    if (family == ip_address::IPv6) {
+        sock = ::socket(AF_INET6, protocol, 0);
+        if (sock != invalid_socket) {
+            // make dual stack socket by listening to both IPv4 and IPv6 packets
+            if (set_int_option(sock, IPPROTO_IPV6, IPV6_V6ONLY, false) != 0){
+                fprintf(stderr, "socket_udp: couldn't set IPV6_V6ONLY\n");
+                fflush(stderr);
+                // TODO: fall back to IPv4?
+            }
+        }
+    } else {
+        sock = ::socket(AF_INET, protocol, 0);
+    }
+    if (sock != invalid_socket) {
+        return sock;
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+// close the socket on failure
+void try_bind(socket_type sock, const ip_address& addr, bool reuse_port) {
+    if (reuse_port) {
+        if (set_int_option(sock, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
+            socket::print_last_error("socket: couldn't set SO_REUSEADDR");
+        }
+    }
+    // finally bind the socket
+    if (::bind(sock, addr.address(), addr.length()) != 0) {
+        auto err = socket::get_last_error(); // cache errno
 #ifdef _WIN32
-    u_long modearg = nonblocking;
-    if (ioctlsocket(socket, FIONBIO, &modearg) != NO_ERROR)
-        return -1;
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+        throw socket_error(err);
+    }
+}
+
+} // namespace
+
+//------------------- base_socket ---------------------//
+
+ip_address base_socket::address() const {
+    sockaddr_storage ss;
+    socklen_t len = sizeof(ss);
+    if (::getsockname(socket_, (sockaddr *)&ss, &len) < 0) {
+        throw socket_error(socket::get_last_error());
+    } else {
+        return ip_address((sockaddr *)&ss, len);
+    }
+}
+
+ip_address base_socket::peer() const {
+    sockaddr_storage ss;
+    socklen_t len = sizeof(ss);
+    if (::getpeername(socket_, (sockaddr *)&ss, &len) < 0) {
+        auto e = socket::get_last_error();
+#ifdef _WIN32
+        if (e == WSAENOTCONN) {
+#else
+        if (e == ENOTCONN) {
+#endif
+            return ip_address{};
+        } else {
+            throw socket_error(e);
+        }
+    } else {
+        return ip_address((sockaddr *)&ss, len);
+    }
+}
+
+port_type base_socket::port() const {
+    return address().port();
+}
+
+ip_address::ip_type base_socket::family() const {
+    return address().type();
+}
+
+bool base_socket::shutdown(shutdown_method how) noexcept {
+    return ::shutdown(socket_, how) != 0;
+}
+
+bool base_socket::close() noexcept {
+#ifdef _WIN32
+    return closesocket(socket_) != 0;
+#else
+    return close(socket_) != 0;
+#endif
+}
+
+int base_socket::send(const void *buf, int size) {
+    auto ret = ::send(socket_, (const char *)buf, size, 0);
+    if (ret >= 0) {
+        return ret;
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+std::pair<bool, int> base_socket::do_receive(void *buf, int size,
+                                             ip_address* addr, double timeout) {
+    if (timeout >= 0) {
+        // non-blocking receive via poll()
+        struct pollfd p;
+        p.fd = socket_;
+        p.revents = 0;
+        p.events = POLLIN;
+#ifdef _WIN32
+        int result = WSAPoll(&p, 1, timeout * 1000);
+#else
+        int result = poll(&p, 1, timeout * 1000);
+#endif
+        if (result < 0) {
+            // poll() failed
+            throw socket_error(socket::get_last_error());
+        } else if (result == 0) {
+            // timeout
+            return { false, 0 };
+        }
+    }
+    int ret = 0;
+    if (addr) {
+        addr->resize(ip_address::max_length);
+        ret = ::recvfrom(socket_, (char *)buf, size, 0,
+                         addr->address_ptr(), addr->length_ptr());
+    } else {
+        ret = recv(socket_, (char *)buf, size, 0);
+    }
+    return { true, ret };
+}
+
+#define DEBUG_SOCKET_BUFFER 1
+
+void base_socket::set_send_buffer_size(int bufsize) {
+    auto oldsize = send_buffer_size();
+#if DEBUG_SOCKET_BUFFER
+    fprintf(stderr, "old send buffer size: %d\n", oldsize);
+    fflush(stderr);
+#endif
+    // don't set a smaller buffer size than the default
+    if (bufsize < oldsize){
+        return;
+    }
+    int result = set_int_option(socket_, SOL_SOCKET, SO_SNDBUF, bufsize);
+    if (result != 0) {
+        throw socket_error(socket::get_last_error());
+    }
+#if DEBUG_SOCKET_BUFFER
+    fprintf(stderr, "new send buffer size: %d\n", send_buffer_size());
+    fflush(stderr);
+#endif
+}
+
+int base_socket::send_buffer_size() const {
+    int oldsize = 0;
+    if (get_int_option(socket_, SOL_SOCKET, SO_SNDBUF, oldsize) == 0) {
+        return oldsize;
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+void base_socket::set_receive_buffer_size(int bufsize) {
+    int oldsize = receive_buffer_size();
+#if DEBUG_SOCKET_BUFFER
+    fprintf(stderr, "old receive buffer size: %d\n", oldsize);
+    fflush(stderr);
+#endif
+    // don't set a smaller buffer size than the default
+    if (bufsize < oldsize){
+        return;
+    }
+#if DEBUG_SOCKET_BUFFER
+    fprintf(stderr, "new receive buffer size: %d\n", receive_buffer_size());
+    fflush(stderr);
+#endif
+}
+
+int base_socket::receive_buffer_size() const {
+    int oldsize = 0;
+    if (get_int_option(socket_, SOL_SOCKET, SO_RCVBUF, oldsize) == 0) {
+        return oldsize;
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+
+void base_socket::set_non_blocking(bool b) {
+#ifdef _WIN32
+    u_long modearg = b;
+    if (ioctlsocket(socket_, FIONBIO, &modearg) != NO_ERROR)
+        throw socket_error(socket::get_last_error());
 #else
     int sockflags = fcntl(socket, F_GETFL, 0);
-    if (nonblocking)
+    if (b)
         sockflags |= O_NONBLOCK;
     else
         sockflags &= ~O_NONBLOCK;
     if (fcntl(socket, F_SETFL, sockflags) < 0)
-        return -1;
+        throw socket_error(socket::get_last_error());
 #endif
-    return 0;
 }
 
 // kudos to https://stackoverflow.com/a/46062474/6063908
-int socket_connect(int socket, const ip_address& addr, double timeout)
-{
-    // set nonblocking and connect
-    socket_set_nonblocking(socket, true);
+void base_socket::connect(const ip_address& addr, double timeout) {
+    if (timeout < 0) {
+        if (::connect(socket_, addr.address(), addr.length()) < 0) {
+            throw socket_error(socket::get_last_error());
+        }
+    } else {
+        // set nonblocking and connect
+        bool was_blocking = !non_blocking();
+        if (was_blocking) {
+            set_non_blocking(true);
+        }
 
-    if (connect(socket, addr.address(), addr.length()) < 0)
-    {
-        int status;
-        struct timeval timeoutval;
-        fd_set writefds, errfds;
+        if (::connect(socket_, addr.address(), addr.length()) < 0) {
+            int status;
+            struct timeval timeoutval;
+            fd_set writefds, errfds;
     #ifdef _WIN32
-        if (socket_errno() != WSAEWOULDBLOCK)
+            if (socket::get_last_error() != WSAEWOULDBLOCK) {
     #else
-        if (socket_errno() != EINPROGRESS)
+            if (socket::get_last_error() != EINPROGRESS) {
     #endif
-            return -1; // break on "real" error
+                throw socket_error(socket::get_last_error());
+            }
 
-        // block with select using timeout
-        if (timeout < 0) timeout = 0;
-        timeoutval.tv_sec = (int)timeout;
-        timeoutval.tv_usec = (timeout - timeoutval.tv_sec) * 1000000;
-        FD_ZERO(&writefds);
-        FD_SET(socket, &writefds); // socket is connected when writable
-        FD_ZERO(&errfds);
-        FD_SET(socket, &errfds); // catch exceptions
+            // block with select using timeout
+            if (timeout < 0) timeout = 0;
+            timeoutval.tv_sec = (int)timeout;
+            timeoutval.tv_usec = (timeout - timeoutval.tv_sec) * 1000000;
+            FD_ZERO(&writefds);
+            FD_SET(socket_, &writefds); // socket is connected when writable
+            FD_ZERO(&errfds);
+            FD_SET(socket_, &errfds); // catch exceptions
 
-        status = select(socket + 1, NULL, &writefds, &errfds, &timeoutval);
-        if (status < 0) // select failed
-        {
-            socket_error_print("select");
-            return -1;
+            status = select(socket_ + 1, NULL, &writefds, &errfds, &timeoutval);
+            if (status < 0)  {
+                // select failed
+                throw socket_error(socket::get_last_error());
+            } else if (status == 0) {
+                // connection timed out
+                throw socket_error(socket_error::timeout);
+            }
+
+            if (FD_ISSET(socket_, &errfds)) {
+                // connection failed
+                throw socket_error(error());
+            }
         }
-        else if (status == 0) // connection timed out
-        {
-        #ifdef _WIN32
-            WSASetLastError(WSAETIMEDOUT);
-        #else
-            errno = ETIMEDOUT;
-        #endif
-            return -1;
-        }
-
-        if (FD_ISSET(socket, &errfds)) // connection failed
-        {
-            int err = socket_error(socket);
-            socket_set_errno(err);
-            return -1;
+        // done, set blocking again
+        if (was_blocking) {
+            set_non_blocking(false);
         }
     }
-    // done, set blocking again
-    socket_set_nonblocking(socket, false);
-    return 0;
 }
 
-AooSocketFlags socket_get_flags(int socket) {
-    ip_address addr;
-    if (socket_address(socket, addr) != 0) {
-        return 0;
-    }
+AooSocketFlags base_socket::flags() const {
+    ip_address addr = address();
     if (addr.type() == ip_address::ip_type::IPv6) {
 #if AOO_USE_IPv6
-        int ipv6only;
-        if (socket_get_int_option(socket, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6only) != 0) {
-            fprintf(stderr, "socket_get_flags: couldn't get IPV6_V6ONLY\n");
-            fflush(stderr);
+        int ipv6only = 0;
+        if (get_int_option(socket_, IPPROTO_IPV6, IPV6_V6ONLY, ipv6only) != 0) {
+            socket::print_last_error("base_socket::flags: couldn't get IPV6ONLY");
             return 0;
         }
         if (ipv6only) {
@@ -980,6 +927,121 @@ AooSocketFlags socket_get_flags(int socket) {
 #endif
     } else {
         return kAooSocketIPv4;
+    }
+}
+
+int base_socket::error() const {
+    int error = 0;
+    socklen_t errlen = sizeof(error);
+    ::getsockopt(socket_, SOL_SOCKET, SO_ERROR, (char *)&error, &errlen);
+    return error;
+}
+
+void base_socket::set_reuse_port(bool b) {
+    if (set_int_option(socket_, SOL_SOCKET, SO_REUSEADDR, true) != 0) {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+bool base_socket::reuse_port() const {
+    int result = 0;
+    if (get_int_option(socket_, SOL_SOCKET, SO_REUSEADDR, result) != 0) {
+        throw socket_error(socket::get_last_error());
+    }
+    return result;
+}
+
+//------------------------ udp_socket -------------------------//
+
+udp_socket::udp_socket(ip_address::ip_type family) {
+    socket_ = create_from_family(family, SOCK_DGRAM);
+}
+
+udp_socket::udp_socket(const ip_address& addr, bool reuse_port) {
+    auto sock = create_from_family(addr.type(), SOCK_DGRAM);
+    try_bind(sock, addr, reuse_port);
+    socket_ = sock;
+}
+
+udp_socket::udp_socket(port_type port, bool reuse_port) {
+    auto [sock, bindaddr] = create_from_port(port, SOCK_DGRAM);
+    try_bind(sock, bindaddr, reuse_port);
+    socket_ = sock;
+}
+
+int udp_socket::send(const void *buf, int size, const ip_address& addr) {
+    auto ret = ::sendto(socket_, (const char *)buf, size, 0,
+                        addr.address(), addr.length());
+    if (ret >= 0) {
+        return ret;
+    } else {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+bool udp_socket::signal() noexcept {
+    // wake up blocking recv() by sending an empty packet to itself
+    try {
+        ip_address addr = address();
+        if (addr.type() == ip_address::ip_type::IPv6){
+            addr = ip_address("::1", addr.port(), addr.type());
+        } else {
+            addr = ip_address("127.0.0.1", addr.port(), addr.type());
+        }
+        send(nullptr, 0, addr);
+        return true;
+    } catch (const socket_error& e) {
+        socket::print_error(e.error(), "udp_socket: could not signal");
+        return false;
+    }
+}
+
+//------------------------ tcp_socket -------------------------//
+
+namespace {
+
+static void set_nodelay(socket_type sock) {
+    // disable Nagle's algorithm
+    if (set_int_option(sock, IPPROTO_TCP, TCP_NODELAY, true)) {
+        socket::print_last_error("tcp_socket: could not set TCP_NODELAY");
+    }
+}
+
+} // namespace
+
+tcp_socket::tcp_socket(ip_address::ip_type family) {
+    auto sock = create_from_family(family, SOCK_STREAM);
+    set_nodelay(sock);
+    socket_ = sock;
+}
+
+tcp_socket::tcp_socket(const ip_address& addr, bool reuse_port) {
+    auto sock = create_from_family(addr.type(), SOCK_STREAM);
+    try_bind(sock, addr, reuse_port);
+    set_nodelay(sock);
+    socket_ = sock;
+}
+
+tcp_socket::tcp_socket(port_type port, bool reuse_port) {
+    auto [sock, bindaddr] = create_from_port(port, SOCK_STREAM);
+    try_bind(sock, bindaddr, reuse_port);
+    set_nodelay(sock);
+    socket_ = sock;
+}
+
+void tcp_socket::listen(int backlog) {
+    if (::listen(socket_, backlog) != 0) {
+        throw socket_error(socket::get_last_error());
+    }
+}
+
+ip_address tcp_socket::accept() {
+    ip_address addr;
+    addr.resize(ip_address::max_length);
+    if (::accept(socket_, addr.address_ptr(), addr.length_ptr()) == 0) {
+        return addr;
+    } else {
+        throw socket_error(socket::get_last_error());
     }
 }
 
