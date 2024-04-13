@@ -31,7 +31,7 @@ namespace aoo {
 ip_address::ip_address() {
     static_assert(sizeof(data_) == max_length,
                   "wrong max_length value");
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     static_assert(sizeof(data_) >= sizeof(sockaddr_in6),
                   "ip_address can't hold IPv6 sockaddr");
 #endif
@@ -41,7 +41,7 @@ ip_address::ip_address() {
 ip_address::ip_address(const AooByte *bytes, AooSize size,
                        port_type port, ip_type type) {
     switch (type) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case IPv6:
     {
         assert(size == 16);
@@ -97,7 +97,7 @@ void ip_address::reserve() {
 
 void ip_address::check() {
     auto f = addr_.sa_family;
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     bool ok = (f == AF_INET6 || f == AF_INET || f == AF_UNSPEC);
 #else
     bool ok = (f == AF_INET || f == AF_UNSPEC);
@@ -130,7 +130,7 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
     // if we have IPv6 support, only get IPv6 addresses
     // (IPv4 addresses will be mapped to IPv6 addresses)
     switch (type){
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case IPv6:
         hints.ai_family = AF_INET6;
         break;
@@ -151,7 +151,7 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
 #endif
         AI_NUMERICSERV | // we use a port number
         AI_PASSIVE;      // listen to any addr if hostname is NULL
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (ipv4mapped) {
     #ifdef AI_V4MAPPED
         hints.ai_flags |= AI_V4MAPPED; // fallback to IPv4-mapped IPv6 addresses
@@ -214,7 +214,7 @@ ip_address::ip_address(port_type port, ip_type type) {
     // AI_PASSIVE: nullptr means "any" address
     hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
     switch (type){
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case ip_type::IPv6:
         hints.ai_family = AF_INET6;
         break;
@@ -263,7 +263,7 @@ ip_address::ip_address(const std::string& ip, port_type port, ip_type type) {
     struct addrinfo *ailist;
     int err = getaddrinfo(ip.c_str(), portstr, &hints, &ailist);
     if (err == 0){
-    #if AOO_USE_IPv6
+    #if AOO_USE_IPV6
         if (type == ip_type::IPv6 && ailist->ai_family == AF_INET){
             // manually create IPv4-mapped address.
             // this is workaround for the fact that AI_NUMERICHOST
@@ -302,7 +302,7 @@ bool ip_address::operator==(const ip_address& other) const {
             return (a.sin_addr.s_addr == b.sin_addr.s_addr)
                     && (a.sin_port == b.sin_port);
         }
-    #if AOO_USE_IPv6
+    #if AOO_USE_IPV6
         case AF_INET6:
         {
             auto& a = addr_in6_;
@@ -321,7 +321,7 @@ bool ip_address::operator==(const ip_address& other) const {
 
 size_t ip_address::hash() const {
     switch (addr_.sa_family) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
     {
         uint32_t w[4];
@@ -346,7 +346,7 @@ size_t ip_address::hash() const {
 
 std::ostream& operator<<(std::ostream& os, const ip_address& addr) {
     switch (addr.address()->sa_family) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         os << "[" << addr.name() << "]:" << addr.port();
         break;
@@ -365,7 +365,7 @@ std::ostream& operator<<(std::ostream& os, const ip_address& addr) {
 }
 
 const char * ip_address::get_name(const sockaddr *addr){
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     thread_local char buf[INET6_ADDRSTRLEN];
 #else
     thread_local char buf[INET_ADDRSTRLEN];
@@ -373,7 +373,7 @@ const char * ip_address::get_name(const sockaddr *addr){
     const void *na;
     auto family = addr->sa_family;
     switch (family){
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         na = &reinterpret_cast<const sockaddr_in6 *>(addr)->sin6_addr;
         break;
@@ -416,7 +416,7 @@ port_type ip_address::port() const {
     switch (addr_.sa_family){
     case AF_INET:
         return ntohs(addr_in_.sin_port);
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         return ntohs(addr_in6_.sin6_port);
 #endif
@@ -429,7 +429,7 @@ const AooByte* ip_address::address_bytes() const {
     switch (addr_.sa_family){
     case AF_INET:
         return (const AooByte *)&addr_in_.sin_addr;
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         return (const AooByte *)&addr_in6_.sin6_addr;
 #endif
@@ -442,7 +442,7 @@ size_t ip_address::address_size() const {
     switch(addr_.sa_family){
     case AF_INET:
         return 4;
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         return 16;
 #endif
@@ -459,7 +459,7 @@ ip_address::ip_type ip_address::type() const {
     switch(addr_.sa_family){
     case AF_INET:
         return IPv4;
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     case AF_INET6:
         return IPv6;
 #endif
@@ -469,7 +469,7 @@ ip_address::ip_type ip_address::type() const {
 }
 
 bool ip_address::is_ipv4_mapped() const {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (addr_.sa_family == AF_INET6) {
         auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         return (w[0] == 0) && (w[1] == 0) && (w[2] == 0) && (w[3] == 0) &&
@@ -480,7 +480,7 @@ bool ip_address::is_ipv4_mapped() const {
 }
 
 ip_address ip_address::ipv4_mapped() const {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (addr_.sa_family == AF_INET6) {
         uint16_t w[8] = { 0, 0, 0, 0, 0, 0xffff };
         memcpy(&w[6], &addr_in_.sin_addr.s_addr, 4);
@@ -491,7 +491,7 @@ ip_address ip_address::ipv4_mapped() const {
 }
 
 ip_address ip_address::unmapped() const {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (is_ipv4_mapped()) {
         auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         return ip_address((const AooByte *)&w[6], 4, port(), IPv4);
@@ -501,7 +501,7 @@ ip_address ip_address::unmapped() const {
 }
 
 void ip_address::unmap() {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (is_ipv4_mapped()){
         auto w = (uint16_t *)addr_in6_.sin6_addr.s6_addr;
         *this = ip_address((const AooByte *)&w[6], 4, port(), IPv4);
@@ -626,7 +626,7 @@ int get_int_option(socket_type socket, int level, int option, int& value) {
 }
 
 std::pair<socket_type, ip_address> create_from_port(int protocol, port_type port) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     // prefer IPv6 (dual stack), but fall back to IPv4 if disabled
     ip_address bindaddr;
     socket_type sock = ::socket(AF_INET6, protocol, 0);
@@ -655,7 +655,7 @@ std::pair<socket_type, ip_address> create_from_port(int protocol, port_type port
 socket_type create_from_family(int protocol, ip_address::ip_type family, bool dualstack) {
     socket_type sock = invalid_socket;
     if (family == ip_address::IPv6) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
         sock = ::socket(AF_INET6, protocol, 0);
         if (sock != invalid_socket && dualstack) {
             // make dual stack socket by listening to both IPv4 and IPv6 packets
@@ -954,7 +954,7 @@ void base_socket::connect(const ip_address& addr, double timeout) {
 AooSocketFlags base_socket::flags() const {
     ip_address addr = address();
     if (addr.type() == ip_address::ip_type::IPv6) {
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
         int ipv6only = 0;
         if (get_int_option(socket_, IPPROTO_IPV6, IPV6_V6ONLY, ipv6only) != 0) {
             socket::print_last_error("base_socket::flags: couldn't get IPV6ONLY");

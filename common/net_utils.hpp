@@ -19,7 +19,7 @@
 #define NOMINMAX
 #endif
 #include <winsock2.h>
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
 #include <ws2ipdef.h>
 #endif
 typedef int socklen_t;
@@ -223,7 +223,7 @@ private:
     // and sockaddr_in6 (max. 32 bytes)
     union {
         sockaddr_in addr_in_;
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
         sockaddr_in6 addr_in6_;
 #endif
         // NB: on some systems (macOS, BSD, ESP32) 'sockaddr' starts with a

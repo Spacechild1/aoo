@@ -170,7 +170,7 @@ inline int binmsg_read_relay(const AooByte *buffer, AooSize size, aoo::ip_addres
 
     if (buffer[1] == kAooBinMsgCmdRelayIPv6) {
         // IPv6
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
         if (size >= 20) {
             auto port = aoo::from_bytes<uint16_t>(buffer + 2);
             addr = ip_address(buffer + 4, 16, port, ip_address::IPv6);

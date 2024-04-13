@@ -10,12 +10,12 @@
 
 /*---------- global compile time settings ----------*/
 
-/** \brief AOO_NET support */
+/** \brief internal networking support (AooClient and AooServer) */
 #ifndef AOO_NET
 # define AOO_NET 1
 #endif
 
-/** \brief log level */
+/** \brief max. log level */
 #ifndef AOO_LOG_LEVEL
 #define AOO_LOG_LEVEL kAooLogLevelWarning
 #endif
@@ -26,8 +26,8 @@
 #endif
 
 /** \brief IPv6 support */
-#ifndef AOO_USE_IPv6
-#define AOO_USE_IPv6 1
+#ifndef AOO_USE_IPV6
+#define AOO_USE_IPV6 1
 #endif
 
 /** \brief default UDP packet size */

@@ -126,13 +126,13 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     };
 
     local_ipv4_addr_.clear();
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     global_ipv6_addr_.clear();
 #endif
 
     udp_socket sock(port_tag{}, 0); // bind!
 
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     // try to get global IPv6 address
     try {
         auto ipv6_addr = get_address(sock, "2001:4860:4860::8888", 80, ip_address::IPv6, false);
@@ -1236,7 +1236,7 @@ void Client::perform(const login_cmd& cmd) {
     if (local_ipv4_addr_.valid()) {
         addrlist.push_back(local_ipv4_addr_);
     }
-#if AOO_USE_IPv6
+#if AOO_USE_IPV6
     if (global_ipv6_addr_.valid()) {
         addrlist.push_back(global_ipv6_addr_);
     }

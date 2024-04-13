@@ -243,9 +243,17 @@ if (AOO_USE_CODEC_OPUS AND (NOT AOO_SYSTEM_OPUS))
 endif()
 
 # networking support
-option(AOO_NET "Build with networking support" ON)
-message(STATUS "Use AOO NET: ${AOO_NET}")
+option(AOO_NET "Build with internal networking support" ON)
+message(STATUS "Use internal networking (AOO NET): ${AOO_NET}")
 add_definitions(-DAOO_NET=$<BOOL:${AOO_NET}>)
+
+# IPv6 support
+# NB: set this on the top level because it is required by
+# common/net_utils.h, which is also used in the Pd external.
+option(AOO_USE_IPV6 "Build with IPv6 support" ON)
+mark_as_advanced(AOO_USE_IPV6)
+message(STATUS "IPv6 support: ${AOO_USE_IPV6}")
+add_definitions(-DAOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>)
 
 # platform specific linker flags
 if (LINUX)
