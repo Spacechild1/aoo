@@ -830,7 +830,7 @@ void Sink::handle_xrun(int32_t nsamples) {
 
 // /aoo/sink/<id>/start <src> <version> <stream_id> <flags> <lastformat>
 // <nchannels> <samplerate> <blocksize> <codec> <options>
-// (<metadata_type>) (<metadata_content>)
+// (<metadata_type>) (<metadata_content>) <offset>
 AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
                                     const ip_address& addr)
 {
@@ -871,6 +871,12 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
 
     auto metadata = osc_read_metadata(it); // optional
 
+    int32_t offset = 0;
+    // NB: the <offset> argument has been added in 2.0-pre4
+    if (it != msg.ArgumentsEnd()) {
+        offset = (it++)->AsInt32();
+    }
+
     if (id < 0){
         LOG_WARNING("AooSink: bad ID for " << kAooMsgStart << " message");
         return kAooErrorBadArgument;
@@ -886,16 +892,21 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
     }
     return src->handle_start(*this, stream_id, seq_start, format_id, f,
                              (const AooByte *)ext_data, ext_size,
-                             tt, latency, codec_delay, metadata);
+                             tt, latency, codec_delay, metadata, offset);
 }
 
-// /aoo/sink/<id>/stop <src> <stream>
+// /aoo/sink/<id>/stop <src> <stream> <offset>
 AooError Sink::handle_stop_message(const osc::ReceivedMessage& msg,
                                    const ip_address& addr) {
     auto it = msg.ArgumentsBegin();
 
     AooId id = (it++)->AsInt32();
     AooId stream = (it++)->AsInt32();
+    int32_t offset = 0;
+    // NB: the <offset> argument has been added in 2.0-pre4
+    if (it != msg.ArgumentsEnd()) {
+        offset = (it++)->AsInt32();
+    }
 
     if (id < 0){
         LOG_WARNING("AooSink: bad ID for " << kAooMsgStop << " message");
@@ -905,7 +916,7 @@ AooError Sink::handle_stop_message(const osc::ReceivedMessage& msg,
     source_lock lock(sources_);
     auto src = find_source(addr, id);
     if (src){
-        return src->handle_stop(*this, stream);
+        return src->handle_stop(*this, stream, offset);
     } else {
         return kAooErrorNotFound;
     }
@@ -1339,7 +1350,7 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
                                    int32_t format_id, const AooFormat& f,
                                    const AooByte *ext_data, int32_t ext_size,
                                    aoo::time_tag tt, int32_t latency, int32_t codec_delay,
-                                   const std::optional<AooData>& md) {
+                                   const std::optional<AooData>& md, int32_t offset) {
     LOG_DEBUG("AooSink: handle start (" << stream_id << ")");
     auto state = state_.load(std::memory_order_acquire);
     if (state == source_state::invite) {
@@ -1440,6 +1451,7 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     // set jitter buffer head
     jitter_buffer_.reset_head(seq_start - 1);
 
+
     // cache reblock/resample latency and codec delay
     auto resample = (double)s.samplerate() / (double)format_->sampleRate;
     stream_tt_ = tt;
@@ -1451,8 +1463,12 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     AooDecoder_control(decoder_.get(), kAooCodecCtlGetLatency, AOO_ARG(arg));
     codec_delay2_ = arg * resample;
 
+    // save stream sample offset
+    sample_offset_ = offset * resample;
+
     LOG_DEBUG("AooSink: stream start time: " << stream_tt_ << ", latency: "
-              << latency1_ << ", codec delay: " << codec_delay1_);
+              << latency1_ << ", codec delay: " << codec_delay1_ << ", sample offset: "
+              << sample_offset_);
 
     lock.unlock();
 
@@ -1476,13 +1492,12 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     return kAooOk;
 }
 
-// /aoo/sink/<id>/stop <src> <stream_id>
-
-AooError source_desc::handle_stop(const Sink& s, int32_t stream) {
+AooError source_desc::handle_stop(const Sink& s, int32_t stream, int32_t offset) {
     LOG_DEBUG("AooSink: handle stop (" << stream << ")");
     // ignore redundant /stop messages!
     // NOTE: stream_id_ can only change in this thread,
     // so we don't need a lock to safely *read* it!
+    // TODO: handle sample offset
     if (stream == stream_id_){
         // check if we're already idle to avoid duplicate "stop" events
         auto state = state_.load(std::memory_order_relaxed);
@@ -2279,7 +2294,7 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
                       << " blocks, " << elapsed << " / " << latency_samples_ << " samples elapsed)");
             // buffering -> active
             stream_state_ = stream_state::active;
-            stream_offset_ = stream_samples_ + codec_delay1_ + codec_delay2_;
+            stream_offset_ = stream_samples_ + codec_delay1_ + codec_delay2_ + sample_offset_;
         }
     }
 

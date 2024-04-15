@@ -59,6 +59,7 @@ struct sink_request {
     union {
         struct {
             int32_t stream;
+            int32_t offset;
         } stop;
         struct {
             int32_t token;
@@ -101,7 +102,7 @@ struct sink_desc {
     // called while locked
     void start();
 
-    void stop(Source& s);
+    void stop(Source& s, int32_t offset);
 
     void activate(Source& s, bool b);
 
@@ -227,9 +228,9 @@ class Source final : public AooSource, rt_memory_pool_client {
 
     AooError AOO_CALL pollEvents() override;
 
-    AooError AOO_CALL startStream(const AooData *metadata) override;
+    AooError AOO_CALL startStream(AooInt32 sampleOffset, const AooData *metadata) override;
 
-    AooError AOO_CALL stopStream() override;
+    AooError AOO_CALL stopStream(AooInt32 sampleOffset) override;
 
     AooError AOO_CALL addSink(const AooEndpoint& sink, AooBool active) override;
 
@@ -287,6 +288,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     // but the lowest 4 bits contain the state.
     using stream_state_type = uintptr_t;
     static constexpr stream_state_type stream_state_mask = 15;
+    static constexpr size_t stream_state_bits = 4;
     static constexpr stream_state_type metadata_mask = ~15;
     enum stream_state : stream_state_type {
         stop,

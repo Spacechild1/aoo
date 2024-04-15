@@ -62,10 +62,11 @@ AOO_API AooError AOO_CALL AooSource_pollEvents(AooSource *source);
 
 /** \copydoc AooSource::startStream() */
 AOO_API AooError AOO_CALL AooSource_startStream(
-        AooSource *source, const AooData *metadata);
+        AooSource *source, AooInt32 sampleOffset, const AooData *metadata);
 
 /** \copydoc AooSource::stopStream() */
-AOO_API AooError AOO_CALL AooSource_stopStream(AooSource *source);
+AOO_API AooError AOO_CALL AooSource_stopStream(
+        AooSource *source, AooInt32 sampleOffset);
 
 /** \copydoc AooSource::addSink() */
 AOO_API AooError AOO_CALL AooSource_addSink(

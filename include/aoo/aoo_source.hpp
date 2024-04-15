@@ -144,15 +144,23 @@ public:
      *
      * \note Threadsafe, RT-safe and reentrant
      *
-     * You can pass an optional AooData structure which will be sent as
-     * additional stream metadata. For example, it could contain information
-     * about the channel layout, the musical content, etc.
+     * \param sampleOffset the sample offset in the next processing block where the
+     *        stream is supposed to start.
+     * \param metadata an optional AooData structure which will be sent as additional
+     *        stream metadata. For example, it could contain information about the
+     *        channel layout, the musical content, etc.
      */
     virtual AooError AOO_CALL startStream(
-            const AooData *metadata) = 0;
+            AooInt32 sampleOffset, const AooData *metadata) = 0;
 
-    /** \brief Stop the current stream */
-    virtual AooError AOO_CALL stopStream() = 0;
+    /** \brief Stop the current stream
+     *
+     * \note Threadsafe, RT-safe and reentrant
+     *
+     * \param sampleOffset the sample offset in the next processing block where the
+     *        stream is supposed to end.
+     */
+    virtual AooError AOO_CALL stopStream(AooInt32 sampleOffset) = 0;
 
     /** \brief add sink
      *

@@ -165,9 +165,9 @@ public:
                           int32_t format_id, const AooFormat& f,
                           const AooByte *ext_data, int32_t ext_size,
                           aoo::time_tag tt, int32_t latency, int32_t codec_delay,
-                          const std::optional<AooData>& md);
+                          const std::optional<AooData>& md, int32_t offset);
 
-    AooError handle_stop(const Sink& s, int32_t stream);
+    AooError handle_stop(const Sink& s, int32_t stream, int32_t offset);
 
     AooError handle_decline(const Sink& s, int32_t token);
 
@@ -246,6 +246,7 @@ private:
     int32_t latency2_ = 0;
     int32_t codec_delay1_ = 0;
     int32_t codec_delay2_ = 0;
+    int32_t sample_offset_ = 0;
 
     std::atomic<source_state> state_{source_state::idle};
     rt_metadata_ptr metadata_;

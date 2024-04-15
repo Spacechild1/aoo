@@ -783,6 +783,11 @@ static void aoo_send_remove(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 
 static void aoo_send_start(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
+    int32_t offset = clock_gettimesince(x->x_logicaltime) * 0.001 * x->x_samplerate;
+    // in case "start" is sent while DSP is off...
+    if (offset >= x->x_blocksize) {
+        offset = 0;
+    }
     if (argc > 0) {
         // with metadata
         AooData metadata;
@@ -800,15 +805,20 @@ static void aoo_send_start(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
         metadata.size = size;
         metadata.data = data;
 
-        x->x_source->startStream(&metadata);
+        x->x_source->startStream(offset, &metadata);
     } else {
-        x->x_source->startStream(nullptr);
+        x->x_source->startStream(offset, nullptr);
     }
 }
 
 static void aoo_send_stop(t_aoo_send *x)
 {
-    x->x_source->stopStream();
+    int32_t offset = clock_gettimesince(x->x_logicaltime) * 0.001 * x->x_samplerate;
+    // in case "stop" is sent while DSP is off...
+    if (offset >= x->x_blocksize) {
+        offset = 0;
+    }
+    x->x_source->stopStream(offset);
 }
 
 static void aoo_send_reset(t_aoo_send *x)

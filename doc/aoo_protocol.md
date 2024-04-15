@@ -41,6 +41,7 @@ Start a new stream.
 |  `i`  | codec delay (samples)               |
 | (`i`) | [metadata type](#4.2-data-types)    |
 | (`b`) | metadata content                    |
+|  `i`  | sample offset                       |
 
 ---
 
@@ -63,10 +64,11 @@ Stop a stream.
 
 ### Arguments:
 
-| type | description |
-| ---: | ----------- |
-|  `i` | source ID   |
-|  `i` | stream ID   |
+| type  | description   |
+| ----: | ------------- |
+|  `i`  | source ID     |
+|  `i`  | stream ID     |
+|  `i`  | sample offset |
 
 ---
 
@@ -798,6 +800,11 @@ For a full list of error codes see `AooError` in `aoo/aoo_types.h`.
 |     4 | FUDI (Pure Data)         |
 |     5 | JSON (UTF-8)             |
 |     6 | XML (UTF-8)              |
+|     7 | 32-bit float array       |
+|     8 | 64-bit float array       |
+|     9 | 16-bit integer array     |
+|    10 | 32-bit integer array     |
+|    11 | 64-bit integer array     |
 | 1000< | User specified           |
 
 <br>

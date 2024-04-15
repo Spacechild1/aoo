@@ -354,5 +354,6 @@ int atoms_to_data(AooDataType type, int argc, const t_atom *argv,
             break;
         }
     }
+    assert(ptr - data <= size);
     return numbytes;
 }

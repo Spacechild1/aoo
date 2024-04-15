@@ -41,11 +41,12 @@ void sink_desc::start(){
 }
 
 // called while locked
-void sink_desc::stop(Source& s){
+void sink_desc::stop(Source& s, int32_t offset){
     if (is_active()){
         LOG_DEBUG("AooSource: " << ep << ": stop stream (" << stream_id() << ")");
         sink_request r(request_type::stop, ep);
         r.stop.stream = stream_id();
+        r.stop.offset = offset;
         s.push_request(r);
     }
 }
@@ -103,6 +104,7 @@ void sink_desc::handle_uninvite(Source &s, AooId token, bool accept){
         if (s.is_running()){
             sink_request r(request_type::stop, ep);
             r.stop.stream = token;
+            r.stop.offset = 0;
             s.push_request(r);
         }
     } else {
@@ -125,6 +127,7 @@ void sink_desc::activate(Source& s, bool b) {
         if (s.is_running()){
             sink_request r(request_type::stop, ep);
             r.stop.stream = stream;
+            r.stop.offset = 0;
             s.push_request(r);
         }
     }
@@ -680,10 +683,11 @@ AooError AOO_CALL aoo::Source::process(
         } else {
             return kAooErrorIdle; // pausing
         }
-    } else if (state == stream_state::stop){
+    } else if (state == stream_state::stop) {
+        int32_t offset = (full_state & metadata_mask) >> stream_state_bits;
         sink_lock lock(sinks_);
         for (auto& s : sinks_){
-            s.stop(*this);
+            s.stop(*this, offset);
         }
 
         // make sure that we haven't been started in the meantime
@@ -894,37 +898,45 @@ AooError AOO_CALL aoo::Source::pollEvents(){
 }
 
 AOO_API AooError AOO_CALL AooSource_startStream(
-        AooSource *source, const AooData *metadata)
+        AooSource *source, AooInt32 sampleOffset, const AooData *metadata)
 {
-    return source->startStream(metadata);
+    return source->startStream(sampleOffset, metadata);
 }
 
-AooError AOO_CALL aoo::Source::startStream(const AooData *md) {
+AooError AOO_CALL aoo::Source::startStream(AooInt32 sampleOffset, const AooData *metadata) {
     // check metadata
-    if (md) {
+    if (metadata) {
         // check data size
-        if (md->size == 0){
+        if (metadata->size == 0){
             LOG_ERROR("AooSource: stream metadata cannot be empty!");
             return kAooErrorBadArgument;
         }
-
-        LOG_DEBUG("AooSource: start stream with "
-                  << aoo_dataTypeToString(md->type) << " metadata");
+        LOG_DEBUG("AooSource: start stream with " << aoo_dataTypeToString(metadata->type)
+                  << " metadata at sample offset " << sampleOffset);
     } else {
-        LOG_DEBUG("AooSource: start stream");
+        LOG_DEBUG("AooSource: start stream at sample offset " << sampleOffset);
     }
 
     // copy metadata
-    AooData *metadata = nullptr;
-    if (md && md->size > 0) {
-        auto size = flat_metadata_size(*md);
-        metadata = (AooData *)aoo::rt_allocate(size);
-        assert(((stream_state_type)metadata & stream_state_mask) == 0);
-        flat_metadata_copy(*md, *metadata);
+    AooData *md = nullptr;
+    if (sampleOffset > 0 || (metadata && metadata->size > 0)) {
+        auto size = metadata ? flat_metadata_size(*metadata) : sizeof(AooData);
+        md = (AooData *)aoo::rt_allocate(size);
+        assert(((stream_state_type)md & stream_state_mask) == 0);
+        if (metadata) {
+            flat_metadata_copy(*metadata, *md);
+        } else {
+            // dummy metadata
+            md->type = kAooDataUnspecified;
+            md->size = 0;
+            md->data = nullptr;
+        }
+        // HACK: bash offset into data pointer
+        md->data = reinterpret_cast<AooByte*>(sampleOffset);
     }
 
     // combine metadata pointer with stream state
-    auto state = stream_state::start | (stream_state_type)metadata;
+    auto state = stream_state::start | (stream_state_type)md;
     auto oldstate = stream_state_.exchange(state);
     // free previous (unaccepted) metadata, if any
     free_metadata(oldstate);
@@ -932,12 +944,17 @@ AooError AOO_CALL aoo::Source::startStream(const AooData *md) {
     return kAooOk;
 }
 
-AOO_API AooError AOO_CALL AooSource_stopStream(AooSource *source) {
-    return source->stopStream();
+AOO_API AooError AOO_CALL AooSource_stopStream(
+        AooSource *source, AooInt32 sampleOffset) {
+    return source->stopStream(sampleOffset);
 }
 
-AooError AOO_CALL aoo::Source::stopStream() {
-    auto oldstate = stream_state_.exchange(stream_state::stop);
+AooError AOO_CALL aoo::Source::stopStream(AooInt32 sampleOffset) {
+    LOG_DEBUG("AooSource: stop stream at sample offset " << sampleOffset);
+    // combine metadata pointer with sample offset
+    auto offset = (stream_state_type)sampleOffset << stream_state_bits;
+    auto state = stream_state::stop | offset;
+    auto oldstate = stream_state_.exchange(state);
     // free previous (unaccepted) metadata, if any
     free_metadata(oldstate);
     return kAooOk;
@@ -1014,6 +1031,7 @@ AooError AOO_CALL aoo::Source::removeAll() {
         if (running && s.is_active()){
             sink_request r(request_type::stop, s.ep);
             r.stop.stream = s.stream_id();
+            r.stop.offset = 0;
             push_request(r);
         }
     }
@@ -1074,9 +1092,14 @@ namespace aoo {
 void Source::free_metadata(stream_state_type state) {
     auto ptr = reinterpret_cast<AooData*>(state & metadata_mask);
     if (ptr) {
-        assert(((stream_state_type)ptr & stream_state_mask) == 0);
-        auto size = flat_metadata_size(*ptr);
-        aoo::rt_deallocate(ptr, size);
+        auto s = state & stream_state_mask;
+        if (s == stream_state::start) {
+            auto size = flat_metadata_size(*ptr);
+            aoo::rt_deallocate(ptr, size);
+        } else if (s != stream_state::stop) {
+            // NB: the 'stop' state directly contains the sample offset, see stopStream()
+            LOG_ERROR("AooSource: unknown stream state data");
+        }
     }
 }
 
@@ -1167,6 +1190,7 @@ bool Source::do_remove_sink(const ip_address& addr, AooId id){
                 {
                     scoped_shared_lock lock(update_mutex_);
                     r.stop.stream = it->stream_id();
+                    r.stop.offset = 0;
                 }
                 push_request(r);
             }
@@ -1378,12 +1402,12 @@ void Source::update_historybuffer(){
 
 // /aoo/sink/<id>/start <src> <version> <stream_id> <seq_start>
 // <format_id> <nchannels> <samplerate> <blocksize> <codec> <extension>
-// <tt> <latency> <codec_delay> (<metadata_type) (metadata_content>)
+// <tt> <latency> <codec_delay> (<metadata_type) (metadata_content>) <offset>
 void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
                     int32_t seq_start, int32_t format_id, const AooFormat& f,
                     const AooByte *extension, AooInt32 size,
                     aoo::time_tag tt, int32_t latency, int32_t codec_delay,
-                    const AooData* metadata, const sendfn& fn) {
+                    const AooData* metadata, int32_t offset, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgStart " to " << ep
               << " (stream = " << stream_id << ")");
 
@@ -1401,14 +1425,15 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
         << f.numChannels << f.sampleRate << f.blockSize
         << f.codecName << osc::Blob(extension, size)
         << osc::TimeTag(tt) << latency << codec_delay
-        << metadata_view(metadata)
+        << metadata_view(metadata) << offset
         << osc::EndMessage;
 
     ep.send(msg, fn);
 }
 
-// /aoo/sink/<id>/stop <src> <stream_id>
-void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream, const sendfn& fn) {
+// /aoo/sink/<id>/stop <src> <stream_id> <offset>
+void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream,
+                   int32_t offset, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgStop " to " << ep
               << " (stream = " << stream << ")");
 
@@ -1421,7 +1446,8 @@ void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream, const sendfn&
     snprintf(address, sizeof(address), "%s/%d%s",
              kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgStop);
 
-    msg << osc::BeginMessage(address) << id << stream << osc::EndMessage;
+    msg << osc::BeginMessage(address) << id << stream << offset
+        << osc::EndMessage;
 
     ep.send(msg, fn);
 }
@@ -1473,8 +1499,15 @@ void Source::dispatch_requests(const sendfn& fn){
     while (requests_.try_pop(r)){
         switch (r.type) {
         case request_type::stop:
-            send_stop_msg(r.ep, id(), r.stop.stream, fn);
+        {
+            auto offset = r.stop.offset;
+            if (offset > 0) {
+                shared_lock updatelock(update_mutex_); // reader lock!
+                offset = offset * resampler_.ratio();
+            }
+            send_stop_msg(r.ep, id(), r.stop.stream, offset, fn);
             break;
+        }
         case request_type::decline:
             send_decline_msg(r.ep, id(), r.decline.token, fn);
             break;
@@ -1549,13 +1582,20 @@ void Source::send_start(const sendfn& fn){
         return;
     }
 
-    // cache stream metadata
+    // obtain stream metadata and/or sample offset
     AooData *md = nullptr;
+    int32_t offset = 0;
     if (metadata_) {
-        assert(metadata_->size > 0);
-        auto mdsize = flat_metadata_size(*metadata_);
-        md = (AooData *)alloca(mdsize);
-        flat_metadata_copy(*metadata_, *md);
+        // offset has been bashed into data pointer, see startStream()
+        offset = reinterpret_cast<intptr_t>(metadata_->data) * ratio;
+        if (metadata_->size > 0) {
+            // restore data pointer!
+            metadata_->data = (AooByte *)metadata_.get() + sizeof(AooData);
+            // copy metadata
+            auto mdsize = flat_metadata_size(*metadata_);
+            md = (AooData *)alloca(mdsize);
+            flat_metadata_copy(*metadata_, *md);
+        }
     }
 #if IDLE_IF_NO_SINKS
     // cache sinks that need to send a /start message
@@ -1580,7 +1620,7 @@ void Source::send_start(const sendfn& fn){
 
     for (auto& s : cached_sinks_){
         send_start_msg(s.ep, id(), s.stream_id, seq_start, format_id, f.header,
-                       extension, size, tt, latency, codec_delay, md, fn);
+                       extension, size, tt, latency, codec_delay, md, offset, fn);
     }
 }
 
@@ -2286,6 +2326,7 @@ void Source::handle_stop_request(const osc::ReceivedMessage& msg,
             // resend /stop message
             sink_request r(request_type::stop, sink->ep);
             r.stop.stream = stream; // use original stream ID!
+            r.stop.offset = 0;
             push_request(r);
         } else {
             LOG_VERBOSE("AooSource: ignoring '" << kAooMsgStop << "' message: sink is active");
@@ -2484,6 +2525,7 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
     // the remote address (this does not work if the sink is relayed!)
     sink_request r(request_type::stop, sink ? sink->ep : endpoint(addr, id, binary_.load()));
     r.stop.stream = token; // use remote stream id!
+    r.stop.offset = 0;
     push_request(r);
     LOG_DEBUG("AooSource: resend " << kAooMsgStop << " message");
 }
