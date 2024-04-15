@@ -114,14 +114,14 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     close();
 
     // get private/global network interfaces
-    auto get_address = [](udp_socket& sock, const char *host, int port,
-                          ip_address::ip_type family, bool ipv4mapped) {
+    auto get_address = [](ip_address::ip_type family, const char *host, int port) {
         try {
-            auto addrlist = ip_address::resolve(host, port, family, ipv4mapped);
-            sock.connect(addrlist.front());
+            udp_socket sock(family_tag{}, family, false);
+            ip_address addr(host, port, family, false);
+            sock.connect(addr);
             return sock.address();
-        } catch (const resolve_error& e) {
-            throw std::runtime_error(std::string(ipv4mapped ? "IPv4" : "IPv6") + " networking not available");
+        } catch (const socket_error&) {
+            throw std::runtime_error(std::string(family == ip_address::IPv6 ? "IPv6" : "IPv4") + " networking not available");
         }
     };
 
@@ -130,12 +130,10 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     global_ipv6_addr_.clear();
 #endif
 
-    udp_socket sock(port_tag{}, 0); // bind!
-
 #if AOO_USE_IPV6
     // try to get global IPv6 address
     try {
-        auto ipv6_addr = get_address(sock, "2001:4860:4860::8888", 80, ip_address::IPv6, false);
+        auto ipv6_addr = get_address(ip_address::IPv6, "2001:4860:4860::8888", 80);
         global_ipv6_addr_ = ip_address(ipv6_addr.name(), udp_client_.port());
         LOG_DEBUG("AooClient: global IPv6 address: " << global_ipv6_addr_);
     } catch (const std::exception& e) {
@@ -146,8 +144,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
 
     // try to get private IPv4 address
     try {
-        auto ipv4_addr = get_address(sock, "8.8.8.8", 80, sock.family(), true);
-        local_ipv4_addr_ = ip_address(ipv4_addr.name_unmapped(), udp_client_.port()); // unmapped!
+        auto ipv4_addr = get_address(ip_address::IPv4, "8.8.8.8", 80);
+        local_ipv4_addr_ = ip_address(ipv4_addr.name(), udp_client_.port());
         LOG_DEBUG("AooClient: private IPv4 address: " << local_ipv4_addr_);
     } catch (const std::exception& e) {
         LOG_VERBOSE("AooClient: could not get private IPv4 address");

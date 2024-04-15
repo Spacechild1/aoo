@@ -754,8 +754,6 @@ bool base_socket::shutdown(shutdown_method how) noexcept {
 
 void base_socket::close() noexcept {
     if (socket_ != invalid_socket) {
-        fprintf(stderr, "close socket %d\n", (int)socket_);
-        fflush(stderr);
     #ifdef _WIN32
         closesocket(socket_);
     #else
