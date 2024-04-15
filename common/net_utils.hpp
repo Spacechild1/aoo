@@ -129,6 +129,8 @@ public:
         if (sa) {
             assert(len > 0 && len <= max_length);
             memcpy(data_, sa, len);
+            // keep clang-analyzer happy...
+            addr_.sa_family = sa->sa_family;
             length_ = len;
         } else {
             assert(len == 0);
@@ -142,7 +144,8 @@ public:
     ip_address(port_type port, ip_type type); // "any" address
 
     // TODO: make realtime safe!
-    ip_address(const std::string& ip, port_type port, ip_type type = ip_type::Unspec);
+    ip_address(const std::string& ip, port_type port, ip_type type = ip_type::Unspec,
+               bool ipv4mapped = true);
 
     ip_address(const AooByte *bytes, AooSize size, port_type port, ip_type type);
 

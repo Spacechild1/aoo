@@ -208,92 +208,104 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
 }
 
 ip_address::ip_address(port_type port, ip_type type) {
-    // LATER optimize
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    // AI_PASSIVE: nullptr means "any" address
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
-    switch (type){
+    // also sets address to zeros ('0.0.0.0' resp. '::')
+    memset(data_, 0, sizeof(data_));
+
+    if (type == ip_type::IPv6) {
+        // IPv6
 #if AOO_USE_IPV6
-    case ip_type::IPv6:
-        hints.ai_family = AF_INET6;
-        break;
-#endif
-    case ip_type::IPv4:
-        hints.ai_family = AF_INET;
-        break;
-    default:
-        hints.ai_family = AF_UNSPEC;
-    }
-
-    char portstr[10]; // largest port is 65535
-    snprintf(portstr, sizeof(portstr), "%d", port);
-
-    struct addrinfo *ailist;
-    int err = getaddrinfo(nullptr, portstr, &hints, &ailist);
-    if (err == 0){
-        memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
-        length_ = ailist->ai_addrlen;
-        freeaddrinfo(ailist);
-    } else {
-        // fail
+        addr_in6_.sin6_family = AF_INET6;
+        addr_in6_.sin6_port = htons(port);
+        length_ = sizeof(addr_in6_);
+#else
         clear();
+#endif
+    } else if (type == ip_type::IPv4) {
+        // IPv4
+        addr_in_.sin_family = AF_INET;
+        addr_in_.sin_port = htons(port);
+        length_ = sizeof(addr_in_);
+    } else {
+        // auto
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        // AI_PASSIVE: nullptr means "any" address
+        hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+        hints.ai_family = AF_UNSPEC;
+
+        char portstr[10]; // largest port is 65535
+        snprintf(portstr, sizeof(portstr), "%d", port);
+
+        struct addrinfo *ailist;
+        int err = getaddrinfo(nullptr, portstr, &hints, &ailist);
+        if (err == 0){
+            memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
+            length_ = ailist->ai_addrlen;
+            freeaddrinfo(ailist);
+        } else {
+            // fail
+            clear();
+        }
     }
 #if 0
     check();
 #endif
 }
 
-ip_address::ip_address(const std::string& ip, port_type port, ip_type type) {
-    if (ip.empty() || port <= 0) {
+ip_address::ip_address(const std::string& ip, port_type port, ip_type type,
+                       bool ipv4mapped) {
+    if (ip.empty() || port == 0) {
         clear();
         return;
     }
 
-    // LATER optimize
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    // prevent DNS lookup!
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-    hints.ai_family = AF_UNSPEC;
+#if 1
+    memset(data_, 0, sizeof(data_));
+#endif
 
-    char portstr[10]; // largest port is 65535
-    snprintf(portstr, sizeof(portstr), "%d", port);
-
-    struct addrinfo *ailist;
-    int err = getaddrinfo(ip.c_str(), portstr, &hints, &ailist);
-    if (err == 0){
-    #if AOO_USE_IPV6
-        if (type == ip_type::IPv6 && ailist->ai_family == AF_INET){
-            // manually create IPv4-mapped address.
-            // this is workaround for the fact that AI_NUMERICHOST
-            // doesn't seem to work with AI_V4MAPPED (at least on Windows)
-            freeaddrinfo(ailist);
-            std::string mapped = "::ffff:" + ip;
-            err = getaddrinfo(mapped.c_str(), portstr, &hints, &ailist);
-            if (err != 0){
-                // fail
-                clear();
-                return;
-            }
+#if AOO_USE_IPV6
+    if (ip.find(':') != std::string::npos) {
+        // IPv6 address
+        if (type != ip_type::IPv4
+                && inet_pton(AF_INET6, ip.c_str(), &addr_in6_.sin6_addr) > 0) {
+            addr_in6_.sin6_family = AF_INET6;
+            addr_in6_.sin6_port = htons(port);
+            length_ = sizeof(addr_in6_);
+        } else {
+            clear();
         }
-    #endif
-        // otherwise just take the first result
-        memcpy(data_, ailist->ai_addr, ailist->ai_addrlen);
-        length_ = ailist->ai_addrlen;
-
-        freeaddrinfo(ailist);
-    } else {
-        // fail
-        clear();
+    } else if (type == ip_type::IPv6) {
+        // IPv4-mapped address
+        in_addr addr;
+        if (ipv4mapped && inet_pton(AF_INET, ip.c_str(), &addr) > 0) {
+            addr_in6_.sin6_family = AF_INET6;
+            addr_in6_.sin6_port = htons(port);
+            memcpy(&addr_in6_.sin6_addr.s6_addr[12], &addr, 4);
+            length_ = sizeof(addr_in6_);
+        } else {
+            clear();
+        }
+    } else
+#endif
+    {
+        // IPv4 address
+        if (type != ip_type::IPv6
+                && inet_pton(AF_INET, ip.c_str(), &addr_in_.sin_addr) > 0) {
+            addr_in_.sin_family = AF_INET;
+            addr_in_.sin_port = htons(port);
+            length_ = sizeof(addr_in_);
+        } else {
+            clear();
+        }
     }
+
 #if 0
     check();
 #endif
 }
 
 bool ip_address::operator==(const ip_address& other) const {
-    if (addr_.sa_family == other.addr_.sa_family){
+    if (addr_.sa_family == other.addr_.sa_family) {
         switch (addr_.sa_family){
         case AF_INET:
         {
