@@ -146,7 +146,7 @@ struct source_ping_event : endpoint_event<AooEventSourcePing> {
 };
 
 struct sink_ping_event : endpoint_event<AooEventSinkPing> {
-    RT_CLASS(source_ping_event)
+    RT_CLASS(sink_ping_event)
 
     sink_ping_event(const aoo::endpoint& ep,
                     aoo::time_tag tt1, aoo::time_tag tt2,
