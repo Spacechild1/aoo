@@ -815,7 +815,7 @@ std::pair<bool, int> base_socket::do_receive(void *buf, int size,
     }
 }
 
-#define DEBUG_SOCKET_BUFFER 1
+#define DEBUG_SOCKET_BUFFER 0
 
 void base_socket::set_send_buffer_size(int bufsize) {
     auto oldsize = send_buffer_size();
