@@ -280,7 +280,10 @@ ip_address::ip_address(std::string_view ip, port_type port, ip_type type,
         if (ipv4mapped && inet_pton(AF_INET, ip.data(), &addr) > 0) {
             addr_in6_.sin6_family = AF_INET6;
             addr_in6_.sin6_port = htons(port);
-            memcpy(&addr_in6_.sin6_addr.s6_addr[12], &addr, 4);
+            auto& b = addr_in6_.sin6_addr.s6_addr;
+            b[10] = 0xff;
+            b[11] = 0xff;
+            memcpy(&b[12], &addr, 4);
             length_ = sizeof(addr_in6_);
         } else {
             clear();
