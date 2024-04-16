@@ -8,7 +8,13 @@
 
 #include "memory.hpp"
 
+#ifndef AOO_EVENT_RT_MEMORY
+#define AOO_EVENT_RT_MEMORY 1
+#endif
+
+#ifndef AOO_DEBUG_EVENT_MEMORY
 #define AOO_DEBUG_EVENT_MEMORY 0
+#endif
 
 #if AOO_DEBUG_EVENT_MEMORY
 # define LOG_EVENT(x) LOG_DEBUG(x)
@@ -18,17 +24,20 @@
 
 namespace aoo {
 
-#define RT_CLASS(x)                     \
-    void * operator new (size_t size) { \
-        LOG_EVENT("allocate " #x);      \
-        return rt_allocate(size);       \
-    }                                   \
-                                        \
-    void operator delete (void *ptr) {  \
-        LOG_EVENT("deallocate " #x);    \
-        rt_deallocate(ptr, sizeof(x));  \
-    }                                   \
-
+#if AOO_EVENT_RT_MEMORY
+#define RT_CLASS(x)                                                 \
+    void * operator new (size_t size) {                             \
+        LOG_EVENT("allocate " #x " (" << size << " bytes)");        \
+        return rt_allocate(size);                                   \
+    }                                                               \
+                                                                    \
+    void operator delete (void *ptr) {                              \
+        LOG_EVENT("deallocate " #x " (" << sizeof(x) << " bytes)"); \
+        rt_deallocate(ptr, sizeof(x));                              \
+    }
+#else
+#define RT_CLASS(x)
+#endif
 
 struct ievent {
     virtual ~ievent() {}
