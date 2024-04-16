@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include <sstream>
+#include <optional>
+#include <string_view>
 #include <thread>
 
 #ifdef _WIN32
@@ -138,7 +141,7 @@ void print_usage() {
         << "Options:\n"
         << "  -h, --help             display help and exit\n"
         << "  -v, --version          print version and exit\n"
-        << "  -p, --port             port number (default = " << AOO_DEFAULT_SERVER_PORT << ")\n"
+        << "  -p, --port=PORT        port number (default = " << AOO_DEFAULT_SERVER_PORT << ")\n"
         << "  -r, --relay            enable server relay\n"
         << "  -l, --log-level=LEVEL  set log level\n"
         << std::endl;
@@ -156,6 +159,66 @@ bool check_arguments(const char **argv, int argc, int numargs) {
 bool match_option(const char *str, const char *short_option, const char *long_option) {
     return (short_option && !strcmp(str, short_option))
            || (long_option && !strcmp(str, long_option));
+}
+
+template<typename T>
+std::optional<T> match_option(const char **& argv, int& argc,
+                              const char* short_option, const char* long_option) {
+    assert(argc > 0);
+    if ((short_option && !strcmp(argv[0], short_option))
+            || (long_option && !strcmp(argv[0], long_option))) {
+        // -f <arg> or --foo <arg>
+        if (argc < 2) {
+            std::stringstream msg;
+            msg << "Missing argument for option '" << argv[0] << "'";
+            throw std::runtime_error(msg.str());
+        }
+        T result;
+        std::stringstream ss;
+        ss << argv[1];
+        ss >> result;
+        if (ss) {
+            argv += 2; argc -= 2;
+            return result;
+        } else {
+            std::stringstream msg;
+            msg << "Bad argument '" << argv[1] << "' for option '" << argv[0] << "'";
+            throw std::runtime_error(msg.str());
+        }
+    } else if (long_option) {
+        // --foo=<arg>
+        std::string_view str(argv[0]);
+        if (auto pos = str.find('='); pos != std::string::npos) {
+            if (auto opt = str.substr(0, pos); opt == long_option) {
+                auto arg = str.substr(pos + 1);
+                T result;
+                std::stringstream ss;
+                ss << arg;
+                ss >> result;
+                if (ss) {
+                    argv++; argc--;
+                    return result;
+                } else {
+                    std::stringstream msg;
+                    msg << "Bad argument '" << arg << "' for option '" << opt << "'";
+                    throw std::runtime_error(msg.str());
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+bool match_option(const char **& argv, int& argc,
+                  const char* short_option, const char* long_option) {
+    assert(argc > 0);
+    if ((short_option && !strcmp(argv[0], short_option))
+        || (long_option && !strcmp(argv[0], long_option))) {
+        argv++; argc--;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int main(int argc, const char **argv) {
@@ -179,36 +242,32 @@ int main(int argc, const char **argv) {
 
     try {
         while ((argc > 0) && (argv[0][0] == '-')) {
-            if (match_option(argv[0], "-h", "--help")) {
+            if (match_option(argv, argc, "-h", "--help")) {
                 print_usage();
                 return EXIT_SUCCESS;
-            } else if (match_option(argv[0], "-v", "--version")) {
+            } else if (match_option(argv, argc, "-v", "--version")) {
                 std::cout << "aooserver " << aoo_getVersionString() << std::endl;
                 return EXIT_SUCCESS;
-            } else if (match_option(argv[0], "-p", "--port")) {
-                if (!check_arguments(argv, argc, 1)) {
-                    return EXIT_FAILURE;
-                }
-                port = std::stoi(argv[1]);
+            } else if (auto arg = match_option<int>(argv, argc, "-p", "--port")) {
+                port = *arg;
                 if (port <= 0 || port > 65535) {
                     std::cout << "Port number " << port << " out of range" << std::endl;
                     return EXIT_FAILURE;
                 }
-                argc--; argv++;
-            } else if (match_option(argv[0], "-r", "--relay")) {
+            } else if (match_option(argv, argc, "-r", "--relay")) {
                 relay = true;
-            } else if (match_option(argv[0], "-l", "--log-level")) {
-                if (!check_arguments(argv, argc, 1)) {
+            } else if (auto arg = match_option<int>(argv, argc, "-l", "--log-level")) {
+                auto level = *arg;
+                if (level < kAooLogLevelNone || level > kAooLogLevelDebug) {
+                    std::cout << "Log level " << level << " out of range" << std::endl;
                     return EXIT_FAILURE;
                 }
-                g_loglevel = std::stoi(argv[1]);
-                argc--; argv++;
+                g_loglevel = level;
             } else {
                 std::cout << "Unknown command line option '" << argv[0] << "'" << std::endl;
                 print_usage();
                 return EXIT_FAILURE;
             }
-            argc--; argv++;
         }
         if (argc > 0) {
             std::cout << "Ignoring excess arguments: ";
@@ -218,7 +277,7 @@ int main(int argc, const char **argv) {
             std::cout << std::endl;
         }
     } catch (const std::exception& e) {
-        std::cout << "Bad argument for option '" << argv[0] << "'" << std::endl;
+        std::cout << e.what() << std::endl;
         return EXIT_FAILURE;
     }
 
