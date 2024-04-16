@@ -126,11 +126,9 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
 
     # atomic double support
     test_atomic(ATOMIC_DOUBLE "atomic_double.cpp")
-    # message(STATUS "atomic doubles supported: ${AOO_HAVE_ATOMIC_DOUBLE}")
 
     # atomic 64-bit integer support
     test_atomic(ATOMIC_INT64 "atomic_int64.cpp")
-    # message(STATUS "atomic 64-bit integers supported: ${AOO_HAVE_ATOMIC_INT64}")
 
     # pthread_rwlock_t support
     if (NOT WIN32)
@@ -161,6 +159,23 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     add_compile_options("-Wno-unused-parameter" "-Wno-unused-variable" "-Wno-sign-compare")
     # some warnings should be errors
     add_compile_options("-Werror=return-type")
+endif()
+
+# check for sa_len in sockaddr
+if (NOT DEFINED AOO_HAVE_SA_LEN)
+    message(STATUS "Testing for 'sa_len' member in 'sockaddr'")
+
+    try_compile(RESULT_VAR
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sa_len.cpp")
+
+    if (RESULT_VAR)
+        message(STATUS "- yes")
+    else()
+        message(STATUS "- no")
+    endif()
+
+    set(AOO_HAVE_SA_LEN ${RESULT_VAR} CACHE INTERNAL "'sockaddr' has 'sa_len' member")
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -239,6 +254,9 @@ endif()
 # pthread_rwlock
 if (AOO_HAVE_PTHREAD_RWLOCK)
     add_definitions(-DAOO_HAVE_PTHREAD_RWLOCK)
+endif()
+if (AOO_HAVE_SA_LEN)
+    add_definitions(-DAOO_HAVE_SA_LEN)
 endif()
 
 #-----------------------------------------------------------------

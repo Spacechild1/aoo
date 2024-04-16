@@ -129,8 +129,10 @@ public:
         if (sa) {
             assert(len > 0 && len <= max_length);
             memcpy(data_, sa, len);
+#if 0
             // keep clang-analyzer happy...
             addr_.sa_family = sa->sa_family;
+#endif
             length_ = len;
         } else {
             assert(len == 0);
@@ -170,6 +172,10 @@ public:
     void clear();
 
     void reserve();
+
+    void resize(socklen_t size) {
+        length_ = size;
+    }
 
     bool operator==(const ip_address& other) const;
 

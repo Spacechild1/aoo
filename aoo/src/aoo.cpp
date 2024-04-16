@@ -541,6 +541,10 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type) {
 
 //------------------------ sockaddr -------------------------//
 
+static_assert((offsetof(AooSockAddrStorage, family) == offsetof(sockaddr, sa_family))
+                  && (AOO_STRUCT_SIZE(AooSockAddrStorage, family) == AOO_STRUCT_SIZE(sockaddr, sa_family)),
+              "struct layout of AooSockAddrStorage does not match sockaddr!");
+
 AOO_API AooBool AOO_CALL aoo_sockAddrEqual(
     const void *sockaddr1, AooAddrSize addrlen1,
     const void *sockaddr2, AooAddrSize addrlen2)
