@@ -66,6 +66,8 @@ AOO_ENUM(AooEventType)
     kAooEventBlockResend,
     /** AooSink: empty blocks caused by source xrun */
     kAooEventBlockXRun,
+    /** AooSource: frames have been resent */
+    kAooEventFrameResend,
     /*--------------------------------------------*/
     /*         AooClient/AooServer events         */
     /*--------------------------------------------*/
@@ -171,25 +173,25 @@ typedef struct AooEventSinkPing
     float packetLoss; /**< packet loss percentage (0.0 - 1.0) */
 } AooEventSinkPing;
 
-/** \brief a new source has been added */
+/** \brief (AooSink) a new source has been added */
 typedef AooEventEndpoint AooEventSourceAdd;
 
-/** \brief a source has been removed */
+/** \brief (AooSink) a source has been removed */
 typedef AooEventEndpoint AooEventSourceRemove;
 
-/** \brief a sink has been added */
+/** \brief (AooSource) a sink has been added */
 typedef AooEventEndpoint AooEventSinkAdd;
 
-/** \brief a sink has been removed */
+/** \brief (AooSource) a sink has been removed */
 typedef AooEventEndpoint AooEventSinkRemove;
 
-/** \brief buffer overrun occurred */
+/** \brief (AooSink) buffer overrun occurred */
 typedef AooEventEndpoint AooEventBufferOverrun;
 
-/** \brief buffer underrun occurred */
+/** \brief (AooSink) buffer underrun occurred */
 typedef AooEventEndpoint AooEventBufferUnderrun;
 
-/** \brief a new stream has started */
+/** \brief (AooSink) a new stream has started */
 typedef struct AooEventStreamStart
 {
     AOO_EVENT_HEADER
@@ -198,10 +200,10 @@ typedef struct AooEventStreamStart
     const AooData * metadata;
 } AooEventStreamStart;
 
-/** \brief a stream has stopped */
+/** \brief (AooSink) a stream has stopped */
 typedef AooEventEndpoint AooEventStreamStop;
 
-/** \brief received invitation by sink */
+/** \brief (AooSource) received invitation by sink */
 typedef struct AooEventInvite
 {
     AOO_EVENT_HEADER
@@ -210,7 +212,7 @@ typedef struct AooEventInvite
     const AooData *metadata;
 } AooEventInvite;
 
-/** \brief received uninvitation by sink */
+/** \brief (AooSource) received uninvitation by sink */
 typedef struct AooEventUninvite
 {
     AOO_EVENT_HEADER
@@ -218,13 +220,13 @@ typedef struct AooEventUninvite
     AooId token;
 } AooEventUninvite;
 
-/** \brief invitation has been declined */
+/** \brief (AooSink) invitation has been declined */
 typedef AooEventEndpoint AooEventInviteDecline;
 
-/** \brief invitation has timed out */
+/** \brief (AooSink) invitation has timed out */
 typedef AooEventEndpoint AooEventInviteTimeout;
 
-/** \brief uninvitation has timed out */
+/** \brief (AooSink) uninvitation has timed out */
 typedef AooEventEndpoint AooEventUninviteTimeout;
 
 /** \brief stream states */
@@ -238,7 +240,7 @@ AOO_ENUM(AooStreamState)
     kAooStreamStateBuffering = 2
 };
 
-/** \brief the stream state has changed */
+/** \brief (AooSink) the stream state has changed */
 typedef struct AooEventStreamState
 {
     AOO_EVENT_HEADER
@@ -247,7 +249,7 @@ typedef struct AooEventStreamState
     AooInt32 sampleOffset;
 } AooEventStreamState;
 
-/** \brief stream time event */
+/** \brief (AooSink) stream time event */
 typedef struct AooEventStreamTime
 {
     AOO_EVENT_HEADER
@@ -264,22 +266,30 @@ typedef struct AooEventBlock
     AooInt32 count;
 } AooEventBlock;
 
-/** \brief blocks had to be skipped/dropped */
+/** \brief (AooSink) blocks had to be skipped/dropped */
 typedef AooEventBlock AooEventBlockDrop;
 
-/** \brief blocks have been resent */
+/** \brief (AooSink) blocks have been resent */
 typedef AooEventBlock AooEventBlockResend;
 
-/** \brief empty blocks caused by source xrun */
+/** \brief (AooSink) empty blocks caused by source xrun */
 typedef AooEventBlock AooEventBlockXRun;
 
-/** \brief the source stream format has changed */
+/** \brief (AooSink) the source stream format has changed */
 typedef struct AooEventFormatChange
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint;
     const AooFormat *format;
 } AooEventFormatChange;
+
+/** \brief (AooSource) frames have been resent */
+typedef struct AooEventFrameResend
+{
+    AOO_EVENT_HEADER
+    AooEndpoint endpoint;
+    AooInt32 count;
+} AooEventFrameResend;
 
 /*-------------------------------------------------*/
 /*            AOO server/client events             */
@@ -539,6 +549,7 @@ union AooEvent
     AooEventBlockDrop blockDrop;
     AooEventBlockResend blockResend;
     AooEventBlockXRun blockXRun;
+    AooEventFrameResend frameResend;
     /* AooClient/AooServer events */
     AooEventDisconnect disconnect;
     AooEventNotification notification;

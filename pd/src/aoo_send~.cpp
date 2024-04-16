@@ -439,6 +439,7 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
     case kAooEventUninvite:
     case kAooEventSinkAdd:
     case kAooEventSinkRemove:
+    case kAooEventFrameResend:
     {
         // common endpoint header
         auto& ep = event->endpoint.endpoint;
@@ -527,6 +528,12 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
 
             outlet_anything(x->x_msgout, gensym("ping"), 8, msg);
 
+            break;
+        }
+        case kAooEventFrameResend:
+        {
+            SETFLOAT(msg + 3, event->frameResend.count);
+            outlet_anything(x->x_msgout, gensym("frame_resend"), 4, msg);
             break;
         }
         default:

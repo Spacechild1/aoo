@@ -2119,15 +2119,16 @@ void Source::resend_data(const sendfn &fn){
 
     // send block to sinks
     sink_lock lock(sinks_);
-    for (auto& s : sinks_){
+    for (auto& s : sinks_) {
+        int count = 0;
         data_request r;
-        while (s.get_data_request(r)){
+        while (s.get_data_request(r)) {
         #if AOO_DEBUG_RESEND && 0
             LOG_DEBUG("AooSource: dispatch data request (" << r.sequence
                       << " " << r.offset << " " << r.bitset << ")");
         #endif
             auto block = history_.find(r.sequence);
-            if (block){
+            if (block) {
                 bool binary = binary_.load();
 
                 auto stream_id = s.stream_id();
@@ -2221,6 +2222,8 @@ void Source::resend_data(const sendfn &fn){
                     }
                 }
 
+                count += numframes;
+
                 // lock again
                 updatelock.lock();
             } else {
@@ -2228,6 +2231,13 @@ void Source::resend_data(const sendfn &fn){
                 LOG_DEBUG("AooSource: cannot find block " << r.sequence);
             #endif
             }
+        }
+
+        if (count > 0) {
+            auto e = make_event<frame_resend_event>(s.ep, count);
+            updatelock.unlock();
+            send_event(std::move(e), kAooThreadLevelNetwork);
+            updatelock.lock();
         }
     }
 }

@@ -252,4 +252,11 @@ struct block_xrun_event : block_event {
         : block_event(kAooEventBlockXRun, ep, count) {}
 };
 
+struct frame_resend_event : endpoint_event<AooEventFrameResend> {
+    frame_resend_event(const aoo::endpoint& ep, int32_t count)
+        : endpoint_event(kAooEventFrameResend, AOO_STRUCT_SIZE(AooEventFrameResend, count), ep) {
+        this->count = count;
+    }
+};
+
 } // namespace aoo
