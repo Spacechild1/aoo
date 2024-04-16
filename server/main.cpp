@@ -142,6 +142,7 @@ void print_usage() {
         << "  -h, --help             display help and exit\n"
         << "  -v, --version          print version and exit\n"
         << "  -p, --port=PORT        port number (default = " << AOO_DEFAULT_SERVER_PORT << ")\n"
+        << "  -P, --password=PWD     password\n"
         << "  -r, --relay            enable server relay\n"
         << "  -l, --log-level=LEVEL  set log level\n"
         << std::endl;
@@ -237,6 +238,7 @@ int main(int argc, const char **argv) {
     // parse command line options
     int port = AOO_DEFAULT_SERVER_PORT;
     bool relay = false;
+    std::string password;
 
     argc--; argv++;
 
@@ -254,6 +256,8 @@ int main(int argc, const char **argv) {
                     std::cout << "Port number " << port << " out of range" << std::endl;
                     return EXIT_FAILURE;
                 }
+            } else if (auto arg = match_option<std::string>(argv, argc, "-P", "--password")) {
+                password = *arg;
             } else if (match_option(argv, argc, "-r", "--relay")) {
                 relay = true;
             } else if (auto arg = match_option<int>(argv, argc, "-l", "--log-level")) {
@@ -298,6 +302,10 @@ int main(int argc, const char **argv) {
     // we only need the event handler for logging
     if (g_loglevel >= kAooLogLevelVerbose) {
         g_server->setEventHandler(handle_event, nullptr, kAooEventModeCallback);
+    }
+
+    if (!password.empty()) {
+        g_server->setPassword(password.c_str());
     }
 
     AooServerSettings server_settings = AOO_SERVER_SETTINGS_INIT();
