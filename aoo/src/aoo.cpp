@@ -754,9 +754,9 @@ using codec_list = aoo::vector<std::pair<aoo::string, const AooCodecInterface *>
 static codec_list g_codec_list;
 
 const AooCodecInterface * find_codec(const char * name){
-    for (auto& codec : g_codec_list) {
-        if (codec.first == name) {
-            return codec.second;
+    for (auto& [key, codec] : g_codec_list) {
+        if (key == name) {
+            return codec;
         }
     }
     return nullptr;

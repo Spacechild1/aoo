@@ -15,7 +15,7 @@ user* group::add_user(user&& usr) {
     }
 }
 
-user* group::find_user(const std::string& name) {
+user* group::find_user(std::string_view name) {
     for (auto& usr : users_) {
         if (usr.name() == name) {
             return &usr;

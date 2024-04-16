@@ -108,7 +108,7 @@ void ip_address::check() {
     }
 }
 
-std::vector<ip_address> ip_address::resolve(const std::string &host, port_type port,
+std::vector<ip_address> ip_address::resolve(std::string_view host, port_type port,
                                             ip_type type, bool ipv4mapped){
     std::vector<ip_address> result;
 
@@ -166,7 +166,7 @@ std::vector<ip_address> ip_address::resolve(const std::string &host, port_type p
     snprintf(portstr, sizeof(portstr), "%d", port);
 
     struct addrinfo *ailist = nullptr;
-    int err = getaddrinfo(!host.empty() ? host.c_str() : nullptr,
+    int err = getaddrinfo(!host.empty() ? host.data() : nullptr,
                           portstr, &hints, &ailist);
     if (err == 0) {
         assert(ailist != nullptr);
@@ -252,7 +252,7 @@ ip_address::ip_address(port_type port, ip_type type) {
 #endif
 }
 
-ip_address::ip_address(const std::string& ip, port_type port, ip_type type,
+ip_address::ip_address(std::string_view ip, port_type port, ip_type type,
                        bool ipv4mapped) {
     if (ip.empty() || port == 0) {
         clear();
@@ -267,7 +267,7 @@ ip_address::ip_address(const std::string& ip, port_type port, ip_type type,
     if (ip.find(':') != std::string::npos) {
         // IPv6 address
         if (type != ip_type::IPv4
-                && inet_pton(AF_INET6, ip.c_str(), &addr_in6_.sin6_addr) > 0) {
+                && inet_pton(AF_INET6, ip.data(), &addr_in6_.sin6_addr) > 0) {
             addr_in6_.sin6_family = AF_INET6;
             addr_in6_.sin6_port = htons(port);
             length_ = sizeof(addr_in6_);
@@ -277,7 +277,7 @@ ip_address::ip_address(const std::string& ip, port_type port, ip_type type,
     } else if (type == ip_type::IPv6) {
         // IPv4-mapped address
         in_addr addr;
-        if (ipv4mapped && inet_pton(AF_INET, ip.c_str(), &addr) > 0) {
+        if (ipv4mapped && inet_pton(AF_INET, ip.data(), &addr) > 0) {
             addr_in6_.sin6_family = AF_INET6;
             addr_in6_.sin6_port = htons(port);
             memcpy(&addr_in6_.sin6_addr.s6_addr[12], &addr, 4);
@@ -290,7 +290,7 @@ ip_address::ip_address(const std::string& ip, port_type port, ip_type type,
     {
         // IPv4 address
         if (type != ip_type::IPv6
-                && inet_pton(AF_INET, ip.c_str(), &addr_in_.sin_addr) > 0) {
+                && inet_pton(AF_INET, ip.data(), &addr_in_.sin_addr) > 0) {
             addr_in_.sin_family = AF_INET;
             addr_in_.sin_port = htons(port);
             length_ = sizeof(addr_in_);

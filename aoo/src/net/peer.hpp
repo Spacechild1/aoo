@@ -69,9 +69,9 @@ public:
 
     bool match(const ip_address& addr) const;
 
-    bool match(const std::string& group) const;
+    bool match(std::string_view group) const;
 
-    bool match(const std::string& group, const std::string& user) const;
+    bool match(std::string_view group, std::string_view user) const;
 
     bool match(AooId group) const;
 

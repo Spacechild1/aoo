@@ -119,7 +119,7 @@ public:
     static const socklen_t max_length = 32;
 
     // throws resolve_error on failure!
-    static std::vector<ip_address> resolve(const std::string& host, port_type port,
+    static std::vector<ip_address> resolve(std::string_view host, port_type port,
                                            ip_type type, bool ipv4mapped = false);
 
     ip_address();
@@ -143,8 +143,7 @@ public:
 
     ip_address(port_type port, ip_type type); // "any" address
 
-    // TODO: make realtime safe!
-    ip_address(const std::string& ip, port_type port, ip_type type = ip_type::Unspec,
+    ip_address(std::string_view ip, port_type port, ip_type type = ip_type::Unspec,
                bool ipv4mapped = true);
 
     ip_address(const AooByte *bytes, AooSize size, port_type port, ip_type type);

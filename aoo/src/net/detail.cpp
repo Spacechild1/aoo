@@ -8,7 +8,7 @@ namespace net {
 
 //------------------------ misc ---------------------------//
 
-std::string encrypt(const std::string& input) {
+std::string encrypt(std::string_view input) {
     // pass empty password unchanged
     if (input.empty()) {
         return "";

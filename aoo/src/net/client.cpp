@@ -2173,7 +2173,7 @@ void Client::close() {
     state_.store(client_state::disconnected);
 }
 
-Client::group_membership * Client::find_group_membership(const std::string &name) {
+Client::group_membership * Client::find_group_membership(std::string_view name) {
     for (auto& g : groups_) {
         if (g.group_name == name) {
             return &g;

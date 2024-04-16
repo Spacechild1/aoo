@@ -38,7 +38,7 @@ struct client_login_event : ievent
 
 struct client_logout_event : ievent
 {
-    client_logout_event(AooId id, AooError errcode, std::string errmsg)
+    client_logout_event(AooId id, AooError errcode, std::string_view errmsg)
         : id_(id), errcode_(errcode), errmsg_(errmsg) {}
 
     void dispatch(const event_handler& fn) const override {

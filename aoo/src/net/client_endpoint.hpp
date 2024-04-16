@@ -19,7 +19,7 @@ class Server;
 
 class user {
 public:
-    user(const std::string& name, const std::string& pwd, AooId id,
+    user(std::string_view name, std::string_view pwd, AooId id,
          AooId group, AooId client, const AooData *md,
          const AooIpEndpoint *relay, AooFlag flags)
         : name_(name), pwd_(pwd), id_(id), group_(group),
@@ -32,6 +32,7 @@ public:
 
     const std::string& pwd() const { return pwd_; }
 
+    // NB: pwd may be NULL
     bool check_pwd(const char *pwd) const {
         return pwd_.empty() || (pwd && (pwd == pwd_));
     }
@@ -89,7 +90,7 @@ using user_list = std::vector<user>;
 
 class group {
 public:
-    group(const std::string& name, const std::string& pwd, AooId id,
+    group(std::string_view name, std::string_view pwd, AooId id,
          const AooData *md, const AooIpEndpoint *relay, AooFlag flags)
         : name_(name), pwd_(pwd), id_(id), flags_(flags), md_(md),
           relay_(relay ? *relay : ip_host{}) {}
@@ -120,7 +121,7 @@ public:
 
     user* add_user(user&& u);
 
-    user* find_user(const std::string& name);
+    user* find_user(std::string_view name);
 
     user* find_user(AooId id);
 

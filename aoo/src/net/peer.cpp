@@ -44,11 +44,11 @@ bool peer::match(const ip_address& addr) const {
     }
 }
 
-bool peer::match(const std::string& group) const {
+bool peer::match(std::string_view group) const {
     return group_name_ == group; // immutable!
 }
 
-bool peer::match(const std::string& group, const std::string& user) const {
+bool peer::match(std::string_view group, std::string_view user) const {
     return group_name_ == group && user_name_ == user; // immutable!
 }
 

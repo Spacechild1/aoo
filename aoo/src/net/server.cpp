@@ -692,9 +692,9 @@ client_endpoint * Server::find_client(AooId id) {
 }
 
 client_endpoint * Server::find_client(const ip_address& addr) {
-    for (auto& client : clients_) {
-        if (client.second.match(addr)) {
-            return &client.second;
+    for (auto& [_, client] : clients_) {
+        if (client.match(addr)) {
+            return &client;
         }
     }
     return nullptr;
@@ -702,9 +702,9 @@ client_endpoint * Server::find_client(const ip_address& addr) {
 
 group* Server::add_group(group&& grp) {
     if (!find_group(grp.name())) {
-        auto result = groups_.emplace(grp.id(), std::move(grp));
-        if (result.second) {
-            return &result.first->second;
+        auto [it, success] = groups_.emplace(grp.id(), std::move(grp));
+        if (success) {
+            return &it->second;
         }
     }
     return nullptr;
@@ -719,10 +719,10 @@ group* Server::find_group(AooId id) {
     }
 }
 
-group* Server::find_group(const std::string& name) {
-    for (auto& grp : groups_) {
-        if (grp.second.name() == name) {
-            return &grp.second;
+group* Server::find_group(std::string_view name) {
+    for (auto& [_, grp] : groups_) {
+        if (grp.name() == name) {
+            return &grp;
         }
     }
     return nullptr;
@@ -866,7 +866,7 @@ AooId Server::accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_
     return id;
 }
 
-bool Server::remove_client(AooId id, AooError err, const std::string& msg) {
+bool Server::remove_client(AooId id, AooError err, std::string_view msg) {
     auto it = clients_.find(id);
     if (it == clients_.end()) {
         LOG_ERROR("AooServer: removeClient: client " << id << " not found");

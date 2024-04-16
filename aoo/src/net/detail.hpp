@@ -156,11 +156,11 @@ AooSize write_relay_message(AooByte *buffer, AooSize bufsize,
                             const AooByte *msg, AooSize msgsize,
                             const ip_address& addr, bool binary);
 
-std::string encrypt(const std::string& input);
+std::string encrypt(std::string_view input);
 
 struct ip_host {
     ip_host() = default;
-    ip_host(const std::string& _name, int _port)
+    ip_host(std::string_view _name, int _port)
         : name(_name), port(_port) {}
     ip_host(const AooIpEndpoint& ep)
         : name(ep.hostName ? ep.hostName : ""), port(ep.port) {}

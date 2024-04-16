@@ -512,7 +512,7 @@ private:
 
     void close();
 
-    group_membership * find_group_membership(const std::string& name);
+    group_membership * find_group_membership(std::string_view name);
 
     group_membership * find_group_membership(AooId id);
 
@@ -521,7 +521,8 @@ public:
 
     struct connect_cmd : callback_cmd
     {
-        connect_cmd(const std::string& hostname, int port, const char * pwd,
+        // NB: pwd may be NULL!
+        connect_cmd(std::string_view hostname, int port, const char *pwd,
                     const AooData *metadata, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
               host_(hostname, port), pwd_(pwd ? pwd : ""), metadata_(metadata) {}
@@ -593,8 +594,9 @@ public:
 
     struct group_join_cmd : callback_cmd
     {
-        group_join_cmd(const std::string& group_name, const char * group_pwd, const AooData *group_md,
-                       const std::string& user_name, const char * user_pwd, const AooData *user_md,
+        // NB: group_pwd and user_pwd my be NULL!
+        group_join_cmd(std::string_view group_name, const char *group_pwd, const AooData *group_md,
+                       std::string_view user_name, const char *user_pwd, const AooData *user_md,
                        const AooIpEndpoint* relay, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
               group_name_(group_name), group_pwd_(group_pwd ? group_pwd : ""), group_md_(group_md),

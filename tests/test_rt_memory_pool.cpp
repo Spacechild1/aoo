@@ -70,11 +70,11 @@ void thread_function(int num) {
             aoo::sync::pause_cpu();
         }
         // deallocate blocks
-        for (auto& block : blocks) {
+        for (auto& [data, size] : blocks) {
             if (use_pool) {
-                memory_pool.deallocate(block.first, block.second);
+                memory_pool.deallocate(data, size);
             } else {
-                ::operator delete(block.first, block.second);
+                ::operator delete(data, size);
             }
         }
         blocks.clear();

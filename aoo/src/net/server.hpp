@@ -118,7 +118,7 @@ public:
 
     group* find_group(AooId id);
 
-    group* find_group(const std::string& name);
+    group* find_group(std::string_view name);
 
     group* add_group(group&& g);
 
@@ -159,7 +159,7 @@ private:
     // TCP
     AooId accept_client(const aoo::ip_address& addr, aoo::tcp_server::reply_func fn);
 
-    bool remove_client(AooId client, AooError err, const std::string& msg = {});
+    bool remove_client(AooId client, AooError err, std::string_view msg = {});
 
     void handle_client_data(AooId id, int error, const AooByte *data,
                             AooInt32 size, const aoo::ip_address& addr);
