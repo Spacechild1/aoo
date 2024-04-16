@@ -92,11 +92,6 @@ typedef AooUInt32 AooFlag;
 
 /*------------------------------------------------------------------*/
 
-/** \brief audio sample size in bits */
-#ifndef AOO_SAMPLE_SIZE
-# define AOO_SAMPLE_SIZE 32
-#endif
-
 #if AOO_SAMPLE_SIZE == 32
 /** \brief audio sample type */
 typedef float AooSample;

@@ -15,6 +15,11 @@
 # define AOO_NET 1
 #endif
 
+/** \brief audio sample size in bits */
+#ifndef AOO_SAMPLE_SIZE
+#define AOO_SAMPLE_SIZE 32
+#endif
+
 /** \brief max. log level */
 #ifndef AOO_LOG_LEVEL
 #define AOO_LOG_LEVEL kAooLogLevelWarning

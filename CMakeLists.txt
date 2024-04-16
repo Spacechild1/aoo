@@ -17,7 +17,9 @@ include(cmake/test_linker_flag.cmake)
 # built everything (including Opus) with -fPIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+#-----------------------------------------------------------------
 # dependencies
+#-----------------------------------------------------------------
 include_directories(deps)
 
 # Opus
@@ -108,7 +110,9 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#-----------------------------------------------------------------
 # feature tests
+#-----------------------------------------------------------------
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     add_compile_options("-fvisibility=hidden")
 
@@ -168,7 +172,9 @@ if (CMAKE_COMPILER_IS_GNUCXX)
     endif()
 endif()
 
+#-----------------------------------------------------------------
 # global optimization flags
+#-----------------------------------------------------------------
 if (MSVC)
     add_compile_options("/fp:fast")
 else()
@@ -198,7 +204,9 @@ if (AOO_NATIVE)
     add_compile_options("-march=native")
 endif()
 
+#-----------------------------------------------------------------
 # platform specific compile options
+#-----------------------------------------------------------------
 
 # clang++:
 if (CMAKE_COMPILER_IS_CLANG)
@@ -233,6 +241,10 @@ if (AOO_HAVE_PTHREAD_RWLOCK)
     add_definitions(-DAOO_HAVE_PTHREAD_RWLOCK)
 endif()
 
+#-----------------------------------------------------------------
+# global compile options (also used by clients)
+#-----------------------------------------------------------------
+
 # opus support
 message(STATUS "Use Opus codec: ${AOO_USE_CODEC_OPUS}")
 add_definitions(-DAOO_USE_CODEC_OPUS=$<BOOL:${AOO_USE_CODEC_OPUS}>)
@@ -255,7 +267,15 @@ mark_as_advanced(AOO_USE_IPV6)
 message(STATUS "IPv6 support: ${AOO_USE_IPV6}")
 add_definitions(-DAOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>)
 
+# sample size
+set(AOO_SAMPLE_SIZE 32 CACHE STRING "Audio sample size")
+set_property(CACHE AOO_SAMPLE_SIZE PROPERTY STRINGS "32;64")
+message(STATUS "Audio sample size: ${AOO_SAMPLE_SIZE} bits")
+add_definitions(-DAOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE})
+
+#-----------------------------------------------------------------
 # platform specific linker flags
+#-----------------------------------------------------------------
 if (LINUX)
     list(APPEND LIBS "-pthread")
     if(AOO_STATIC_LIBS)
@@ -281,11 +301,15 @@ endif()
 include_directories(".")
 include_directories("include")
 
+#-----------------------------------------------------------------
 # AOO library
+#-----------------------------------------------------------------
 message(STATUS "\n*** AOO library ***\n")
 add_subdirectory("aoo")
 
+#-----------------------------------------------------------------
 # Pd external
+#-----------------------------------------------------------------
 option(AOO_BUILD_PD_EXTERNAL "build Pd external" ON)
 if (AOO_BUILD_PD_EXTERNAL)
     if (NOT AOO_NET)
@@ -295,7 +319,9 @@ if (AOO_BUILD_PD_EXTERNAL)
     add_subdirectory("pd")
 endif()
 
+#-----------------------------------------------------------------
 # aooserver binary
+#-----------------------------------------------------------------
 option(AOO_BUILD_SERVER "build AOO server application" ON)
 if (AOO_BUILD_SERVER)
     if (NOT AOO_NET)
@@ -305,7 +331,9 @@ if (AOO_BUILD_SERVER)
     add_subdirectory("server")
 endif()
 
+#-----------------------------------------------------------------
 # test suite
+#-----------------------------------------------------------------
 option(AOO_BUILD_TEST_SUITE "build test suite" ON)
 if (AOO_BUILD_TEST_SUITE)
     message(STATUS "\n*** Test suite ***\n")
