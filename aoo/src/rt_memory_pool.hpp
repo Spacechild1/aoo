@@ -240,6 +240,19 @@ private:
 #define AOO_RT_MEMORY_POOL_BITSET 1
 #endif
 
+#ifndef AOO_DEBUG_RT_MEMORY
+#define AOO_DEBUG_RT_MEMORY 0
+#endif
+
+#ifndef AOO_RT_MEMORY_LEAK_DETECTION
+// enabled by default in debug builds
+#if !defined(NDEBUG)
+#define AOO_RT_MEMORY_LEAK_DETECTION 1
+#else
+#define AOO_RT_MEMORY_LEAK_DETECTION 0
+#endif
+#endif
+
 template<bool grow = true, typename Alloc = std::allocator<char>>
 class rt_memory_pool : std::allocator_traits<Alloc>::template rebind_alloc<char> {
     using alloc_type = typename std::allocator_traits<Alloc>::template rebind_alloc<char>;
@@ -275,9 +288,10 @@ public:
     rt_memory_pool(const rt_memory_pool&) = delete;
     rt_memory_pool& operator=(const rt_memory_pool&) = delete;
 
-    ~rt_memory_pool() {}
+    ~rt_memory_pool() { check(); }
 
     void reset() {
+        check();
         linear_allocator_.reset();
         for (auto& fl : buckets_) {
             fl.reset();
@@ -294,6 +308,14 @@ public:
     }
 
     void * allocate(size_t size) {
+#if AOO_RT_MEMORY_LEAK_DETECTION || AOO_DEBUG_RT_MEMORY
+        auto num_blocks = num_blocks_.fetch_add(1, std::memory_order_acquire) + 1;
+        auto num_bytes = num_bytes_.fetch_add(size, std::memory_order_acquire) + size;
+#if AOO_DEBUG_RT_MEMORY
+        LOG_DEBUG("rt_memory_pool: allocate " << size << " bytes (" << num_bytes
+                  << " bytes, " << num_blocks << " blocks total)");
+#endif
+#endif
         if (size > large_alloc_limit) {
             LOG_VERBOSE("RT memory request (" << size << " bytes) too large - using default allocator");
             // fall back to heap allocation
@@ -317,6 +339,14 @@ public:
     }
 
     void deallocate(void *ptr, size_t size) {
+#if AOO_RT_MEMORY_LEAK_DETECTION || AOO_DEBUG_RT_MEMORY
+        auto num_blocks = num_blocks_.fetch_sub(1, std::memory_order_acquire) - 1;
+        auto num_bytes = num_bytes_.fetch_sub(size, std::memory_order_acquire) - size;
+#if AOO_DEBUG_RT_MEMORY
+        LOG_DEBUG("rt_memory_pool: deallocate " << size << " bytes (" << num_bytes
+                  << " bytes, " << num_blocks << " blocks remaining)");
+#endif
+#endif
         if (size > large_alloc_limit) {
             // fall back to heap allocation
             alloc_type::deallocate((char *)ptr, size);
@@ -352,7 +382,25 @@ private:
     std::array<std::atomic<bitset>, bucket_count / bitset::width> bitset_;
 #endif
     concurrent_linear_allocator<Alloc> linear_allocator_;
+#if AOO_RT_MEMORY_LEAK_DETECTION || AOO_DEBUG_RT_MEMORY
+    std::atomic<ptrdiff_t> num_blocks_{0};
+    std::atomic<ptrdiff_t> num_bytes_{0};
+#endif
     std::atomic_bool warned_{false};
+
+    void check() {
+#if AOO_RT_MEMORY_LEAK_DETECTION || AOO_DEBUG_RT_MEMORY
+        auto num_blocks = num_blocks_.exchange(0);
+        auto num_bytes = num_bytes_.exchange(0);
+        if (num_blocks != 0 || num_bytes != 0) {
+            LOG_ERROR("rt_memory_pool: leaked " << num_blocks
+                      << " blocks and " << num_bytes << " bytes");
+            assert(false);
+        } else if (memory_usage() > 0) {
+            LOG_DEBUG("rt_memory_pool: no leaks detected");
+        }
+#endif
+    }
 
     size_t get_alloc_size(size_t size) {
         if (size > small_alloc_limit) {
