@@ -20,10 +20,10 @@ data_frame* data_frame_allocator::allocate(int32_t size) {
             frame->next = nullptr;
             frame->bin_index = index;
             frame->frame_index = 0;
-#if DATA_FRAME_LEAK_DETECTION
+#if AOO_DATA_FRAME_LEAK_DETECTION
             auto num_bytes = num_alloc_bytes_.fetch_add(alloc_size, std::memory_order_relaxed) + alloc_size;
             auto num_frames = num_alloc_frames_.fetch_add(1, std::memory_order_relaxed) + 1;
-#if DEBUG_DATA_FRAME_ALLOCATOR
+#if AOO_DEBUG_DATA_FRAME_ALLOCATOR
             LOG_DEBUG("data_frame_allocator: allocate " << alloc_size << " bytes (total bytes: "
                       << num_bytes << ", total frames: " << num_frames << ")");
 #endif
@@ -36,7 +36,7 @@ data_frame* data_frame_allocator::allocate(int32_t size) {
                                                  std::memory_order_acq_rel,
                                                  std::memory_order_relaxed));
     frame->size = size;
-#if DEBUG_DATA_FRAME_ALLOCATOR
+#if AOO_DEBUG_DATA_FRAME_ALLOCATOR
     auto num_frames = num_frames_.fetch_add(1, std::memory_order_acquire) + 1;
     LOG_DEBUG("data_frame_allocator: allocate frame (size: "
               << size << " bytes, total frames: " << num_frames << ")");
@@ -49,7 +49,7 @@ void data_frame_allocator::deallocate(data_frame *frame) {
         return;
     }
     assert(frame->header.bin_index >= 0 && frame->header.frame_index >= 0);
-#if DEBUG_DATA_FRAME_ALLOCATOR
+#if AOO_DEBUG_DATA_FRAME_ALLOCATOR
     auto num_frames = num_frames_.fetch_sub(1, std::memory_order_release) - 1;
     LOG_DEBUG("data_frame_allocator: deallocate frame (size: "
               << frame->header.size << " bytes, remaining frames: " << num_frames << ")");
@@ -71,7 +71,7 @@ void data_frame_allocator::deallocate(data_frame *frame) {
 }
 
 void data_frame_allocator::release_memory() {
-#if DATA_FRAME_LEAK_DETECTION
+#if AOO_DATA_FRAME_LEAK_DETECTION
     LOG_DEBUG("data_frame_allocator: release memory (" << num_alloc_bytes_.load()
               << " bytes, " << num_alloc_frames_.load() << " frames)");
 #endif
@@ -86,14 +86,14 @@ void data_frame_allocator::release_memory() {
                       << ptr->frame_index << ", alloc size = " << alloc_size);
 #endif
             aoo::deallocate(ptr, alloc_size);
-#if DATA_FRAME_LEAK_DETECTION
+#if AOO_DATA_FRAME_LEAK_DETECTION
             num_alloc_bytes_.fetch_sub(alloc_size, std::memory_order_relaxed);
             num_alloc_frames_.fetch_sub(1, std::memory_order_relaxed);
 #endif
             ptr = next;
         }
     }
-#if DATA_FRAME_LEAK_DETECTION
+#if AOO_DATA_FRAME_LEAK_DETECTION
     auto num_alloc_bytes = num_alloc_bytes_.exchange(0, std::memory_order_relaxed);
     auto num_alloc_frames = num_alloc_frames_.exchange(0, std::memory_order_relaxed);
     if (num_alloc_frames != 0) {

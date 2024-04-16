@@ -41,16 +41,23 @@ inline constexpr size_t calc_bin_count(size_t min, size_t max) {
 
 //---------------------- data_frame_allocator ----------------------------//
 
-#define DEBUG_DATA_FRAME_ALLOCATOR 0
-
-#ifndef DATA_FRAME_LEAK_DETECTION
+#ifndef AOO_DATA_FRAME_LEAK_DETECTION
 // enabled by default in debug builds
-#if !defined(NDEBUG) || DEBUG_DATA_FRAME_ALLOCATOR
-#define DATA_FRAME_LEAK_DETECTION 1
+#if !defined(NDEBUG)
+#define AOO_DATA_FRAME_LEAK_DETECTION 1
 #else
-#define DATA_FRAME_LEAK_DETECTION 0
+#define AOO_DATA_FRAME_LEAK_DETECTION 0
 #endif
-#endif // DATA_FRAME_LEAK_DETECTION
+#endif // AOO_DATA_FRAME_LEAK_DETECTION
+
+#ifndef AOO_DEBUG_DATA_FRAME_ALLOCATOR
+#define AOO_DEBUG_DATA_FRAME_ALLOCATOR 0
+#endif
+
+#if AOO_DEBUG_DATA_FRAME_ALLOCATOR
+#undef AOO_DATA_FRAME_LEAK_DETECTION
+#define AOO_DATA_FRAME_LEAK_DETECTION 1
+#endif
 
 // Stream data frames have bounded allocation sizes
 // and show a similar allocation pattern over time.
@@ -85,11 +92,11 @@ private:
 
     static constexpr size_t bin_count = detail::calc_bin_count(min_bin_size, max_bin_size);
     std::array<std::atomic<data_frame_header*>, bin_count> bins_{}; // initialize!
-#if DATA_FRAME_LEAK_DETECTION
+#if AOO_DATA_FRAME_LEAK_DETECTION
     std::atomic<int> num_alloc_bytes_{0};
     std::atomic<int> num_alloc_frames_{0};
 #endif
-#if DEBUG_DATA_FRAME_ALLOCATOR
+#if AOO_DEBUG_DATA_FRAME_ALLOCATOR
     std::atomic<int> num_frames_{0};
 #endif
 };
