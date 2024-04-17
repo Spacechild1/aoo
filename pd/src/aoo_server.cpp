@@ -52,7 +52,7 @@ void t_aoo_server::close() {
 }
 
 void t_aoo_server::run() {
-    auto err = x_server->run(kAooFalse);
+    auto err = x_server->run(kAooInfinite);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
@@ -68,7 +68,7 @@ void t_aoo_server::run() {
 }
 
 void t_aoo_server::receive() {
-    auto err = x_server->receive(kAooFalse);
+    auto err = x_server->receive(kAooInfinite);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {

@@ -120,17 +120,18 @@ AooError AOO_CALL aoo::net::Server::setup(AooServerSettings& settings) {
 }
 
 AOO_API AooError AOO_CALL AooServer_run(
-    AooServer *server, AooBool nonBlocking)
+    AooServer *server, AooSeconds timeout)
 {
-    return server->run(nonBlocking);
+    return server->run(timeout);
 }
 
-AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
+AooError AOO_CALL aoo::net::Server::run(AooSeconds timeout) {
     try {
         std::vector<AooId> client_timeouts;
+        double remaining = timeout; // only used if timeout >= 0
 
         while  (tcp_server_.running()) {
-            double sleep = 1e9;
+            double sleep = 1e12;
 
             // first check client timers
             {
@@ -171,15 +172,25 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
             // The run() method itself must only be called after
             // the setup() method, so there is no race condition
             // regarding the TCP server itself.
-            if (nonBlocking) {
-                return tcp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
+            if (timeout >= 0) {
+                sleep = std::min<double>(sleep, timeout);
+                if (tcp_server_.run(sleep)) {
+                    return kAooOk; // did something
+                } else {
+                    // wait some more
+                    remaining -= sleep;
+                    if (remaining <= 0) {
+                        return kAooErrorWouldBlock;
+                    }
+                    // continue
+                }
             } else {
                 tcp_server_.run(sleep);
             }
         }
 
         // NB: in non-blocking mode, close() will be called in setup()!
-        if (!nonBlocking) {
+        if (timeout < 0) {
             sync::scoped_lock lock(mutex_); // writer lock to protect client list
             close();
         }
@@ -194,15 +205,15 @@ AooError AOO_CALL aoo::net::Server::run(AooBool nonBlocking) {
 }
 
 AOO_API AooError AOO_CALL AooServer_receive(
-    AooServer *server, AooBool nonBlocking)
+    AooServer *server, AooSeconds timeout)
 {
-    return server->receive(nonBlocking);
+    return server->receive(timeout);
 }
 
-AooError AOO_CALL aoo::net::Server::receive(AooBool nonBlocking) {
+AooError AOO_CALL aoo::net::Server::receive(AooSeconds timeout) {
     try {
-        if (nonBlocking) {
-            return udp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
+        if (timeout >= 0) {
+            return udp_server_.run(timeout) ? kAooOk : kAooErrorWouldBlock;
         } else {
             udp_server_.run();
             return kAooOk;

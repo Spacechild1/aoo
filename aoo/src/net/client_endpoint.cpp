@@ -242,10 +242,10 @@ std::pair<bool, double> client_endpoint::update(Server& server, aoo::time_tag no
     if (result.state == ping_state::inactive) {
         if (active_) {
             active_ = false;
-            return std::make_pair(true, result.wait);
+            return { true, result.wait };
         }
     }
-    return std::make_pair(false, result.wait);
+    return { false, result.wait };
 }
 
 void client_endpoint::on_group_join(Server&, const group& grp, const user& usr) {

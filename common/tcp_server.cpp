@@ -48,45 +48,61 @@ void tcp_server::start(int port, accept_handler accept, receive_handler receive)
 
 bool tcp_server::run(double timeout) {
     while (running_.load()) {
-        // NOTE: macOS/BSD requires the negative timeout to be exactly -1!
-        auto timeout_ms = timeout >= 0 ? std::ceil(timeout * 1000) : -1;
-#ifdef _WIN32
-        int result = WSAPoll(poll_array_.data(), poll_array_.size(), timeout_ms);
-#else
-        int result = ::poll(poll_array_.data(), poll_array_.size(), timeout_ms);
-#endif
-        if (result < 0) {
-            auto err = socket::get_last_error();
-            if (err != EINTR) {
-                throw tcp_error(err);
-            }
-        } else if (result == 0) {
-            return false; // timeout
-        }
-
-        // drain event socket
-        if (poll_array_[event_index].revents != 0) {
-            char dummy[64];
-            try {
-                event_socket_.receive(dummy, sizeof(dummy));
-            } catch (const socket_error& e) {
-                LOG_ERROR("tcp_server: could not drain event socket: " << e.what());
-            }
-        }
-
-        // first receive from clients
-        receive_from_clients();
-
-        // finally accept new clients (modifies the client list!)
-        accept_client();
-
+        auto ret = do_run(timeout);
         if (timeout >= 0) {
-            return true;
+#if 1
+            if (ret) {
+                // drain sockets without blocking
+                while (do_run(0)) {}
+                return true;
+            } else {
+                return false;
+            }
+#else
+            // only a single message at the time
+            return return ;
+#endif
         }
     }
 
     // NB: do_close() will also be called in start().
     do_close();
+
+    return true;
+}
+
+bool tcp_server::do_run(double timeout) {
+    // NOTE: macOS/BSD requires the negative timeout to be exactly -1!
+    auto timeout_ms = timeout >= 0 ? std::ceil(timeout * 1000) : -1;
+#ifdef _WIN32
+    int result = WSAPoll(poll_array_.data(), poll_array_.size(), timeout_ms);
+#else
+    int result = ::poll(poll_array_.data(), poll_array_.size(), timeout_ms);
+#endif
+    if (result < 0) {
+        auto err = socket::get_last_error();
+        if (err != EINTR) {
+            throw tcp_error(err);
+        }
+    } else if (result == 0) {
+        return false; // timeout
+    }
+
+    // drain event socket
+    if (poll_array_[event_index].revents != 0) {
+        char dummy[64];
+        try {
+            event_socket_.receive(dummy, sizeof(dummy));
+        } catch (const socket_error& e) {
+            LOG_ERROR("tcp_server: could not drain event socket: " << e.what());
+        }
+    }
+
+    // first receive from clients
+    receive_from_clients();
+
+    // finally accept new clients (modifies the client list!)
+    accept_client();
 
     return true;
 }

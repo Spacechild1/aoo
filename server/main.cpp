@@ -332,7 +332,7 @@ int main(int argc, const char **argv) {
     // NB: we *could* just block on the run() method, but then there
     // would be no "safe" way to break from a signal/control handler.
     auto thread = std::thread([]() {
-        auto err = g_server->run(kAooFalse);
+        auto err = g_server->run(kAooInfinite);
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {
@@ -346,7 +346,7 @@ int main(int argc, const char **argv) {
     });
 
     auto udp_thread = std::thread([]() {
-        auto err = g_server->receive(kAooFalse);
+        auto err = g_server->receive(kAooInfinite);
         if (err != kAooOk) {
             std::string msg;
             if (err == kAooErrorSocket) {

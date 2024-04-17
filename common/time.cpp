@@ -219,7 +219,7 @@ std::pair<bool, std::string> check_ntp_server()
 
     try {
         if (!service_running("W32Time")){
-            return std::make_pair(false, "Windows time server is not running!");
+            return { false, "Windows time server is not running!" };
         }
 
         w32time = reg_openkey(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\services\\W32Time");
@@ -286,13 +286,13 @@ std::pair<bool, std::string> check_ntp_server()
         RegCloseKey(timeProviders);
     }
 
-    return std::make_pair(result, std::move(msg));
+    return { result, std::move(msg) };
 }
 
 #else
 
 std::pair<bool, std::string> check_ntp_server() {
-    return std::make_pair(true, "");
+    return { true, "" };
 }
 
 #endif

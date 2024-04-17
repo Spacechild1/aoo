@@ -36,11 +36,11 @@ AOO_API AooError AOO_CALL AooServer_setup(
 
 /** \copydoc AooServer::run() */
 AOO_API AooError AOO_CALL AooServer_run(
-        AooServer *server, AooBool nonBlocking);
+        AooServer *server, AooSeconds timeout);
 
 /** \copydoc AooServer::receiveUDP() */
 AOO_API AooError AOO_CALL AooServer_receive(
-        AooServer *server, AooBool nonBlocking);
+        AooServer *server, AooSeconds timeout);
 
 /** \copydoc AooServer::handlePacket() */
 AOO_API AooError AOO_CALL AooServer_handlePacket(

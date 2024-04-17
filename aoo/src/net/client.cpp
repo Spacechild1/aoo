@@ -10,6 +10,7 @@
 
 #include "../binmsg.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <algorithm>
@@ -159,10 +160,12 @@ AOO_API AooError AOO_CALL AooClient_run(AooClient *client, AooBool nonBlocking){
     return client->run(nonBlocking);
 }
 
-AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
+AooError AOO_CALL aoo::net::Client::run(AooSeconds timeout){
     try {
-        while (!quit_.load()){
-            double timeout = -1;
+        double remaining = timeout; // only used if timeout >= 0
+
+        while (!quit_.load()) {
+            double sleep = 1e12;
 
             if (state_.load() == client_state::connected) {
                 auto now = aoo::time_tag::now();
@@ -189,9 +192,16 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                         LOG_DEBUG("AooClient: send TCP ping to server");
                     }
                 }
+
+                if (result.wait < sleep) {
+                    sleep = result.wait;
+                }
             }
 
-            auto didsomething = wait_for_event(nonBlocking ? 0 : timeout);
+            if (timeout >= 0) {
+                sleep = std::min<double>(sleep, timeout);
+            }
+            auto didsomething = wait_for_event(sleep);
 
             // handle commands
             std::unique_ptr<icommand> cmd;
@@ -203,13 +213,22 @@ AooError AOO_CALL aoo::net::Client::run(AooBool nonBlocking){
                 LOG_DEBUG("AooClient: free stale peers");
             }
 
-            if (nonBlocking) {
-                return didsomething ? kAooOk : kAooErrorWouldBlock;
+            if (timeout >= 0) {
+                if (didsomething) {
+                    return kAooOk;
+                } else {
+                    // wait some more
+                    remaining -= sleep;
+                    if (remaining <= 0) {
+                        return kAooErrorWouldBlock;
+                    }
+                    // continue
+                }
             }
         }
 
         // NB: in non-blocking mode, close() will be called in setup()!
-        if (!nonBlocking) {
+        if (timeout < 0) {
             close();
         }
 
@@ -242,12 +261,14 @@ AooError AOO_CALL aoo::net::Client::stop(){
 }
 
 AOO_API AooError AOO_CALL AooClient_send(
-    AooClient *client, AooBool nonBlocking){
-    return client->send(nonBlocking);
+    AooClient *client, AooSeconds timeout){
+    return client->send(timeout);
 }
 
-AooError AOO_CALL aoo::net::Client::send(AooBool nonBlocking)
+AooError AOO_CALL aoo::net::Client::send(AooSeconds timeout)
 {
+    constexpr double interval = 0.1;
+
     while (!quit_.load(std::memory_order_relaxed)) {
         auto now = time_tag::now();
         auto reply = udp_sendfn_;
@@ -363,10 +384,10 @@ AooError AOO_CALL aoo::net::Client::send(AooBool nonBlocking)
             }
         }
 
-        if (nonBlocking) {
+        if (timeout >= 0) {
             return kAooOk;
         } else {
-            send_event_.wait_for(0.1);
+            send_event_.wait_for(interval);
         }
     }
 
@@ -378,8 +399,8 @@ AOO_API AooError AOO_CALL AooClient_receive(
     return client->receive(nonBlocking);
 }
 
-AooError AOO_CALL aoo::net::Client::receive(AooBool nonBlocking) {
-    return udp_client_.receive(nonBlocking);
+AooError AOO_CALL aoo::net::Client::receive(AooSeconds timeout) {
+    return udp_client_.receive(timeout);
 }
 
 AOO_API AooError AOO_CALL AooClient_notify(AooClient *client)
@@ -1630,7 +1651,7 @@ void Client::push_command(command_ptr cmd){
     signal();
 }
 
-bool Client::wait_for_event(float timeout){
+bool Client::wait_for_event(double timeout){
     // LOG_DEBUG("AooClient: wait " << timeout << " seconds");
 
     struct pollfd fds[2];
@@ -1641,12 +1662,12 @@ bool Client::wait_for_event(float timeout){
     fds[1].events = POLLIN;
     fds[1].revents = 0;
 
-    // round up to 1 ms! -1: block indefinitely
+    // ceil timeout! -1: block indefinitely
     // NOTE: macOS requires the negative timeout to exactly -1!
 #ifdef _WIN32
-    int result = WSAPoll(fds, 2, timeout < 0 ? -1 : timeout * 1000.0 + 0.5);
+    int result = WSAPoll(fds, 2, timeout < 0 ? -1 : std::ceil(timeout * 1000.0));
 #else
-    int result = poll(fds, 2, timeout < 0 ? -1 : timeout * 1000.0 + 0.5);
+    int result = poll(fds, 2, timeout < 0 ? -1 : std::ceil(timeout * 1000.0));
 #endif
     if (result == 0) {
         return false; // nothing to do or timeout
@@ -2265,10 +2286,10 @@ AooError udp_client::setup(Client& client, AooClientSettings& settings) {
     return kAooOk;
 }
 
-AooError udp_client::receive(bool nonblocking) {
+AooError udp_client::receive(double timeout) {
     try {
-        if (nonblocking) {
-            return udp_server_.run(0) ? kAooOk : kAooErrorWouldBlock;
+        if (timeout >= 0) {
+            return udp_server_.run(timeout) ? kAooOk : kAooErrorWouldBlock;
         } else {
             udp_server_.run(-1);
             return kAooOk;

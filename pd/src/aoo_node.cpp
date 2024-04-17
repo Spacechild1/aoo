@@ -213,7 +213,7 @@ bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
 }
 
 void t_node_imp::run_client() {
-    auto err = x_client->run(kAooFalse);
+    auto err = x_client->run(kAooInfinite);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
@@ -253,12 +253,12 @@ void t_node_imp::perform_io() {
     while (!x_quit.load(std::memory_order_relaxed)) {
         auto t1 = aoo::time_tag::now();
 
-        auto err1 = x_client->receive(kAooTrue);
+        auto err1 = x_client->receive(0);
         if (!check_error(err1)) {
             break;
         }
 
-        auto err2 = x_client->send(kAooTrue);
+        auto err2 = x_client->send(0);
         if (!check_error(err2)) {
             break;
         }
@@ -274,7 +274,7 @@ void t_node_imp::perform_io() {
 }
 #else
 void t_node_imp::send() {
-    auto err = x_client->send(kAooFalse);
+    auto err = x_client->send(kAooInfinite);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {
@@ -291,7 +291,7 @@ void t_node_imp::send() {
 }
 
 void t_node_imp::receive() {
-    auto err = x_client->receive(kAooFalse);
+    auto err = x_client->receive(kAooInfinite);
     if (err != kAooOk) {
         std::string msg;
         if (err == kAooErrorSocket) {

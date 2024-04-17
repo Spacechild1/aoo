@@ -59,6 +59,7 @@ private:
         AooId id;
     };
 
+    bool do_run(double timeout);
     void accept_client();
     void handle_accept_error(const accept_error& e);
     void receive_from_clients();

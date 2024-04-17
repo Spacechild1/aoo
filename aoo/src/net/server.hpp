@@ -51,9 +51,9 @@ public:
 
     AooError AOO_CALL setup(AooServerSettings& settings) override;
 
-    AooError AOO_CALL run(AooBool nonBlocking) override;
+    AooError AOO_CALL run(AooSeconds timeout) override;
 
-    AooError AOO_CALL receive(AooBool nonBlocking) override;
+    AooError AOO_CALL receive(AooSeconds timeout) override;
 
     AooError AOO_CALL handlePacket(
             const AooByte *data, AooInt32 size,

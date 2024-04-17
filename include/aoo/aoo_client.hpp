@@ -70,13 +70,13 @@ public:
 
     /** \brief run the internal TCP client
      *
-     * \param nonBlocking
-     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
-     *     if it did something, #kAooErrorWouldBlock if there was nothing
-     *     to do, or any other error code if an error occured.
-     *   - #kAooFalse: blocks until until quit() is called or an error occured.
+     * \param timeout the timeout in seconds
+     *   - A number >= 0: the method only blocks up to the given duration.
+     *     It returns #kAooOk if it did something, #kAooErrorWouldBlock
+     *     if timed out, or any other error code if an error occured.
+     *   - #kAooInfinite: blocks until quit() is called or an error occured.
      */
-    virtual AooError AOO_CALL run(AooBool nonBlocking) = 0;
+    virtual AooError AOO_CALL run(AooSeconds timeout) = 0;
 
     /** \brief stop the AOO client from another thread */
     virtual AooError AOO_CALL stop() = 0;
@@ -85,25 +85,25 @@ public:
      *
      * \note Threadsafe; call on the network thread
      *
-     * \param nonBlocking
-     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
-     *     if it did something, #kAooErrorWouldBlock if there was nothing
-     *     to do, or any other error code if an error occured.
-     *   - #kAooFalse: blocks until until quit() is called or an error occured.
+     * \param timeout the timeout in seconds
+     *   - A number >= 0: the method only blocks up to the given duration.
+     *     It returns #kAooOk if it did something, #kAooErrorWouldBlock
+     *     if timed out, or any other error code if an error occured.
+     *   - #kAooInfinite: blocks until quit() is called or an error occured.
      */
-    virtual AooError AOO_CALL send(AooBool nonBlocking) = 0;
+    virtual AooError AOO_CALL send(AooSeconds timeout) = 0;
 
     /** \brief receive and handle UDP packets (for internal UDP socket)
      *
      * \note Threadsafe; call on the network thread
      *
-     * \param nonBlocking
-     *   - #kAooTrue: the method call does not block; instead it returns #kAooOk
-     *     if it did something, #kAooErrorWouldBlock if there was nothing
-     *     to do, or any other error code if an error occured.
-     *   - #kAooFalse: blocks until until quit() is called or an error occured.
+     * \param timeout the timeout in seconds
+     *   - A number >= 0: the method only blocks up to the given duration.
+     *     It returns #kAooOk if it did something, #kAooErrorWouldBlock
+     *     if timed out, or any other error code if an error occured.
+     *   - #kAooInfinite: blocks until quit() is called or an error occured.
      */
-    virtual AooError AOO_CALL receive(AooBool nonBlocking) = 0;
+    virtual AooError AOO_CALL receive(AooSeconds timeout) = 0;
 
     /** \brief notify client that there is data to send
      *

@@ -36,18 +36,18 @@ AOO_API AooError AOO_CALL AooClient_setup(
 
 /** \copydoc AooClient::run() */
 AOO_API AooError AOO_CALL AooClient_run(
-        AooClient *client, AooBool nonBlocking);
+        AooClient *client, AooSeconds timeout);
 
 /** \copydoc AooClient::stop() */
 AOO_API AooError AOO_CALL AooClient_stop(AooClient *client);
 
 /** \copydoc AooClient::send() */
 AOO_API AooError AOO_CALL AooClient_send(
-        AooClient *client, AooBool nonBlocking);
+        AooClient *client, AooSeconds timeout);
 
 /** \copydoc AooClient::receive() */
 AOO_API AooError AOO_CALL AooClient_receive(
-    AooClient *client, AooBool nonBlocking);
+    AooClient *client, AooSeconds timeout);
 
 /** \copydoc AooClient::notify() */
 AOO_API AooError AOO_CALL AooClient_notify(AooClient *client);

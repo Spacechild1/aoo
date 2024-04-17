@@ -57,15 +57,43 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
 
 bool udp_server::run(double timeout) {
     if (timeout >= 0) {
+        // with timeout
         if (threaded_) {
-            // TODO: implement timed wait for semaphore
-            return packet_queue_.try_consume([this](auto& packet){
-                receive_handler_(packet.data.data(), packet.data.size(), packet.address);
-            });
+            if (timeout == 0) {
+                if (!packet_queue_.empty()) {
+                    packet_queue_.consume_all([this](auto& packet){
+                        receive_handler_(packet.data.data(), packet.data.size(), packet.address);
+                    });
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                if (event_.wait_for(timeout)) {
+                    packet_queue_.consume_all([this](auto& packet){
+                        receive_handler_(packet.data.data(), packet.data.size(), packet.address);
+                    });
+                    return true;
+                } else {
+                    return false;
+                }
+            }
         } else {
+#if 1
+            if (receive(timeout)) {
+                // drain sockets without blocking
+                while (receive(0)) {}
+                return true;
+            } else {
+                return false;
+            }
+#else
+            // only a single packet at the time
             return receive(timeout);
+#endif
         }
     } else {
+        // blocking
         if (threaded_) {
             while (running_.load()) {
                 packet_queue_.consume_all([&](auto& packet){

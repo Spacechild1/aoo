@@ -106,7 +106,7 @@ class udp_client {
 public:
     AooError setup(Client& client, AooClientSettings& settings);
 
-    AooError receive(bool nonblocking);
+    AooError receive(double timeout);
 
     void stop() {
         udp_server_.stop();
@@ -233,13 +233,13 @@ public:
 
     AooError AOO_CALL setup(AooClientSettings& settings) override;
 
-    AooError AOO_CALL run(AooBool nonBlocking) override;
+    AooError AOO_CALL run(AooSeconds timeout) override;
 
     AooError AOO_CALL stop() override;
 
-    AooError AOO_CALL send(AooBool nonBlocking) override;
+    AooError AOO_CALL send(AooSeconds timeout) override;
 
-    AooError AOO_CALL receive(AooBool nonBlocking) override;
+    AooError AOO_CALL receive(AooSeconds timeout) override;
 
     AooError AOO_CALL notify() override;
 
@@ -476,7 +476,7 @@ private:
 #endif
 
     // methods
-    bool wait_for_event(float timeout);
+    bool wait_for_event(double timeout);
 
     void receive_data();
 
