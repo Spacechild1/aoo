@@ -10,6 +10,5 @@ int main() {
     pthread_rwlock_trywrlock(&rwlock);
     pthread_rwlock_unlock(&rwlock);
     pthread_rwlock_destroy(&rwlock);
-
     return 0;
 }
