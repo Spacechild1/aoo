@@ -188,15 +188,20 @@ std::vector<ip_address> ip_address::resolve(std::string_view host, port_type por
     #endif
         freeaddrinfo(ailist);
     } else {
-    #ifdef _WIN32
+    #if defined(_WIN32)
         // MS recommends using WSAGetLastError() instead of gai_strerror()!
         // see https://learn.microsoft.com/en-us/windows/win32/api/ws2tcpip/nf-ws2tcpip-gai_strerrora
         auto e = WSAGetLastError();
         throw resolve_error(e, socket::strerror(e));
+    #elif defined(ESP_PLATFORM)
+        // at the time of writing, ESP32 does not have the gai_strerror() function.
+        // LATER we could do a feature check with cmake
+        auto e = socket::get_last_error();
+        throw resolve_error(e, socket::strerror(e));
     #else
         if (err == EAI_SYSTEM) {
             auto e = errno;
-            throw resolve_error(e, socket::strerror(e));
+            throw resolve_error(e, ::strerror(e));
         } else {
             // TODO: what should we pass as the error code?
             throw resolve_error(HOST_NOT_FOUND, gai_strerror(err));
