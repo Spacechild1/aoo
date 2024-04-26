@@ -210,9 +210,9 @@ void tcp_server::receive_from_clients() {
         }
 
         // receive data from client
-        AooByte buffer[AOO_MAX_PACKET_SIZE];
-        auto result = c.socket.receive(buffer, sizeof(buffer));
         try {
+            AooByte buffer[AOO_MAX_PACKET_SIZE];
+            auto result = c.socket.receive(buffer, sizeof(buffer));
             if (c.id != kAooIdInvalid) {
                 if (result > 0) {
                     // received data

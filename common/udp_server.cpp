@@ -16,26 +16,26 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
     // TODO: figure out if some operating systems let UDP sockets linger.
     try {
         socket_ = udp_socket(port_tag{}, port, false);
-
-        if (send_buffer_size_ > 0) {
-            try {
-                socket_.set_send_buffer_size(send_buffer_size_);
-            } catch (const socket_error& e) {
-                socket::print_error(e.code(),
-                    "udp_server: could not send send buffer size");
-            }
-        }
-
-        if (receive_buffer_size_ > 0) {
-            try {
-                socket_.set_receive_buffer_size(receive_buffer_size_);
-            } catch (const socket_error& e) {
-                socket::print_error(e.code(),
-                    "udp_server: could not send receive buffer size");
-            }
-        }
     } catch (const socket_error& e) {
         throw udp_error(e);
+    }
+
+    if (send_buffer_size_ > 0) {
+        try {
+            socket_.set_send_buffer_size(send_buffer_size_);
+        } catch (const socket_error& e) {
+            socket::print_error(e.code(),
+                "udp_server: could not send send buffer size");
+        }
+    }
+
+    if (receive_buffer_size_ > 0) {
+        try {
+            socket_.set_receive_buffer_size(receive_buffer_size_);
+        } catch (const socket_error& e) {
+            socket::print_error(e.code(),
+                "udp_server: could not send receive buffer size");
+        }
     }
 
     running_.store(true);
@@ -57,8 +57,9 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
 
 bool udp_server::run(double timeout) {
     if (timeout >= 0) {
-        // with timeout
+        // 1) with timeout
         if (threaded_) {
+            // a) threaded
             if (timeout == 0) {
                 if (!packet_queue_.empty()) {
                     packet_queue_.consume_all([this](auto& packet){
@@ -79,6 +80,7 @@ bool udp_server::run(double timeout) {
                 }
             }
         } else {
+            // b) non-threaded
 #if 1
             if (receive(timeout)) {
                 // drain sockets without blocking
@@ -93,8 +95,9 @@ bool udp_server::run(double timeout) {
 #endif
         }
     } else {
-        // blocking
+        // 2) blocking
         if (threaded_) {
+            // a) threaded
             while (running_.load()) {
                 packet_queue_.consume_all([&](auto& packet){
                     receive_handler_(packet.data.data(), packet.data.size(), packet.address);
@@ -103,6 +106,7 @@ bool udp_server::run(double timeout) {
                 event_.wait();
             }
         } else {
+            // b) non-threaded
             while (running_.load()) {
                 receive(-1.0);
             }
