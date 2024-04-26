@@ -501,7 +501,7 @@ bool ip_address::is_ipv4_mapped() const {
 
 ip_address ip_address::ipv4_mapped() const {
 #if AOO_USE_IPV6
-    if (addr_.sa_family == AF_INET6) {
+    if (addr_.sa_family == AF_INET) {
         uint16_t w[8] = { 0, 0, 0, 0, 0, 0xffff };
         memcpy(&w[6], &addr_in_.sin_addr.s_addr, 4);
         return ip_address((const AooByte *)&w, 16, port(), IPv6);
