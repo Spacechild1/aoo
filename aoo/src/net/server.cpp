@@ -201,6 +201,10 @@ AooError AOO_CALL aoo::net::Server::run(AooSeconds timeout) {
         aoo::socket::set_last_error(e.code());
 
         return kAooErrorSocket;
+    } catch (const std::exception& e) {
+        LOG_ERROR("AooServer: unhandled exception in run(): " << e.what());
+
+        return kAooErrorInternal;
     }
 }
 
@@ -222,6 +226,10 @@ AooError AOO_CALL aoo::net::Server::receive(AooSeconds timeout) {
         LOG_ERROR("AooServer: UDP server error: " << e.what());
         aoo::socket::set_last_error(e.code());
         return kAooErrorSocket;
+    } catch (const std::exception& e) {
+        LOG_ERROR("AooServer: unhandled exception in run(): " << e.what());
+
+        return kAooErrorInternal;
     }
 }
 

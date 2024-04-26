@@ -429,17 +429,15 @@ AooError AOO_CALL aoo::net::Client::handlePacket(
     AooInt32 onset;
     auto err = aoo_parsePattern(data, size, &type, &id, &onset);
     if (err != kAooOk) {
-        if (message_handler_) {
-            // pass to user-provided default message handler
-            if (auto err = message_handler_(user_data_, data, size, addr, len);
-                err != kAooOk) {
-                LOG_DEBUG("AooClient: could not handle message: "
-                          << aoo_strerror(err));
-            }
+        // pass to user-provided default message handler
+        if (message_handler_ &&
+            message_handler_(user_data_, data, size, addr, len) == kAooOk) {
+            return kAooOk;
         } else {
             LOG_WARNING("AooClient: not an AOO message!");
+            // TODO: why not return 'e'?
+            return kAooErrorBadFormat;
         }
-        return kAooErrorBadFormat;
     }
 
     if (type == kAooMsgTypeSource){
@@ -2375,9 +2373,6 @@ AooError udp_client::handle_osc_message(Client& client, const AooByte *data, int
         return kAooOk;
     } catch (const osc::Exception& e){
         LOG_ERROR("AooClient: exception in handle_osc_message: " << e.what());
-    #if 0
-        on_exception("UDP message", e);
-    #endif
         return kAooErrorBadFormat;
     }
 }
@@ -2473,9 +2468,6 @@ void udp_client::handle_server_message(Client& client, const osc::ReceivedMessag
     } catch (const osc::Exception& e) {
         LOG_ERROR("AooClient: exception on handling " << pattern
                   << " message: " << e.what());
-    #if 0
-        on_exception("server UDP message", e, pattern);
-    #endif
     }
 }
 
