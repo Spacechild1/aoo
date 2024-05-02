@@ -923,9 +923,17 @@ void Server::handle_client_data(AooId id, int err, const AooByte *data,
         } catch (const error& e) {
             LOG_ERROR("AooServer: could not handle client message: " << e.what());
             remove_client(id, e.code(), e.what());
+#if 1
+            // remove from TCP server!
+            tcp_server_.close(id);
+#endif
         } catch (const osc::Exception& e) {
             LOG_ERROR("AooServer: malformed client message: " << e.what());
             remove_client(id, kAooErrorBadFormat, e.what());
+#if 1
+            // remove from TCP server!
+            tcp_server_.close(id);
+#endif
         }
     } else if (err == 0) {
         // disconnected
