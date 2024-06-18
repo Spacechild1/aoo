@@ -932,7 +932,7 @@ AooError AOO_CALL aoo::Source::startStream(AooInt32 sampleOffset, const AooData 
             md->data = nullptr;
         }
         // HACK: bash offset into data pointer
-        md->data = reinterpret_cast<AooByte*>(sampleOffset);
+        md->data = reinterpret_cast<AooByte*>((intptr_t)sampleOffset);
     }
 
     // combine metadata pointer with stream state

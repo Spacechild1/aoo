@@ -14,7 +14,7 @@
 #include "common/utils.hpp"
 
 #include "aoo/codec/aoo_pcm.h"
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 # include "aoo/codec/aoo_opus.h"
 #endif
 
@@ -789,7 +789,7 @@ void aoo_nullLoad(const AooCodecHostInterface *);
 void aoo_nullUnload();
 void aoo_pcmLoad(const AooCodecHostInterface *);
 void aoo_pcmUnload();
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 void aoo_opusLoad(const AooCodecHostInterface *);
 void aoo_opusUnload();
 #endif
@@ -824,7 +824,7 @@ AOO_API AooError AOO_CALL aoo_initialize(const AooSettings *settings) {
         // register codecs
         aoo_nullLoad(&aoo::g_interface);
         aoo_pcmLoad(&aoo::g_interface);
-    #if AOO_USE_CODEC_OPUS
+    #if AOO_USE_OPUS
         aoo_opusLoad(&aoo::g_interface);
     #endif
 
@@ -840,7 +840,7 @@ AOO_API void AOO_CALL aoo_terminate() {
     // unload codecs
     aoo_nullUnload();
     aoo_pcmUnload();
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     aoo_opusUnload();
 #endif
     // free codec plugin list

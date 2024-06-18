@@ -12,10 +12,11 @@
 #include "aoo/aoo_defines.h"
 #include "aoo/aoo_types.h"
 
-#ifdef AOO_OPUS_MULTISTREAM_H
-# include AOO_OPUS_MULTISTREAM_H
+#ifdef AOO_HAVE_LOCAL_OPUS
+# include "opus_multistream.h"
 #else
 # include <opus/opus_multistream.h>
+# error foo
 #endif
 
 #include <string.h>

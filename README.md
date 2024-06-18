@@ -194,13 +194,12 @@ a) Link with the system wide `opus` library
                       `pacman -S mingw64/mingw-w64-x86_64-opus` (64 bit)
   * Linux -> apt: `sudo apt-get install libopus-dev`
 
-2. Set the `AOO_SYSTEM_OPUS` CMake variable to `ON` (see below).
-   **NOTE**: You can override the `AOO_OPUS_LDFLAGS` variable if you need special linker commands.
+2. Set the `AOO_LOCAL_OPUS` CMake variable to `OFF` (see below)
 
-b) Use local Opus library
+b) Use local Opus library (default)
 
 1. Run `git submodule update --init` to fetch the Opus source code.
-2. Make sure that `AOO_SYSTEM_OPUS` CMake variable is `OFF` (default).
+2. Make sure that `AOO_LOCAL_OPUS` CMake variable is `ON` (default).
 3. Now Opus will be included in the project and you can configure it as needed.
    **NOTE**: Don't build the shared library, i.e. `OPUS_BUILD_SHARED_LIBRARY` should be `OFF`.
 
@@ -244,7 +243,7 @@ These are the most important project options:
 
 * `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` command line program. Default: `ON`
 
-* `AOO_CODEC_OPUS` (BOOL) - Enable/disable built-in Opus support
+* `AOO_USE_OPUS` (BOOL) - Enable/disable built-in Opus support
 
 * `AOO_LOG_LEVEL` (STRING) - Choose one of the following log levels:
    "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".

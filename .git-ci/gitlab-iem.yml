@@ -62,7 +62,7 @@ variables:
   - codesign --force --sign - "${dir}/aoo/lib/libaoo.dylib"
   - codesign --force --sign - "${dir}/aoo/bin/aooserver"
   - codesign --force --sign - "${dir}/pd/aoo/aoo.${PD_EXTENSION}"
-  - find ${dir}/sc/aoo/plugins -name "*.scx" -exec codesign --force --sign - {} \;
+  # - find ${dir}/sc/aoo/plugins -name "*.scx" -exec codesign --force --sign - {} \;
 
 ### build snippets
 .script:make: &script_make
@@ -82,7 +82,7 @@ variables:
     paths:
       - "build/${CI_JOB_NAME}/aoo"
       - "build/${CI_JOB_NAME}/pd/aoo"
-      - "build/${CI_JOB_NAME}/sc/aoo"
+      # - "build/${CI_JOB_NAME}/sc/aoo"
 
 .base:
   artifacts:

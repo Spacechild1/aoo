@@ -6,7 +6,7 @@
 
 #include "common/time.hpp"
 
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 #include "aoo/codec/aoo_opus.h"
 #endif
 
@@ -219,7 +219,7 @@ extern "C" EXPORT void aoo_setup(void)
     post("AOO (audio over OSC) %s", aoo_getVersionString());
     post("  (c) 2020 Christof Ressi, Winfried Ritsch, et al.");
     startpost("Available codecs: PCM");
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     startpost(", %s", opus_get_version_string());
 #endif
     endpost();

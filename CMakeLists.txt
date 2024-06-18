@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.15)
 
 # minimum macOS deployment target; must come before project()!
 if (APPLE)
@@ -8,53 +8,18 @@ endif()
 message(STATUS "Project: aoo")
 project(aoo)
 
+set(AOO_VERSION_MAJOR 2)
+set(AOO_VERSION_MINOR 0)
+set(AOO_VERSION_PATCH 0)
+set(AOO_VERSION ${AOO_VERSION_MAJOR}.${AOO_VERSION_MINOR}.${AOO_VERSION_PATCH})
+
 include(GNUInstallDirs)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(cmake/test_atomic.cmake)
 include(cmake/test_linker_flag.cmake)
 
-# built everything (including Opus) with -fPIC
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-#-----------------------------------------------------------------
-# dependencies
-#-----------------------------------------------------------------
-include_directories(deps)
-
-# Opus
-# NOTE: build it first, so we don't pollute it with our own settings
-option(AOO_USE_CODEC_OPUS "use Opus codec" ON)
-if (AOO_USE_CODEC_OPUS)
-    option(AOO_SYSTEM_OPUS "use system provided Opus library" OFF)
-    if (AOO_SYSTEM_OPUS)
-        set(AOO_OPUS_LDFLAGS "opus" CACHE STRING "Opus linker flags")
-        message(STATUS "Opus library: ${AOO_OPUS_LDFLAGS}")
-    else()
-        message(STATUS "\n*** Opus library ***\n")
-
-        add_subdirectory("deps/opus" EXCLUDE_FROM_ALL)
-
-        # HACK to force local opus lib (needed for MSVC)
-        add_library(opus_local ALIAS opus)
-
-        set(AOO_OPUS_LDFLAGS opus_local)
-    endif()
-endif()
-
 message(STATUS "\n*** Global settings ***\n")
-
-# oscpack
-option(AOO_SYSTEM_OSCPACK "use system provided oscpack library" OFF)
-if (AOO_SYSTEM_OSCPACK)
-    set(AOO_OSCPACK_LDFLAGS "oscpack" CACHE STRING "oscpack linker flags")
-endif()
-
-# md5
-option(AOO_SYSTEM_MD5 "use system provided md5 library" OFF)
-if (AOO_SYSTEM_MD5)
-    set(AOO_MD5_LDFLAGS "md5" CACHE STRING "md5 linker flags")
-endif()
 
 if(UNIX AND NOT APPLE AND NOT MINGW)
     set(LINUX TRUE)
@@ -72,7 +37,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 message(STATUS "CMAKE_CXX_COMPILER_ID: ${CMAKE_CXX_COMPILER_ID}")
 
-if(NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
@@ -82,16 +47,11 @@ message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 if(LINUX AND CMAKE_COMPILER_IS_GNUCXX)
     option(AOO_STATIC_LIBS "link with static libraries (libstdc++ and libgcc)" ON)
 endif()
-if(MINGW)
+
+if (MINGW)
     option(AOO_STATIC_LIBS "link with static libraries (libstdc++, libgcc and phread)" ON)
     set(CMAKE_EXECUTABLE_SUFFIX ".exe")
 endif()
-
-# logging
-set(AOO_LOG_LEVEL "Warning" CACHE STRING "compile time log level")
-set_property(CACHE AOO_LOG_LEVEL PROPERTY STRINGS "None;Error;Warning;Verbose;Debug")
-message(STATUS "Log level: ${AOO_LOG_LEVEL}")
-add_definitions(-DAOO_LOG_LEVEL=kAooLogLevel${AOO_LOG_LEVEL})
 
 # Windows paths
 if (WIN32)
@@ -110,12 +70,17 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (LINUX)
+    set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
+endif()
+
+# built everything (including Opus) with -fPIC
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 #-----------------------------------------------------------------
 # feature tests
 #-----------------------------------------------------------------
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
-    add_compile_options("-fvisibility=hidden")
-
     check_cxx_compiler_flag("-msse" HAVE_CXX_SSE)
     check_cxx_compiler_flag("-msse2" HAVE_CXX_SSE2)
     check_cxx_compiler_flag("-msse3" HAVE_CXX_SSE3)
@@ -155,13 +120,6 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
             set(AOO_HAVE_PTHREAD_RWLOCK ${RESULT_VAR} CACHE INTERNAL "pthread_rwlock_t support")
         endif()
     endif()
-
-    # warnings/errors
-    add_compile_options("-Wall" "-Wextra")
-    # disable some useless and noisy warnings
-    add_compile_options("-Wno-unused-parameter" "-Wno-unused-variable" "-Wno-sign-compare")
-    # some warnings should be errors
-    add_compile_options("-Werror=return-type")
 endif()
 
 # check for sa_len in sockaddr
@@ -190,146 +148,32 @@ if (NOT DEFINED AOO_HAVE_SA_LEN)
     endif()
 endif()
 
-if (CMAKE_COMPILER_IS_GNUCXX)
-    # report stack usage
-    option(AOO_STACK_USAGE "report stack usage" OFF)
-    mark_as_advanced(AOO_STACK_USAGE)
-    if (AOO_STACK_USAGE)
-        add_compile_options("-fstack-usage")
-    endif()
-endif()
-
 #-----------------------------------------------------------------
-# global optimization flags
-#-----------------------------------------------------------------
-if (MSVC)
-    add_compile_options("/fp:fast")
-else()
-    add_compile_options("-ffast-math" "-funroll-loops" "-fomit-frame-pointer")
-endif()
-if (HAVE_CXX_SSE)
-    add_compile_options("-msse")
-endif()
-if (HAVE_CXX_SSE2)
-    add_compile_options("-msse2")
-endif()
-if (HAVE_CXX_SSE3)
-    add_compile_options("-msse3")
-endif()
-# people still own old machines that don't support SSE4
-if (FALSE)
-    check_cxx_compiler_flag("-msse4" HAVE_CXX_SSE4)
-    if (HAVE_CXX_SSE4)
-        add_compile_options("-msse4")
-    endif()
-endif()
-if (HAVE_CXX_FPMATH_SSE)
-    add_compile_options("-mfpmath=sse")
-endif()
-option(AOO_NATIVE "optimize for this machine (not portable!)" OFF)
-if (AOO_NATIVE)
-    add_compile_options("-march=native")
-endif()
-
-#-----------------------------------------------------------------
-# platform specific compile options
+# build options
 #-----------------------------------------------------------------
 
-# clang++:
-if (CMAKE_COMPILER_IS_CLANG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif()
+option(AOO_USE_OPUS "use Opus codec" ON)
 
-# MinGW
-if (MINGW)
-    add_compile_options("-mstackrealign")
-endif()
-
-# atomics
-if (AOO_HAVE_ATOMIC_DOUBLE)
-    add_definitions(-DAOO_HAVE_ATOMIC_DOUBLE)
-else()
-    message(STATUS "No built-in support for atomic doubles - "
-        "will be emulated in software")
-endif()
-if (AOO_HAVE_ATOMIC_INT64)
-    add_definitions(-DAOO_HAVE_ATOMIC_INT64)
-else()
-    message(STATUS "No built-in support for atomic 64-bit integers - "
-        "will be emulated in software")
-endif()
-# link with "libatomic" if available and necessary
-if (AOO_HAVE_LIB_ATOMIC AND
-        (NOT AOO_HAVE_ATOMIC_DOUBLE OR NOT AOO_HAVE_ATOMIC_INT64))
-    list(APPEND LIBS "-latomic")
-endif()
-# pthread_rwlock
-if (AOO_HAVE_PTHREAD_RWLOCK)
-    add_definitions(-DAOO_HAVE_PTHREAD_RWLOCK)
-endif()
-if (AOO_HAVE_SA_LEN)
-    add_definitions(-DAOO_HAVE_SA_LEN)
-endif()
+option(AOO_BUILD_PD_EXTERNAL "build Pd external" ON)
+option(AOO_BUILD_SERVER "build AOO server application" ON)
+option(AOO_BUILD_SHARED_LIBRARY "build shared AOO library" ON)
+option(AOO_BUILD_STATIC_LIBRARY "build static AOO library" ON)
+option(AOO_BUILD_TESTS "build test suite" ON)
 
 #-----------------------------------------------------------------
-# global compile options (also used by clients)
+# dependencies
 #-----------------------------------------------------------------
 
-# opus support
-message(STATUS "Use Opus codec: ${AOO_USE_CODEC_OPUS}")
-add_definitions(-DAOO_USE_CODEC_OPUS=$<BOOL:${AOO_USE_CODEC_OPUS}>)
-if (AOO_USE_CODEC_OPUS AND (NOT AOO_SYSTEM_OPUS))
-    # because of a quirk in the opus source code structure,
-    # we can't include "opus/opus_multistream.h"
-    add_definitions(-DAOO_OPUS_MULTISTREAM_H=<opus/include/opus_multistream.h>)
-endif()
-
-# networking support
-option(AOO_NET "Build with internal networking support" ON)
-message(STATUS "Use internal networking (AOO NET): ${AOO_NET}")
-add_definitions(-DAOO_NET=$<BOOL:${AOO_NET}>)
-
-# IPv6 support
-# NB: set this on the top level because it is required by
-# common/net_utils.h, which is also used in the Pd external.
-option(AOO_USE_IPV6 "Build with IPv6 support" ON)
-mark_as_advanced(AOO_USE_IPV6)
-message(STATUS "IPv6 support: ${AOO_USE_IPV6}")
-add_definitions(-DAOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>)
-
-# sample size
-set(AOO_SAMPLE_SIZE 32 CACHE STRING "Audio sample size")
-set_property(CACHE AOO_SAMPLE_SIZE PROPERTY STRINGS "32;64")
-message(STATUS "Audio sample size: ${AOO_SAMPLE_SIZE} bits")
-add_definitions(-DAOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE})
-
-#-----------------------------------------------------------------
-# platform specific linker flags
-#-----------------------------------------------------------------
-if (LINUX)
-    list(APPEND LIBS "-pthread")
-    if(AOO_STATIC_LIBS)
-        list(APPEND LIBS "-static-libstdc++" "-static-libgcc")
-    endif()
-    set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
-endif()
-if (MINGW)
-    if (AOO_STATIC_LIBS)
-        list(APPEND LIBS "-static-libstdc++" "-static-libgcc" "-static -lpthread")
+# Opus
+if (AOO_USE_OPUS)
+    option(AOO_LOCAL_OPUS "use local Opus library" ON)
+    if (AOO_LOCAL_OPUS)
+        message(STATUS "\n*** Opus library ***\n")
+        add_subdirectory("deps/opus" EXCLUDE_FROM_ALL)
     else()
-        list(APPEND LIBS "-lpthread")
-    endif()
-    if (AOO_USE_CODEC_OPUS)
-        list(APPEND LIBS "ssp") # for fortified functions
+        find_package(Opus REQUIRED)
     endif()
 endif()
-if (APPLE)
-    list(APPEND LIBS "-lpthread")
-endif()
-
-# headers
-include_directories(".")
-include_directories("include")
 
 #-----------------------------------------------------------------
 # AOO library
@@ -340,7 +184,6 @@ add_subdirectory("aoo")
 #-----------------------------------------------------------------
 # Pd external
 #-----------------------------------------------------------------
-option(AOO_BUILD_PD_EXTERNAL "build Pd external" ON)
 if (AOO_BUILD_PD_EXTERNAL)
     if (NOT AOO_NET)
         message(FATAL_ERROR "Pd external requires AOO_NET")
@@ -352,7 +195,6 @@ endif()
 #-----------------------------------------------------------------
 # aooserver binary
 #-----------------------------------------------------------------
-option(AOO_BUILD_SERVER "build AOO server application" ON)
 if (AOO_BUILD_SERVER)
     if (NOT AOO_NET)
         message(FATAL_ERROR "AOO server requires AOO_NET")
@@ -364,8 +206,7 @@ endif()
 #-----------------------------------------------------------------
 # test suite
 #-----------------------------------------------------------------
-option(AOO_BUILD_TEST_SUITE "build test suite" ON)
-if (AOO_BUILD_TEST_SUITE)
+if (AOO_BUILD_TESTS)
     message(STATUS "\n*** Test suite ***\n")
     add_subdirectory("tests")
 endif()

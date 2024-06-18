@@ -148,20 +148,7 @@ void print_usage() {
         << std::endl;
 }
 
-bool check_arguments(const char **argv, int argc, int numargs) {
-    if (argc > numargs) {
-        return true;
-    } else {
-        std::cout << "Missing argument(s) for option '" << argv[0] << "'";
-        return false;
-    }
-}
-
-bool match_option(const char *str, const char *short_option, const char *long_option) {
-    return (short_option && !strcmp(str, short_option))
-           || (long_option && !strcmp(str, long_option));
-}
-
+// match option with a single argument
 template<typename T>
 std::optional<T> match_option(const char **& argv, int& argc,
                               const char* short_option, const char* long_option) {
@@ -210,6 +197,7 @@ std::optional<T> match_option(const char **& argv, int& argc,
     return std::nullopt;
 }
 
+// match option without argument
 bool match_option(const char **& argv, int& argc,
                   const char* short_option, const char* long_option) {
     assert(argc > 0);

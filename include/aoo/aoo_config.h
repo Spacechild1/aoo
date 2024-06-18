@@ -60,8 +60,8 @@
 #endif
 
 /** \brief use built-in Opus codec */
-#ifndef AOO_USE_CODEC_OPUS
-#define AOO_USE_CODEC_OPUS 1
+#ifndef AOO_USE_OPUS
+#define AOO_USE_OPUS 1
 #endif
 
 /*--------------- compile time debug options ----------------*/

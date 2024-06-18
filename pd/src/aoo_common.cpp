@@ -9,7 +9,7 @@
 
 #include "aoo/codec/aoo_null.h"
 #include "aoo/codec/aoo_pcm.h"
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 #include "aoo/codec/aoo_opus.h"
 #endif
 
@@ -107,7 +107,7 @@ bool format_parse(t_pd *x, AooFormatStorage &f, int argc, t_atom *argv, int maxn
 
         AooFormatPcm_init((AooFormatPcm *)&f.header, numchannels, samplerate, blocksize, bitdepth);
     }
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     else if (codec == gensym(kAooCodecOpus)){
         // opus <channels> <blocksize> <samplerate> <application>
         opus_int32 numchannels = format_getparam(x, argc, argv, 1, "channels", maxnumchannels);
@@ -190,7 +190,7 @@ int format_to_atoms(const AooFormat &f, int argc, t_atom *argv)
         SETFLOAT(argv + 4, nbytes);
         return 5;
     }
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     else if (codec == gensym(kAooCodecOpus)){
         // opus <channels> <blocksize> <samplerate> <application>
         if (argc < 5){

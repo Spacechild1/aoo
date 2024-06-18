@@ -1,11 +1,3 @@
-set(INCLUDE "../include/aoo")
-set(COMMON "../common")
-
-file(GLOB HEADERS "${INCLUDE}/*.h" "${INCLUDE}/*.hpp"
-    "${COMMON}/*.hpp" "src/*.hpp")
-
-file(GLOB SOURCES ${HEADERS} "src/*.cpp")
-
 # Pd directories:
 if (NOT PD_DIR)
     if (WIN32)
@@ -34,7 +26,6 @@ else()
     endif()
 endif()
 
-include_directories(${PD_INCLUDEDIR})
 message(STATUS "Pd include directory: ${PD_INCLUDEDIR}")
 if (WIN32)
     message(STATUS "Pd binary directory: ${PD_BINDIR}")
@@ -50,50 +41,71 @@ else()
 endif()
 message(STATUS "Pd install directory: ${PD_INSTALLDIR}")
 
-# plugin extension
-set(CMAKE_SHARED_MODULE_PREFIX "") # no prefix!
-set(PD_EXTENSION "" CACHE STRING "Pd plugin extension")
-if (NOT PD_EXTENSION)
-    if (WIN32)
-        set(CMAKE_SHARED_MODULE_SUFFIX ".dll")
-    elseif(APPLE)
-        set(CMAKE_SHARED_MODULE_SUFFIX ".pd_darwin")
-    elseif(LINUX)
-        set(CMAKE_SHARED_MODULE_SUFFIX ".pd_linux")
-    endif()
-else()
-    set(CMAKE_SHARED_MODULE_SUFFIX ".${PD_EXTENSION}")
-endif()
-message(STATUS "Pd extension: ${CMAKE_SHARED_MODULE_SUFFIX}")
-
 # the Pd external
-add_library(PD MODULE ${SOURCES})
-set_target_properties(PD PROPERTIES OUTPUT_NAME "aoo")
-target_compile_definitions(PD PUBLIC -DAOO_STATIC)
-target_link_libraries(PD AOO_STATIC ${AOO_OPUS_LDFLAGS} ${LIBS})
+add_library(pd MODULE
+    "src/aoo_client.cpp"
+    "src/aoo_common.hpp"
+    "src/aoo_common.cpp"
+    "src/aoo_node.cpp"
+    "src/aoo_receive~.cpp"
+    "src/aoo_send~.cpp"
+    "src/aoo_server.cpp"
+    "src/aoo_setup.cpp")
 
-option(PD_MULTI_INSTANCE "Multi-instance support (for libpd)" OFF)
+target_include_directories(pd PRIVATE ${PD_INCLUDEDIR})
+
+target_link_libraries(pd PRIVATE aoo_static aoo_common)
+
+# multi-instance support
+option(PD_MULTI_INSTANCE "Pd multi-instance support (for libpd)" OFF)
 message(STATUS "Pd multi-instance support: ${PD_MULTI_INSTANCE}")
 if (PD_MULTI_INSTANCE)
-    target_compile_definitions(PD PUBLIC -DPDINSTANCE)
+    target_compile_definitions(pd PRIVATE PDINSTANCE)
 endif()
+
+# plugin extension
+set(PD_EXTENSION "" CACHE STRING "Pd plugin extension")
+if (NOT PD_EXTENSION)
+    # default extensions
+    if (WIN32)
+        set(SUFFIX ".dll")
+    elseif(APPLE)
+        set(SUFFIX ".pd_darwin")
+    elseif(LINUX)
+        set(SUFFIX ".pd_linux")
+    else()
+        set(SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
+    endif()
+else()
+    set(SUFFIX ".${PD_EXTENSION}")
+endif()
+message(STATUS "Pd extension: ${SUFFIX}")
+
+# output name
+set_target_properties(pd PROPERTIES
+    PREFIX "" # no prefix!
+    OUTPUT_NAME "aoo"
+    SUFFIX ${SUFFIX})
 
 # platform specific definitions and options
 if (WIN32)
     if (MINGW)
-        set_target_properties(PD PROPERTIES LINK_FLAGS "--enable-auto-import")
-        target_link_libraries(PD "${PD_BINDIR}/pd.dll")
+        target_link_options(pd PRIVATE --enable-auto-import)
+        target_link_libraries(pd PRIVATE "${PD_BINDIR}/pd.dll")
     else()
-        target_link_libraries(PD "${PD_BINDIR}/pd.lib")
+        target_link_libraries(pd PRIVATE "${PD_BINDIR}/pd.lib")
     endif()
-    target_link_libraries(PD "ws2_32")
 elseif(APPLE)
-    set_target_properties(PD PROPERTIES LINK_FLAGS "-undefined suppress -flat_namespace -bundle")
+    target_link_options(pd PRIVATE -undefined suppress -flat_namespace -bundle)
 else()
-    set_target_properties(PD PROPERTIES LINK_FLAGS "-rdynamic -fPIC")
+    target_link_options(pd PRIVATE -rdynamic -fPIC)
 endif()
 
-install(TARGETS PD DESTINATION "${PD_INSTALLDIR}/aoo")
-install(FILES "aoo_send~-help.pd" "aoo_receive~-help.pd" "aoo_client-help.pd" "aoo_server-help.pd"
-    "mc_aoo_send~.pd" "mc_aoo_receive~.pd" "../README.md" "../LICENSE"
-        DESTINATION "${PD_INSTALLDIR}/aoo")
+# installation
+# TODO: install PDB file (Visual Studio)
+install(TARGETS pd DESTINATION "${PD_INSTALLDIR}/aoo")
+install(FILES "aoo_send~-help.pd" "aoo_receive~-help.pd"
+    "aoo_client-help.pd" "aoo_server-help.pd"
+    "mc_aoo_send~.pd" "mc_aoo_receive~.pd"
+    "../README.md" "../LICENSE"
+    DESTINATION "${PD_INSTALLDIR}/aoo")

@@ -1,37 +1,25 @@
 set(STATIC_LIBAOO TRUE)
-
-set(TEST_LIBS ${AOO_OSCPACK_LDFLAGS} ${AOO_MD5_LDFLAGS} ${AOO_OPUS_LDFLAGS})
 if (STATIC_LIBAOO)
-    list(APPEND TEST_LIBS AOO_STATIC ${LIBS})
+    set(test_libs aoo_static aoo_common)
 else()
-    list(APPEND TEST_LIBS AOO ${LIBS})
-endif()
-if (WIN32)
-    list(APPEND TEST_LIBS "ws2_32")
-endif()
-
-if (STATIC_LIBAOO)
-    set(TEST_FLAGS "-DAOO_STATIC")
+    set(test_libs aoo aoo_common)
 endif()
 
 # C interface test
 add_executable(test_c_interface "test_c_interface.c")
-set(TEST_C_STANDARD "c89")
-target_compile_definitions(test_c_interface PUBLIC ${TEST_FLAGS})
 if (NOT MSVC)
+    set(TEST_C_STANDARD c89)
     # C89 does not have "inline" and GCC/Clang warn about unused static non-inline functions
-    target_compile_options(test_c_interface PUBLIC "-Wno-unused-function")
+    target_compile_options(test_c_interface PUBLIC -Wno-unused-function)
     # force C standard
-    target_compile_options(test_c_interface PUBLIC "-std=${TEST_C_STANDARD}" "-pedantic")
+    target_compile_options(test_c_interface PUBLIC -std=${TEST_C_STANDARD} -pedantic)
 endif()
-target_link_libraries(test_c_interface ${TEST_LIBS})
+target_link_libraries(test_c_interface PRIVATE ${test_libs})
 
 # RT memory pool test
 add_executable(test_rt_memory_pool "test_rt_memory_pool.cpp")
-target_compile_definitions(test_rt_memory_pool PUBLIC ${TEST_FLAGS})
-target_link_libraries(test_rt_memory_pool ${TEST_LIBS})
+target_link_libraries(test_rt_memory_pool PRIVATE ${test_libs})
 
 # relay test
 add_executable(test_relay "test_relay.cpp")
-target_compile_definitions(test_relay PUBLIC ${TEST_FLAGS})
-target_link_libraries(test_relay ${TEST_LIBS})
+target_link_libraries(test_relay PRIVATE ${test_libs})

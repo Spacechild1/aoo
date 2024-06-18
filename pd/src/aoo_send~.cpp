@@ -6,7 +6,7 @@
 
 #include "aoo/aoo_source.hpp"
 
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 # include "aoo/codec/aoo_opus.h"
 #endif
 
@@ -239,7 +239,7 @@ const t_sink *t_aoo_send::find_sink(const aoo::ip_address& addr, AooId id) const
     return nullptr;
 }
 
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
 
 static bool get_opus_bitrate(t_aoo_send *x, t_atom *a) {
     opus_int32 value;
@@ -374,7 +374,7 @@ static void aoo_send_codec_set(t_aoo_send *x, t_symbol *s, int argc, t_atom *arg
     if (!x->check(argc, argv, 2, "codec_set")) return;
 
     auto name = atom_getsymbol(argv);
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     if (x->x_codec == gensym("opus")){
         opus_int32 value;
         if (name == gensym("bitrate")){
@@ -399,7 +399,7 @@ static void aoo_send_codec_get(t_aoo_send *x, t_symbol *s){
     t_atom msg[2];
     SETSYMBOL(msg, s);
 
-#if AOO_USE_CODEC_OPUS
+#if AOO_USE_OPUS
     if (x->x_codec == gensym("opus")){
         if (s == gensym("bitrate")){
             if (get_opus_bitrate(x, msg + 1)){
