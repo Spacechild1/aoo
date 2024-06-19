@@ -407,12 +407,12 @@ if (AOO_BUILD_SHARED_LIBRARY)
         SOVERSION ${AOO_VERSION_MAJOR}
         VERSION ${AOO_VERSION}
         PUBLIC_HEADER ${aoo_public_headers})
-else()
-    # so that clients can just link with "aoo"
-    add_library(aoo ALIAS aoo_static)
-endif()
 
-add_library(Aoo::aoo ALIAS aoo)
+    add_library(Aoo::aoo ALIAS aoo)
+else()
+    # so that clients can just link with "Aoo::aoo"
+    add_library(Aoo::aoo ALIAS aoo_static)
+endif()
 
 #-------------------------------------------------------------
 # AOO installation
