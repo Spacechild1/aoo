@@ -40,7 +40,7 @@ variables:
   - rm -f Pd.zip
   - mv "${PD_PATH}"/*/* "${PD_PATH}"
 
-# NOTE: we have to use absolute paths for PD_INSTALLDIR and SC_INSTALLDIR.
+# NOTE: we have to use absolute paths for PD_INSTALL_DIR and SC_INSTALLDIR.
 # For some reason, relative paths (including '.') are not appended to CMAKE_INSTALL_PREFIX
 # as they should be, instead they are resolved to the source directory *before* getting passed to CMake.
 .script:cmake: &script_cmake
@@ -50,7 +50,7 @@ variables:
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_LOCAL_OPUS=ON
-    -DPD_INCLUDEDIR="${PD_PATH}/src" -DPD_BINDIR="${PD_PATH}/bin" -DPD_INSTALLDIR="${prefix}/pd"
+    -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin" -DPD_INSTALL_DIR="${prefix}/pd"
     -DPD_EXTENSION=${PD_EXTENSION}
 #    -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
 

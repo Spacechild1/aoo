@@ -174,9 +174,9 @@ Run `aooserver -h` to see all available options.
    Windows/macOS: http://msp.ucsd.edu/software.html
    Linux: `sudo apt-get install pure-data-dev`
 2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
-3. Make sure that `PD_INCLUDEDIR` points to the Pd `src` or `include` directory.
-4. Windows: make sure that `PD_BINDIR` points to the Pd `bin` directory.
-5. Set `PD_INSTALLDIR` to the desired installation path (if you're not happy with the default).
+3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
+4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
+5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
 If you do *not* want to build the Pd external, set `AOO_BUILD_PD_EXTERNAL` to `OFF`!
 
