@@ -7,10 +7,10 @@
 
 #include "common/utils.hpp"
 
-#include "aoo/codec/aoo_null.h"
-#include "aoo/codec/aoo_pcm.h"
+#include "codec/aoo_null.h"
+#include "codec/aoo_pcm.h"
 #if AOO_USE_OPUS
-#include "aoo/codec/aoo_opus.h"
+#include "codec/aoo_opus.h"
 #endif
 
 #include <stdio.h>

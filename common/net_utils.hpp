@@ -1,8 +1,8 @@
 #pragma once
 
-#include "aoo/aoo_config.h"
-#include "aoo/aoo_defines.h"
-#include "aoo/aoo_types.h"
+#include "aoo_config.h"
+#include "aoo_defines.h"
+#include "aoo_types.h"
 
 #include <cassert>
 #include <cstring>

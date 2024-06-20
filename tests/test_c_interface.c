@@ -1,10 +1,10 @@
-#include "aoo/aoo.h"
-#include "aoo/aoo_source.h"
-#include "aoo/aoo_sink.h"
-#include "aoo/codec/aoo_pcm.h"
+#include "aoo.h"
+#include "aoo_source.h"
+#include "aoo_sink.h"
+#include "codec/aoo_pcm.h"
 #if AOO_NET
-# include "aoo/aoo_server.h"
-# include "aoo/aoo_client.h"
+# include "aoo_server.h"
+# include "aoo_client.h"
 #endif
 
 #define BUFFERSIZE 64

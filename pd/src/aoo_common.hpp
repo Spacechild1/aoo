@@ -6,8 +6,8 @@
 
 #include "m_pd.h"
 
-#include "aoo/aoo.h"
-#include "aoo/aoo_client.hpp"
+#include "aoo.h"
+#include "aoo_client.hpp"
 
 #include "common/net_utils.hpp"
 #include "common/priority_queue.hpp"
@@ -15,7 +15,7 @@
 #define classname(x) class_getname(*(t_pd *)x)
 
 // NB: in theory we can support any number of channels;
-// this rather meant to handle patches that accidentally use
+// this is rather meant to handle patches that accidentally use
 // the old argument order where the port would come first!
 #define AOO_MAX_NUM_CHANNELS 256
 

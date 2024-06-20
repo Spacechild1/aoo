@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "aoo/aoo_client.hpp"
+#include "aoo_client.hpp"
 
 #include "osc_stream_receiver.hpp"
 

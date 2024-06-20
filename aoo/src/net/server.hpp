@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "aoo/aoo_server.hpp"
+#include "aoo_server.hpp"
 
 #include "common/utils.hpp"
 #include "common/lockfree.hpp"

@@ -7,7 +7,7 @@
 #include "common/time.hpp"
 
 #if AOO_USE_OPUS
-#include "aoo/codec/aoo_opus.h"
+#include "codec/aoo_opus.h"
 #endif
 
 #include "string.h"

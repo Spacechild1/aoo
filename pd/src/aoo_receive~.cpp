@@ -4,7 +4,7 @@
 
 #include "aoo_common.hpp"
 
-#include "aoo/aoo_sink.hpp"
+#include "aoo_sink.hpp"
 
 #include <vector>
 #include <string.h>

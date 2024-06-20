@@ -1,9 +1,9 @@
-#include "aoo/aoo.h"
+#include "aoo.h"
 #if AOO_NET
-# include "aoo/aoo_requests.h"
+# include "aoo_requests.h"
 # include "common/net_utils.hpp"
 #endif
-#include "aoo/aoo_codec.h"
+#include "aoo_codec.h"
 
 #include "binmsg.hpp"
 #include "detail.hpp"
@@ -13,9 +13,9 @@
 #include "common/time.hpp"
 #include "common/utils.hpp"
 
-#include "aoo/codec/aoo_pcm.h"
+#include "codec/aoo_pcm.h"
 #if AOO_USE_OPUS
-# include "aoo/codec/aoo_opus.h"
+# include "codec/aoo_opus.h"
 #endif
 
 #if AOO_NET

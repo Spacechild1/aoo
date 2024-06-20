@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "aoo/aoo_sink.hpp"
+#include "aoo_sink.hpp"
 #if AOO_NET
-# include "aoo/aoo_client.hpp"
+# include "aoo_client.hpp"
 #endif
 
 #include "common/lockfree.hpp"

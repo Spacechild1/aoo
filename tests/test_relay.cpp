@@ -1,4 +1,4 @@
-#include "aoo/aoo.h"
+#include "aoo.h"
 
 #include "aoo/src/binmsg.hpp"
 #include "aoo/src/detail.hpp"

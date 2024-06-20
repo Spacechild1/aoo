@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "aoo/aoo_config.h"
-#include "aoo/aoo_defines.h"
-#include "aoo/aoo_types.h"
+#include "aoo_config.h"
+#include "aoo_defines.h"
+#include "aoo_types.h"
 
 #ifdef AOO_HAVE_LOCAL_OPUS
 # include "opus_multistream.h"

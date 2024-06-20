@@ -1,7 +1,7 @@
 #pragma once
 
-#include "aoo/aoo_requests.h"
-#include "aoo/aoo_server.h"
+#include "aoo_requests.h"
+#include "aoo_server.h"
 
 #include "common/tcp_server.hpp"
 

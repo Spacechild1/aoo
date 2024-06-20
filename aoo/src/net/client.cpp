@@ -5,8 +5,8 @@
 #include "client.hpp"
 #include "client_events.hpp"
 
-#include "aoo/aoo_source.hpp"
-#include "aoo/aoo_sink.hpp"
+#include "aoo_source.hpp"
+#include "aoo_sink.hpp"
 
 #include "../binmsg.hpp"
 

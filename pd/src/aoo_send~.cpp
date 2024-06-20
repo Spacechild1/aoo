@@ -4,10 +4,10 @@
 
 #include "aoo_common.hpp"
 
-#include "aoo/aoo_source.hpp"
+#include "aoo_source.hpp"
 
 #if AOO_USE_OPUS
-# include "aoo/codec/aoo_opus.h"
+# include "codec/aoo_opus.h"
 #endif
 
 #include <vector>

@@ -242,33 +242,30 @@ if (AOO_USE_OPUS)
     target_link_libraries(aoo_public INTERFACE Opus::opus)
 endif()
 
-set(aoo_public_headers
-    "../include/aoo/aoo.h"
-    "../include/aoo/aoo_client.h"
-    "../include/aoo/aoo_client.hpp"
-    "../include/aoo/aoo_codec.h"
-    "../include/aoo/aoo_config.h"
-    "../include/aoo/aoo_controls.h"
-    "../include/aoo/aoo_defines.h"
-    "../include/aoo/aoo_events.h"
-    "../include/aoo/aoo_requests.h"
-    "../include/aoo/aoo_server.h"
-    "../include/aoo/aoo_server.hpp"
-    "../include/aoo/aoo_sink.h"
-    "../include/aoo/aoo_sink.hpp"
-    "../include/aoo/aoo_source.h"
-    "../include/aoo/aoo_source.hpp"
-    "../include/aoo/aoo_types.h"
-    "../include/aoo/codec/aoo_null.h"
-    "../include/aoo/codec/aoo_pcm.h")
-
 #-------------------------------------------------------------
 # private properties
 #-------------------------------------------------------------
 
 target_sources(aoo_private INTERFACE
     # public headers
-    ${aoo_public_headers}
+    "../include/aoo.h"
+    "../include/aoo_client.h"
+    "../include/aoo_client.hpp"
+    "../include/aoo_codec.h"
+    "../include/aoo_config.h"
+    "../include/aoo_controls.h"
+    "../include/aoo_defines.h"
+    "../include/aoo_events.h"
+    "../include/aoo_requests.h"
+    "../include/aoo_server.h"
+    "../include/aoo_server.hpp"
+    "../include/aoo_sink.h"
+    "../include/aoo_sink.hpp"
+    "../include/aoo_source.h"
+    "../include/aoo_source.hpp"
+    "../include/aoo_types.h"
+    "../include/codec/aoo_null.h"
+    "../include/codec/aoo_pcm.h"
     # sources
     "src/aoo.cpp"
     "src/binmsg.hpp"
@@ -341,8 +338,9 @@ if (AOO_NET)
 endif()
 
 if (AOO_USE_OPUS)
-    target_sources(aoo_private INTERFACE "src/codec/opus.cpp")
-    list(APPEND aoo_public_headers "../include/aoo/codec/aoo_opus.h")
+    target_sources(aoo_private INTERFACE
+        "../include/codec/aoo_opus.h"
+        "src/codec/opus.cpp")
 endif()
 
 target_compile_definitions(aoo_private INTERFACE
@@ -380,8 +378,7 @@ if (AOO_BUILD_PD_EXTERNAL OR AOO_BUILD_SERVER OR
 
     set_target_properties(aoo_static PROPERTIES
         SOVERSION ${AOO_VERSION_MAJOR}
-        VERSION ${AOO_VERSION}
-        PUBLIC_HEADER ${aoo_public_headers})
+        VERSION ${AOO_VERSION})
 
     add_library(Aoo::aoo_static ALIAS aoo_static)
 endif()
@@ -405,8 +402,7 @@ if (AOO_BUILD_SHARED_LIBRARY)
 
     set_target_properties(aoo PROPERTIES
         SOVERSION ${AOO_VERSION_MAJOR}
-        VERSION ${AOO_VERSION}
-        PUBLIC_HEADER ${aoo_public_headers})
+        VERSION ${AOO_VERSION})
 
     add_library(Aoo::aoo ALIAS aoo)
 else()
@@ -432,13 +428,11 @@ if (AOO_BUILD_SHARED_LIBRARY OR AOO_BUILD_STATIC_LIBRARY)
         EXPORT AooTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        FRAMEWORK DESTINATION ${CMAKE_INSTALL_PREFIX}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aoo)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     # TODO: install PDB file (Visual Studio)
 
     # install public headers (note the trailing slash!)
-    install(DIRECTORY "../include/aoo/"
+    install(DIRECTORY "../include/"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo")
 endif()

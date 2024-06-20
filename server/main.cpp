@@ -1,5 +1,5 @@
-#include "aoo/aoo.h"
-#include "aoo/aoo_server.hpp"
+#include "aoo.h"
+#include "aoo_server.hpp"
 
 #include "common/net_utils.hpp"
 #include "common/sync.hpp"

@@ -4,7 +4,7 @@
 
 #include "aoo_common.hpp"
 
-#include "aoo/aoo_server.hpp"
+#include "aoo_server.hpp"
 
 #include "common/sync.hpp"
 #include "common/utils.hpp"

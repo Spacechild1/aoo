@@ -2,8 +2,8 @@
  * For information on usage and redistribution, and for a DISCLAIMER OF ALL
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
-#include "aoo/aoo_codec.h"
-#include "aoo/codec/aoo_opus.h"
+#include "aoo_codec.h"
+#include "codec/aoo_opus.h"
 
 #include "../detail.hpp"
 
