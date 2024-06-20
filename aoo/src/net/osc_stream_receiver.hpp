@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oscpack/osc/OscReceivedElements.h"
+#include "osc/OscReceivedElements.h"
 
 #include "common/utils.hpp"
 

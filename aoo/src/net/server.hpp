@@ -16,8 +16,8 @@
 #include "detail.hpp"
 #include "event.hpp"
 
-#include "oscpack/osc/OscOutboundPacketStream.h"
-#include "oscpack/osc/OscReceivedElements.h"
+#include "osc/OscOutboundPacketStream.h"
+#include "osc/OscReceivedElements.h"
 
 #include <unordered_map>
 #include <vector>

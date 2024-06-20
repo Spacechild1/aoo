@@ -23,8 +23,8 @@
 #include "resampler.hpp"
 #include "time_dll.hpp"
 
-#include "oscpack/osc/OscOutboundPacketStream.h"
-#include "oscpack/osc/OscReceivedElements.h"
+#include "osc/OscOutboundPacketStream.h"
+#include "osc/OscReceivedElements.h"
 
 #include <list>
 

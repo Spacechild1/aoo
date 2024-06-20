@@ -166,7 +166,8 @@ target_compile_definitions(aoo_common INTERFACE
     $<$<BOOL:${AOO_HAVE_PTHREAD_RWLOCK}>:AOO_HAVE_PTHREAD_RWLOCK>)
 
 # common include directories
-target_include_directories(aoo_common INTERFACE ".."  "../deps")
+target_include_directories(aoo_common INTERFACE
+    ".."  "../deps" "../deps/oscpack")
 
 # clang++:
 if (CMAKE_COMPILER_IS_CLANG)

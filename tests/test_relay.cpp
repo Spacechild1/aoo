@@ -9,8 +9,8 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "oscpack/osc/OscOutboundPacketStream.h"
-#include "oscpack/osc/OscReceivedElements.h"
+#include "osc/OscOutboundPacketStream.h"
+#include "osc/OscReceivedElements.h"
 
 using namespace aoo;
 

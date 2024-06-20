@@ -13,8 +13,8 @@
 #include "common/time.hpp"
 #include "common/utils.hpp"
 
-#include "oscpack/osc/OscReceivedElements.h"
-#include "oscpack/osc/OscOutboundPacketStream.h"
+#include "osc/OscReceivedElements.h"
+#include "osc/OscOutboundPacketStream.h"
 
 #include <array>
 #include <cstring>

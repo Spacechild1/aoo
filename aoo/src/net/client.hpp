@@ -19,8 +19,8 @@
 #include "peer.hpp"
 #include "ping_timer.hpp"
 
-#include "oscpack/osc/OscOutboundPacketStream.h"
-#include "oscpack/osc/OscReceivedElements.h"
+#include "osc/OscOutboundPacketStream.h"
+#include "osc/OscReceivedElements.h"
 
 #ifndef AOO_CLIENT_SERVER_PING_INTERVAL
 # define AOO_CLIENT_SERVER_PING_INTERVAL 5.0
