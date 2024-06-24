@@ -156,8 +156,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
     return kAooOk;
 }
 
-AOO_API AooError AOO_CALL AooClient_run(AooClient *client, AooBool nonBlocking){
-    return client->run(nonBlocking);
+AOO_API AooError AOO_CALL AooClient_run(AooClient *client, AooSeconds timeout) {
+    return client->run(timeout);
 }
 
 AooError AOO_CALL aoo::net::Client::run(AooSeconds timeout){
@@ -395,8 +395,8 @@ AooError AOO_CALL aoo::net::Client::send(AooSeconds timeout)
 }
 
 AOO_API AooError AOO_CALL AooClient_receive(
-    AooClient *client, AooBool nonBlocking){
-    return client->receive(nonBlocking);
+    AooClient *client, AooSeconds timeout){
+    return client->receive(timeout);
 }
 
 AooError AOO_CALL aoo::net::Client::receive(AooSeconds timeout) {
