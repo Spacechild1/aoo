@@ -2109,13 +2109,22 @@ void Source::send_data(const sendfn& fn){
     }
 }
 
-void Source::resend_data(const sendfn &fn){
+void Source::resend_data(const sendfn &fn) {
     shared_lock updatelock(update_mutex_); // reader lock for history buffer!
     if (!history_.capacity()){
         // NB: there should not be any requests if resending is disabled,
         // see handle_data_request().
         return;
     }
+
+    struct frame_data {
+        int32_t index;
+        int32_t size;
+        AooByte* data;
+    };
+
+    std::array<frame_data, 16> small_framevec;
+    std::vector<frame_data> large_framevec;
 
     // send block to sinks
     sink_lock lock(sinks_);
@@ -2141,19 +2150,22 @@ void Source::resend_data(const sendfn &fn){
                 d.total_size = block->size();
                 d.num_frames = block->num_frames;
                 d.flags = block->flags;
+
                 // We need to copy all (requested) frames before sending
                 // because we temporarily release the update lock!
                 // We use a buffer on the heap because blocks and even frames
                 // can be quite large and we don't want them to sit on the stack.
                 sendbuffer_.resize(d.total_size);
                 AooByte *buf = sendbuffer_.data();
+
                 // Keep track of the frames we will eventually send.
-                struct frame_data {
-                    int32_t index;
-                    int32_t size;
-                    AooByte *data;
-                };
-                auto framevec = (frame_data *)alloca(std::max<int>(d.num_frames, 1) * sizeof(frame_data));
+                frame_data* framevec;
+                if (d.num_frames <= small_framevec.size()) {
+                    framevec = small_framevec.data();
+                } else {
+                    large_framevec.resize(d.num_frames);
+                    framevec = large_framevec.data();
+                }
                 int32_t numframes = 0;
                 int32_t buf_offset = 0;
 
