@@ -153,6 +153,8 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         LOG_DEBUG(e.what());
     }
 
+    quit_.store(false);
+
     return kAooOk;
 }
 
