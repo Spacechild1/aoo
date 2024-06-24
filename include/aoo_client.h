@@ -74,19 +74,19 @@ AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client);
 
 /** \copydoc AooClient::addSource() */
 AOO_API AooError AOO_CALL AooClient_addSource(
-        AooClient *client, AooSource *source, AooId id);
+        AooClient *client, struct AooSource *source, AooId id);
 
 /** \copydoc AooClient::removeSource() */
 AOO_API AooError AOO_CALL AooClient_removeSource(
-        AooClient *client, AooSource *source);
+        AooClient *client, struct AooSource *source);
 
 /** \copydoc AooClient::addSink() */
 AOO_API AooError AOO_CALL AooClient_addSink(
-        AooClient *client, AooSink *sink, AooId id);
+        AooClient *client, struct AooSink *sink, AooId id);
 
 /** \copydoc AooClient::removeSink() */
 AOO_API AooError AOO_CALL AooClient_removeSink(
-        AooClient *client, AooSink *sink);
+        AooClient *client, struct AooSink *sink);
 
 /** \copydoc AooClient::connect() */
 AOO_API AooError AooClient_connect(
