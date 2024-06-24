@@ -165,14 +165,14 @@ struct stream_message : Alloc {
         if (data) Alloc::deallocate(data, size);
     }
 
-    stream_message(stream_message&& other)
+    stream_message(stream_message&& other) noexcept
         : time(other.time), channel(other.channel),
           type(other.type), data(other.data), size(other.size) {
         other.data = nullptr;
         other.size = 0;
     }
 
-    stream_message& operator=(stream_message&& other) {
+    stream_message& operator=(stream_message&& other) noexcept {
         time = other.time;
         channel = other.channel;
         type = other.type;

@@ -110,14 +110,14 @@ struct data_frame_storage {
 
     data_frame_storage() : data_{} {}
 
-    data_frame_storage(data_frame_storage&& other)
+    data_frame_storage(data_frame_storage&& other) noexcept
         : data_(other.data_), size_(other.size_) {
         other.size_ = 0;
     }
 
     ~data_frame_storage() { assert(size_ == 0); }
 
-    data_frame_storage& operator=(data_frame_storage&& other) {
+    data_frame_storage& operator=(data_frame_storage&& other) noexcept {
         data_ = other.data_;
         size_ = other.size_;
         other.size_ = 0;

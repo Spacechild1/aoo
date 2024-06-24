@@ -361,10 +361,10 @@ public:
 
     explicit udp_socket(const ip_address& addr, bool reuse_port = false);
 
-    udp_socket(udp_socket&& other)
+    udp_socket(udp_socket&& other) noexcept
         : base_socket(std::forward<base_socket>(other)) {}
 
-    udp_socket& operator=(udp_socket&& other) {
+    udp_socket& operator=(udp_socket&& other) noexcept {
         base_socket::operator=(std::forward<base_socket>(other));
         return *this;
     }
@@ -403,10 +403,10 @@ public:
 
     explicit tcp_socket(const ip_address& addr, bool reuse_port = false);
 
-    tcp_socket(tcp_socket&& other)
+    tcp_socket(tcp_socket&& other) noexcept
         : base_socket(std::forward<base_socket>(other)) {}
 
-    tcp_socket& operator=(tcp_socket&& other) {
+    tcp_socket& operator=(tcp_socket&& other) noexcept {
         base_socket::operator=(std::forward<base_socket>(other));
         return *this;
     }
