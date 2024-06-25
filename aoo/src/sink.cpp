@@ -1568,6 +1568,7 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
             auto e = make_event<source_event>(kAooEventUninviteTimeout, ep);
             s.send_event(std::move(e), kAooThreadLevelNetwork);
         } else {
+            // TODO: prevent duplicate /uninvite messages in close succession
             LOG_DEBUG("AooSink: request uninvite (elapsed: " << delta << ")");
             request r(request_type::uninvite);
             r.uninvite.token = d.stream_id;

@@ -2521,8 +2521,8 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
     sink_lock lock(sinks_);
     auto sink = find_sink(addr, id);
     if (sink) {
-        if (sink->stream_id() == token){
-            if (sink->is_active()){
+        if (sink->is_active()) {
+            if (sink->stream_id() == token) {
                 // push "uninvite" event
                 if (sink->need_uninvite(token)) {
                     auto e = make_event<uninvite_event>(addr, id, token);
@@ -2530,14 +2530,14 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
                 }
                 return; // don't send /stop message!
             } else {
-                // if the sink is inactive, it probably means that we have
-                // accepted the uninvitation, but the /stop message got lost.
-                LOG_DEBUG("AooSource: ignoring '" << kAooMsgUninvite << "' message: "
-                          << " sink not active (/stop message got lost?)");
+                LOG_VERBOSE("AooSource: ignoring '" << kAooMsgUninvite
+                            << "' message: stream token mismatch (outdated?)");
             }
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgUninvite
-                        << "' message: stream token mismatch (outdated?)");
+            // if the sink is inactive, it probably means that we have accepted the
+            // uninvitation, but the /stop message got lost or hasn't arrived in time.
+            LOG_DEBUG("AooSource: ignoring '" << kAooMsgUninvite << "' message: "
+                      << " sink not active (/stop message got lost?)");
         }
     } else {
         LOG_VERBOSE("ignoring '" << kAooMsgUninvite << "' message: sink not found");
