@@ -273,6 +273,22 @@ AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
         AooUInt16 *port, AooSocketFlags *type);
 
 /**
+ * \brief resolve IP endpoint
+ *
+ * Tries to look up the hostname and make a suitable sockaddr for one of
+ * the specified types; returns an error otherwise. May involve a DNS lookup!
+ *
+ * \param hostName host name
+ * \param port port number
+ * \param type combination of supported IP families
+ * \param [out] sockaddr socket address buffer,
+ *        e.g. `sockaddr_storage` or `AooSockAddrStorage`
+ * \param [in,out] addrlen buffer size; updated to actual size
+ */
+AOO_API AooError aoo_resolveIpEndpoint(const AooChar *hostName, AooUInt16 port,
+                                        AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
+
+/**
  * \brief get last socket error
  *
  * Typically used to obtain more detailed information about kAooErrorSocket.

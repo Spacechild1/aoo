@@ -615,6 +615,38 @@ AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
     return kAooOk;
 }
 
+AOO_API AooError AOO_CALL aoo_resolveIpEndpoint(
+    const AooChar *hostName, AooUInt16 port,
+    AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen)
+{
+    aoo::ip_address::ip_type family;
+    if (type & kAooSocketIPv6) {
+        if (type & kAooSocketIPv4) {
+            family = aoo::ip_address::Unspec; // both IPv6 and IPv4
+        } else {
+            family = aoo::ip_address::IPv6;
+        }
+    } else {
+        family = aoo::ip_address::IPv4;
+    }
+    bool ipv4mapped = type & kAooSocketIPv4Mapped;
+
+    try {
+        auto addr = aoo::ip_address::resolve(hostName, port, family, ipv4mapped).front();
+        auto len = addr.length();
+        if (len > *addrlen) {
+            return kAooErrorInsufficientBuffer;
+        }
+        memcpy(sockaddr, addr.address(), len);
+        *addrlen = len;
+    } catch (const aoo::resolve_error& e) {
+        aoo::socket::set_last_error(e.code());
+        return kAooErrorSocket;
+    }
+
+    return kAooOk;
+}
+
 //--------------------------- socket/system error --------------------------//
 
 AOO_API AooError AOO_CALL aoo_getLastSocketError(
