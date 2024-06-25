@@ -243,8 +243,8 @@ AOO_API AooSize AOO_CALL aoo_sockAddrHash(
 /**
  * \brief make sockaddr from IP endpoint
  *
- * Tries to convert the IP address string to one of the specified types
- * if possible; returns an error otherwise.
+ * Tries to convert the IP address string to one of the specified types;
+ * returns an error otherwise. Non-blocking, no DNS lookup involved!
  *
  * \param ipAddress IP address string
  * \param port port number
@@ -258,7 +258,7 @@ AOO_API AooError AOO_CALL aoo_ipEndpointToSockAddr(
         void *sockaddr, AooAddrSize *addrlen);
 
 /**
- * \brief get IP endpoint from sockaddr
+ * \brief convert sockaddr to IP address string and port number
  *
  * \param sockaddr sockaddr struct
  * \param addrlen sockaddr size

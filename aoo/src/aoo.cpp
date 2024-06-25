@@ -571,11 +571,10 @@ AOO_API AooError AOO_CALL aoo_ipEndpointToSockAddr(
     } else {
         family = aoo::ip_address::IPv4;
     }
-    aoo::ip_address addr(ipAddress, port, family);
+    bool ipv4mapped = type & kAooSocketIPv4Mapped;
+
+    aoo::ip_address addr(ipAddress, port, family, ipv4mapped);
     if (!addr.valid()) {
-        return kAooErrorBadFormat;
-    }
-    if (addr.is_ipv4_mapped() && !(type & kAooSocketIPv4Mapped)) {
         return kAooErrorBadFormat;
     }
     auto len = addr.length();
