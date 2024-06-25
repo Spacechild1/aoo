@@ -76,16 +76,13 @@ if (MINGW)
     set(CMAKE_EXECUTABLE_SUFFIX ".exe")
 endif()
 
-if (LINUX AND CMAKE_COMPILER_IS_GNUCXX)
-    option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++ and libgcc)" OFF)
-endif()
-
-if (MINGW AND CMAKE_COMPILER_IS_GNUCXX)
-    option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++, libgcc and libphread)" ON)
-endif()
-
-# TODO: should AOO_STATIC_RUNTIME try to link with a static libopus?
-if (DEFINED AOO_STATIC_RUNTIME)
+if (CMAKE_COMPILER_IS_GNUCXX)
+    if (MINGW)
+        option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++, libgcc and libphread)" ON)
+    else()
+        option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++ and libgcc)" OFF)
+    endif()
+    # TODO: should AOO_STATIC_RUNTIME try to link with a static libopus?
     message(STATUS "Build with static runtime libraries: ${AOO_STATIC_RUNTIME}")
 endif()
 
@@ -149,6 +146,7 @@ endif()
 option(AOO_USE_OPUS "use Opus codec" ON)
 
 option(AOO_BUILD_DOCUMENTATION "build API documentation" OFF)
+option(AOO_BUILD_EXAMPLES "build examples" OFF)
 option(AOO_BUILD_PD_EXTERNAL "build Pd external" OFF)
 option(AOO_BUILD_SERVER "build AOO server program" OFF)
 option(AOO_BUILD_SHARED_LIBRARY "build shared AOO library" OFF)
@@ -182,6 +180,33 @@ if (AOO_USE_OPUS)
     else()
         message(STATUS "Find Opus")
         find_package(Opus REQUIRED)
+        message(STATUS "- ok")
+    endif()
+endif()
+
+if (AOO_BUILD_EXAMPLES)
+    option(AOO_LOCAL_PORTAUDIO "use local portaudio library" ON)
+    if (AOO_LOCAL_PORTAUDIO)
+        message(STATUS "\n*** portaudio library ***\n")
+        # for portaudio v19.7 >=
+        set(PA_BUILD_SHARED OFF)
+        add_subdirectory("deps/portaudio" EXCLUDE_FROM_ALL)
+        if (NOT TARGET PortAudio::PortAudio)
+            # at the time of writing, portaudio does not export
+            # PortAudio::PortAudio when included as a subproject.
+            if (TARGET PortAudio)
+                # portaudio v19.8 <=
+                add_library(PortAudio::PortAudio ALIAS PortAudio)
+            elseif (TARGET portaudio_static)
+                # portaudio v19.7 >=
+                add_library(PortAudio::PortAudio ALIAS portaudio_static)
+            else()
+                message(FATAL_ERROR "missing portaudio target")
+            endif()
+        endif()
+    else()
+        message(STATUS "Find PortAudio")
+        find_package(PortAudio REQUIRED)
         message(STATUS "- ok")
     endif()
 endif()
@@ -408,6 +433,15 @@ if (AOO_BUILD_SERVER)
         message(FATAL_ERROR "AOO server requires AOO_NET")
     endif()
     add_subdirectory(server)
+endif()
+
+#-----------------------------------------------------------------
+# examples
+#-----------------------------------------------------------------
+if (AOO_BUILD_EXAMPLES)
+    message(STATUS "\n*** examples ***\n")
+    add_subdirectory(examples/c)
+    add_subdirectory(examples/cpp)
 endif()
 
 #-----------------------------------------------------------------

@@ -46,12 +46,13 @@ variables:
 .script:cmake: &script_cmake
   - prefix="$(pwd)/build/${CI_JOB_NAME}"
   - rm -rf build build_shared
-  # static library, Pd external and server
+  # static library, Pd external, server, tests, examples and documentation
   - cmake -H. -Bbuild -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
-    -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON -DAOO_BUILD_DOCUMENTATION=${DOXYGEN}
+    -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON -DAOO_BUILD_EXAMPLES=ON
+    -DAOO_BUILD_DOCUMENTATION=${DOXYGEN}
     -DAOO_BUILD_PD_EXTERNAL=ON -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin"
     -DPD_INSTALL_DIR="${prefix}/pd" -DPD_EXTENSION=${PD_EXTENSION}
 #    -DPD_BUILD_SC_EXTENSION -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}

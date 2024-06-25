@@ -1,3 +1,6 @@
 [submodule "deps/opus"]
 	path = deps/opus
 	url = https://github.com/xiph/opus.git
+[submodule "deps/portaudio"]
+	path = deps/portaudio
+	url = https://github.com/PortAudio/portaudio.git
