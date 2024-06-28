@@ -220,17 +220,14 @@ add_library(aoo
     # common sources
     "../common/bit_utils.hpp"
     "../common/copyable_atomic.hpp"
+    "../common/lockfree.hpp"
     "../common/net_utils.cpp"
     "../common/net_utils.hpp"
     "../common/priority_queue.hpp"
     "../common/sync.cpp"
     "../common/sync.hpp"
-    "../common/tcp_server.cpp"
-    "../common/tcp_server.hpp"
     "../common/time.cpp"
     "../common/time.hpp"
-    "../common/udp_server.cpp"
-    "../common/udp_server.hpp"
     "../common/utils.hpp"
     # only build required files in "osc" folder
     "../deps/oscpack/osc/OscException.h"
@@ -263,6 +260,10 @@ if (AOO_NET)
         "src/net/server.cpp"
         "src/net/server.hpp"
         "src/net/server_events.hpp"
+        "src/net/tcp_server.cpp"
+        "src/net/tcp_server.hpp"
+        "src/net/udp_server.cpp"
+        "src/net/udp_server.hpp"
         # md5
         "../deps/md5/md5.c"
         "../deps/md5/md5.h")

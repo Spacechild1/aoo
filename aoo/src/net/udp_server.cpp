@@ -1,5 +1,6 @@
 #include "udp_server.hpp"
 
+#include "common/log.hpp"
 #include "common/utils.hpp"
 
 namespace aoo {

@@ -6,15 +6,15 @@
 
 #include "aoo_server.hpp"
 
-#include "common/utils.hpp"
-#include "common/lockfree.hpp"
-#include "common/net_utils.hpp"
-#include "common/tcp_server.hpp"
-#include "common/udp_server.hpp"
-
 #include "client_endpoint.hpp"
 #include "detail.hpp"
 #include "event.hpp"
+#include "tcp_server.hpp"
+#include "udp_server.hpp"
+
+#include "common/utils.hpp"
+#include "common/lockfree.hpp"
+#include "common/net_utils.hpp"
 
 #include "osc/OscOutboundPacketStream.h"
 #include "osc/OscReceivedElements.h"

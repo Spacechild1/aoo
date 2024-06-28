@@ -3,11 +3,11 @@
 #include "aoo_requests.h"
 #include "aoo_server.h"
 
-#include "common/tcp_server.hpp"
 
 #include "detail.hpp"
 #include "osc_stream_receiver.hpp"
 #include "ping_timer.hpp"
+#include "tcp_server.hpp"
 
 namespace aoo {
 namespace net {

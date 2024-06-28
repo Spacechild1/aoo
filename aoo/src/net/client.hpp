@@ -7,11 +7,11 @@
 #include "aoo_client.hpp"
 
 #include "osc_stream_receiver.hpp"
+#include "udp_server.hpp"
 
 #include "common/lockfree.hpp"
 #include "common/net_utils.hpp"
 #include "common/time.hpp"
-#include "common/udp_server.hpp"
 #include "common/utils.hpp"
 
 #include "detail.hpp"

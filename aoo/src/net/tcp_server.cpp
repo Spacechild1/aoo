@@ -1,5 +1,6 @@
 #include "tcp_server.hpp"
 
+#include "common/log.hpp"
 #include "common/utils.hpp"
 
 #include <algorithm>
