@@ -189,8 +189,10 @@ if (AOO_USE_OPUS)
     if (AOO_LOCAL_OPUS)
         message(STATUS "\n*** Opus library ***\n")
         add_subdirectory("deps/opus" EXCLUDE_FROM_ALL)
-        # HACK: make sure that we don't export any symbols
-        target_compile_definitions(opus PRIVATE OPUS_EXPORT=extern)
+        if (NOT BUILD_SHARED_LIBS)
+            # HACK: make sure that we don't export any symbols
+            target_compile_definitions(opus PRIVATE OPUS_EXPORT=extern)
+        endif()
     else()
         find_package(Opus REQUIRED)
     endif()
