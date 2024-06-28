@@ -1,9 +1,9 @@
-function(test_atomic feature file)
-    if (DEFINED AOO_HAVE_${feature})
+function(test_atomic type var)
+    if (DEFINED ${var})
         return()
     endif()
 
-    message(STATUS "Testing ${feature} support")
+    message(STATUS "Testing atomic ${type} support")
 
     # Not all platforms support lock-free atomics of all types.
     #
@@ -20,9 +20,10 @@ function(test_atomic feature file)
         # link with "libatomic" in case the atomics are not lockfree
         set(LIBATOMIC "-latomic")
     endif()
+
     try_compile(RESULT_VAR
         "${CMAKE_CURRENT_BINARY_DIR}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${file}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/atomic_${type}.cpp"
         OUTPUT_VARIABLE COMPILE_OUTPUT
         CXX_STANDARD 17
         LINK_LIBRARIES ${LIBATOMIC})
@@ -34,5 +35,5 @@ function(test_atomic feature file)
         message(VERBOSE ${COMPILE_OUTPUT})
     endif()
 
-    set(AOO_HAVE_${feature} ${RESULT_VAR} CACHE INTERNAL "${feature} support")
+    set(${var} ${RESULT_VAR} CACHE INTERNAL "atomic ${feature} support")
 endfunction()

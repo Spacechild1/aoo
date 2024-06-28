@@ -101,15 +101,15 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     test_linker_flag("-latomic" AOO_HAVE_LIB_ATOMIC)
 
     # atomic double support
-    test_atomic(ATOMIC_DOUBLE "atomic_double.cpp")
-    if (NOT ATOMIC_DOUBLE)
+    test_atomic(double AOO_HAVE_ATOMIC_DOUBLE)
+    if (NOT AOO_HAVE_ATOMIC_DOUBLE)
         message(STATUS "No built-in support for atomic doubles - "
             "will be emulated in software")
     endif()
 
     # atomic 64-bit integer support
-    test_atomic(ATOMIC_INT64 "atomic_int64.cpp")
-    if (NOT ATOMIC_INT64)
+    test_atomic(int64 AOO_HAVE_ATOMIC_INT64)
+    if (NOT AOO_HAVE_ATOMIC_INT64)
         message(STATUS "No built-in support for atomic 64-bit integers - "
             "will be emulated in software")
     endif()
