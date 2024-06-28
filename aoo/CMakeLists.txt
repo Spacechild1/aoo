@@ -379,7 +379,41 @@ install(TARGETS aoo aoo_common
 
 # TODO: install PDB file (Visual Studio)
 
-# install public headers (note the trailing slash!)
-install(DIRECTORY "../include/"
+# install public headers
+install(FILES
+    "../include/aoo.h"
+    "../include/aoo_codec.h"
+    "../include/aoo_config.h"
+    "../include/aoo_controls.h"
+    "../include/aoo_defines.h"
+    "../include/aoo_events.h"
+    "../include/aoo_sink.h"
+    "../include/aoo_sink.hpp"
+    "../include/aoo_source.h"
+    "../include/aoo_source.hpp"
+    "../include/aoo_types.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo"
-    COMPONENT AooDevelopment)
+    COMPONENT AooDevelopment
+)
+
+# AOO_NET headers
+if (AOO_NET)
+    install(FILES
+        "../include/aoo_client.h"
+        "../include/aoo_client.hpp"
+        "../include/aoo_requests.h"
+        "../include/aoo_server.h"
+        "../include/aoo_server.hpp"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo"
+        COMPONENT AooDevelopment
+    )
+endif()
+
+# codec headers
+install(FILES
+    "../include/codec/aoo_null.h"
+    "../include/codec/aoo_pcm.h"
+    $<$<BOOL:${AOO_USE_OPUS}>:${CMAKE_CURRENT_SOURCE_DIR}/../include/codec/aoo_opus.h>
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo/codec"
+    COMPONENT AooDevelopment
+)
