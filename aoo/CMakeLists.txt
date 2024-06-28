@@ -156,21 +156,28 @@ if (CMAKE_COMPILER_IS_CLANG)
     target_link_options(aoo_common INTERFACE -stdlib=libc++)
 endif()
 
-if (LINUX)
-    if(AOO_STATIC_LIBS)
-        target_link_options(aoo_common INTERFACE
-            -static-libstdc++ -static-libgcc)
+#-------------------------------------------------------------
+# common properties for all binaries
+#-------------------------------------------------------------
+
+# NOTE: we can't add these link options to aoo_common because
+# consumers of the static library would inherit them, although
+# they are supposed to be private.
+# static runtime linker flags
+add_library(aoo_binary INTERFACE)
+
+if (AOO_STATIC_RUNTIME)
+    if (LINUX)
+        target_link_options(aoo_binary INTERFACE -static-libstdc++ -static-libgcc)
+    elseif (MINGW)
+        target_link_options(aoo_binary INTERFACE -static-libstdc++ -static-libgcc -static -lpthread)
     endif()
 endif()
 
 if (MINGW)
-    # HACK: somehow --strip resp. install/strip target do not work on MSys2,
+    # HACK: somehow --strip resp. the install/strip target do not work on MSys2,
     # so we manually strip the symbols at link time - but only in Release mode.
-    target_link_options(aoo_common INTERFACE $<$<CONFIG:RELEASE>:-s>)
-    if (AOO_STATIC_LIBS)
-        target_link_options(aoo_common INTERFACE
-            -static-libstdc++ -static-libgcc -static -lpthread)
-    endif()
+    target_link_options(aoo_binary INTERFACE $<$<CONFIG:RELEASE>:-s>)
 endif()
 
 #-------------------------------------------------------------
@@ -297,7 +304,8 @@ target_compile_definitions(aoo PRIVATE
     $<$<BOOL:${AOO_HAVE_PTHREAD_RWLOCK}>:AOO_HAVE_PTHREAD_RWLOCK>
 )
 
-target_link_libraries(aoo PRIVATE aoo_common)
+target_link_libraries(aoo PRIVATE aoo_common
+    $<$<BOOL:BUILD_SHARED_LIBS>:aoo_binary>)
 
 # link with "libatomic" if available and necessary
 if (AOO_HAVE_LIB_ATOMIC AND

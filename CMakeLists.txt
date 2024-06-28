@@ -44,15 +44,6 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
-if(LINUX AND CMAKE_COMPILER_IS_GNUCXX)
-    option(AOO_STATIC_LIBS "link with static libraries (libstdc++ and libgcc)" ON)
-endif()
-
-if (MINGW)
-    option(AOO_STATIC_LIBS "link with static libraries (libstdc++, libgcc and phread)" ON)
-    set(CMAKE_EXECUTABLE_SUFFIX ".exe")
-endif()
-
 # Windows paths
 if (WIN32)
     # check if "Program Files (x86)" exists (64-bit Windows) and if we compile for 32-bit
@@ -80,6 +71,22 @@ endif()
 
 # built everything (including Opus) with -fPIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+if (MINGW)
+    set(CMAKE_EXECUTABLE_SUFFIX ".exe")
+endif()
+
+if (LINUX AND CMAKE_COMPILER_IS_GNUCXX)
+    option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++ and libgcc)" OFF)
+endif()
+
+if (MINGW AND CMAKE_COMPILER_IS_GNUCXX)
+    option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++, libgcc and libphread)" ON)
+endif()
+
+if (DEFINED AOO_STATIC_RUNTIME)
+    message(STATUS "Build with static runtime libraries: ${AOO_STATIC_RUNTIME}")
+endif()
 
 #-----------------------------------------------------------------
 # feature tests

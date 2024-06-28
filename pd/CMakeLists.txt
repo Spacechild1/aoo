@@ -54,7 +54,7 @@ add_library(pd MODULE
 
 target_include_directories(pd PRIVATE ${PD_INCLUDE_DIR})
 
-target_link_libraries(pd PRIVATE aoo aoo_common)
+target_link_libraries(pd PRIVATE aoo aoo_common aoo_binary)
 
 # multi-instance support
 option(PD_MULTI_INSTANCE "Pd multi-instance support (for libpd)" OFF)

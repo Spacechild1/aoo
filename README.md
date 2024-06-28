@@ -260,9 +260,10 @@ These are the most important project options:
 * `AOO_LOG_LEVEL` (STRING) - Choose one of the following log levels:
    "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".
 
-* `AOO_STATIC_LIBS` (BOOL) - Linux and MinGW only:
-   Link statically with `libgcc`, `libstdc++` and `libpthread`. Makes sure that the
-   resulting binaries don't depend on specific system library versions. Default: `ON`.
+* `AOO_STATIC_RUNTIME` (BOOL) - Linux and MinGW only:
+   Link statically with `libgcc`, `libstdc++` and - on MinGW - also `libpthread`.
+   This makres sure that the resulting binaries don't depend on specific system library versions.
+   Default: `ON` for MinGW, `OFF` for Linux.
 
 * `AOO_NATIVE` (BOOL) - optimize for this particular machine.
   NB: the resulting binaries are not portable and might not run on other machines!
