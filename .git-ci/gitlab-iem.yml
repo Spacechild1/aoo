@@ -7,9 +7,9 @@ variables:
   LOG_LEVEL:
     value: "Warning"
     description: "Set log level"
-  STATIC_LINKING:
-    value: 1
-    description: "Static linking"
+  STATIC_RUNTIME:
+    value: 0
+    description: "Link with static runtime libraries"
   PD_VERSION: 0.54-1
   PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}.src.tar.gz
   PD_PATH: /tmp/pd
@@ -50,7 +50,7 @@ variables:
   - cmake -H. -Bbuild -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
-    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_LOCAL_OPUS=ON
+    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
     -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON
     -DAOO_BUILD_PD_EXTERNAL=ON -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin"
     -DPD_INSTALL_DIR="${prefix}/pd" -DPD_EXTENSION=${PD_EXTENSION}
@@ -59,7 +59,7 @@ variables:
   - cmake -H. -Bbuild_shared -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DAOO_BUILD_SHARED_LIBRARY=ON -DCMAKE_DEPENDS_USE_COMPILER=OFF
-    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_LIBS=${STATIC_LIBS} -DAOO_LOCAL_OPUS=ON
+    -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
 
    # NOTE: by default, CMake 3.21+ uses the compiler to obtain dependencies for makefiles ('compiler_depends.make').
    # For some reason, on the 'Hopper' runner that file would contain bogus file paths which will cause the following
@@ -107,7 +107,6 @@ variables:
   image: registry.git.iem.at/devtools/docker/debiancross:amd64
   variables:
     SUPERNOVA: 1
-    STATIC_LIBS: ${STATIC_LINKING}
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends
       make cmake wget git
@@ -159,7 +158,7 @@ variables:
   variables:
     IEMCI_CONFIGURATIONS: mingw32
     SUPERNOVA: 1
-    STATIC_LIBS: 1
+    STATIC_RUNTIME: 1
     PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}-i386.msw.zip
   before_script:
     - pacman --noconfirm -S "${MINGW_PACKAGE_PREFIX}-cmake"
