@@ -39,23 +39,19 @@
 #endif
 
 #ifndef AOO_EXPORT
-# ifndef AOO_STATIC
-#  if defined(_WIN32) // Windows
+# ifdef AOO_SHARED /* shared library */
+#  if defined(_WIN32) /* Windows */
 #   if defined(AOO_BUILD)
-#      if defined(DLL_EXPORT)
-#        define AOO_EXPORT __declspec(dllexport)
-#      else
-#        define AOO_EXPORT
-#      endif
+#      define AOO_EXPORT __declspec(dllexport)
 #   else
-#    define AOO_EXPORT __declspec(dllimport)
+#      define AOO_EXPORT __declspec(dllimport)
 #   endif
-#  elif defined(__GNUC__) && defined(AOO_BUILD) // GNU C
+#  elif defined(__GNUC__) && defined(AOO_BUILD) /* GNU C */
 #   define AOO_EXPORT __attribute__ ((visibility ("default")))
 #  else /* Other */
 #   define AOO_EXPORT
 #  endif
-# else /* AOO_STATIC */
+# else /* static library */
 #  define AOO_EXPORT
 # endif
 #endif

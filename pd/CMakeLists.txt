@@ -54,7 +54,7 @@ add_library(pd MODULE
 
 target_include_directories(pd PRIVATE ${PD_INCLUDE_DIR})
 
-target_link_libraries(pd PRIVATE aoo_static aoo_common)
+target_link_libraries(pd PRIVATE aoo aoo_common)
 
 # multi-instance support
 option(PD_MULTI_INSTANCE "Pd multi-instance support (for libpd)" OFF)
@@ -81,8 +81,8 @@ else()
 endif()
 message(STATUS "Pd extension: ${SUFFIX}")
 
-# output name
 set_target_properties(pd PROPERTIES
+    # output name
     PREFIX "" # no prefix!
     OUTPUT_NAME "aoo"
     SUFFIX ${SUFFIX})

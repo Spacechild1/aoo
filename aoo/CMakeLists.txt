@@ -1,11 +1,7 @@
-# aoo library
-
-add_library(aoo_common INTERFACE)
-add_library(aoo_public INTERFACE)
-add_library(aoo_private INTERFACE)
+# AOO library
 
 #-------------------------------------------------------------
-# compile time options
+# AOO compile time options
 #-------------------------------------------------------------
 
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -79,14 +75,17 @@ option(AOO_CLIENT_SIMULATE "network simulation in the client" OFF)
 mark_as_advanced(AOO_CLIENT_SIMULATE)
 
 #-----------------------------------------------------------------
-# common properties (libaoo, Pd external, tests, etc.)
+# common properties (libaoo, Pd external, examples, tests, etc.)
 #-----------------------------------------------------------------
 
+# properties shared by all targets in this repository,
+# but shich should not be exported to library consumers.
+add_library(aoo_common INTERFACE)
+
+# AOO_LOG_LEVEL is also used by the Pd external and some programs
 target_compile_definitions(aoo_common INTERFACE AOO_LOG_LEVEL=kAooLogLevel${AOO_LOG_LEVEL})
 
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
-    target_compile_options(aoo_common INTERFACE -fvisibility=hidden)
-
     if (AOO_STACK_USAGE)
         target_compile_options(aoo_common INTERFACE -fstack-usage)
     endif()
@@ -146,38 +145,15 @@ if (MINGW)
     target_compile_options(aoo_common INTERFACE -mstackrealign)
 endif()
 
-# atomics
-if (AOO_HAVE_ATOMIC_DOUBLE)
-    target_compile_definitions(aoo_common INTERFACE AOO_HAVE_ATOMIC_DOUBLE)
-else()
-    message(STATUS "No built-in support for atomic doubles - "
-        "will be emulated in software")
-endif()
-
-if (AOO_HAVE_ATOMIC_INT64)
-    target_compile_definitions(aoo_common INTERFACE AOO_HAVE_ATOMIC_INT64)
-else()
-    message(STATUS "No built-in support for atomic 64-bit integers - "
-        "will be emulated in software")
-endif()
-
-# pthread_rwlock
-target_compile_definitions(aoo_common INTERFACE
-    $<$<BOOL:${AOO_HAVE_PTHREAD_RWLOCK}>:AOO_HAVE_PTHREAD_RWLOCK>)
-
 # common include directories
 target_include_directories(aoo_common INTERFACE
-    ".."  "../deps" "../deps/oscpack")
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../deps>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../deps/oscpack>)
 
 # clang++:
 if (CMAKE_COMPILER_IS_CLANG)
     target_link_options(aoo_common INTERFACE -stdlib=libc++)
-endif()
-
-# link with "libatomic" if available and necessary
-if (AOO_HAVE_LIB_ATOMIC AND
-        (NOT AOO_HAVE_ATOMIC_DOUBLE OR NOT AOO_HAVE_ATOMIC_INT64))
-    target_link_options(aoo_common INTERFACE -latomic)
 endif()
 
 if (LINUX)
@@ -198,56 +174,10 @@ if (MINGW)
 endif()
 
 #-------------------------------------------------------------
-# public properties (for libaoo consumers)
+# AOO library
 #-------------------------------------------------------------
 
-target_compile_definitions(aoo_public INTERFACE AOO_NET=$<BOOL:${AOO_NET}>)
-
-target_compile_definitions(aoo_public INTERFACE AOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>)
-
-target_compile_definitions(aoo_public INTERFACE AOO_USE_OPUS=$<BOOL:${AOO_USE_OPUS}>)
-if (AOO_USE_OPUS AND AOO_LOCAL_OPUS)
-    # because of a quirk in the opus source code structure, we can't include "opus/opus_multistream.h"
-    target_compile_definitions(aoo_public INTERFACE AOO_HAVE_LOCAL_OPUS)
-endif()
-
-target_compile_definitions(aoo_public INTERFACE AOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE})
-
-target_compile_definitions(aoo_public INTERFACE $<$<BOOL:${AOO_HAVE_SA_LEN}>:AOO_HAVE_SA_LEN>)
-
-target_include_directories(aoo_public INTERFACE ../include)
-
-if (LINUX)
-    target_compile_options(aoo_common INTERFACE -pthread)
-    target_link_libraries(aoo_public INTERFACE -pthread)
-endif()
-
-if (MINGW)
-    if (NOT AOO_STATIC_LIBS)
-        target_link_libraries(aoo_public INTERFACE pthread)
-    endif()
-    if (AOO_USE_OPUS)
-        target_link_libraries(aoo_public INTERFACE ssp) # for fortified functions
-    endif()
-endif()
-
-if (APPLE)
-    target_link_libraries(aoo_public INTERFACE pthread)
-endif()
-
-if (WIN32)
-    target_link_libraries(aoo_public INTERFACE ws2_32)
-endif()
-
-if (AOO_USE_OPUS)
-    target_link_libraries(aoo_public INTERFACE Opus::opus)
-endif()
-
-#-------------------------------------------------------------
-# private properties
-#-------------------------------------------------------------
-
-target_sources(aoo_private INTERFACE
+add_library(aoo
     # public headers
     "../include/aoo.h"
     "../include/aoo_client.h"
@@ -312,10 +242,10 @@ target_sources(aoo_private INTERFACE
     "../deps/oscpack/osc/OscTypes.cpp"
     "../deps/oscpack/osc/OscTypes.h")
 
-target_include_directories(aoo_private INTERFACE ".")
+target_include_directories(aoo PRIVATE ".")
 
 if (AOO_NET)
-    target_sources(aoo_private INTERFACE
+    target_sources(aoo PRIVATE
         "src/net/client.cpp"
         "src/net/client.hpp"
         "src/net/client_endpoint.cpp"
@@ -339,12 +269,14 @@ if (AOO_NET)
 endif()
 
 if (AOO_USE_OPUS)
-    target_sources(aoo_private INTERFACE
+    target_sources(aoo PRIVATE
         "../include/codec/aoo_opus.h"
         "src/codec/opus.cpp")
 endif()
 
-target_compile_definitions(aoo_private INTERFACE
+target_compile_definitions(aoo PRIVATE
+    AOO_BUILD
+    # compile time options
     AOO_CUSTOM_ALLOCATOR=$<BOOL:${AOO_CUSTOM_ALLOCATOR}>
     AOO_MAX_PACKET_SIZE=${AOO_MAX_PACKET_SIZE}
     AOO_DEBUG_MEMORY=$<BOOL:${AOO_DEBUG_MEMORY}>
@@ -356,84 +288,96 @@ target_compile_definitions(aoo_private INTERFACE
     AOO_DEBUG_JITTER_BUFFER=$<BOOL:${AOO_DEBUG_JITTER_BUFFER}>
     AOO_DEBUG_RELAY=$<BOOL:${AOO_DEBUG_RELAY}>
     AOO_DEBUG_CLIENT_MESSAGE=$<BOOL:${AOO_DEBUG_CLIENT_MESSAGE}>
-    AOO_CLIENT_SIMULATE=$<BOOL:${AOO_CLIENT_SIMULATE}>)
+    AOO_CLIENT_SIMULATE=$<BOOL:${AOO_CLIENT_SIMULATE}>
+    # features
+    $<$<BOOL:${AOO_HAVE_ATOMIC_DOUBLE}>:AOO_HAVE_ATOMIC_DOUBLE>
+    $<$<BOOL:${AOO_HAVE_ATOMIC_INT64}>:AOO_HAVE_ATOMIC_INT64>
+    $<$<BOOL:${AOO_HAVE_PTHREAD_RWLOCK}>:AOO_HAVE_PTHREAD_RWLOCK>
+)
 
-#-------------------------------------------------------------
-# AOO static library
-#-------------------------------------------------------------
+target_link_libraries(aoo PRIVATE aoo_common)
 
-if (AOO_BUILD_PD_EXTERNAL OR AOO_BUILD_SERVER OR
-        AOO_BUILD_STATIC_LIBRARY OR AOO_BUILD_TESTS)
-    add_library(aoo_static STATIC)
-
-    if (NOT MSVC)
-        # for MSVC we keep the "aoo_static" name to avoid name clash with
-        # "aoo.lib" import library
-        set_target_properties(aoo_static PROPERTIES OUTPUT_NAME "aoo")
-    endif()
-
-    target_compile_definitions(aoo_static PUBLIC AOO_STATIC)
-
-    target_link_libraries(aoo_static
-        PRIVATE aoo_common aoo_private PUBLIC aoo_public)
-
-    set_target_properties(aoo_static PROPERTIES
-        SOVERSION ${AOO_VERSION_MAJOR}
-        VERSION ${AOO_VERSION})
-
-    add_library(Aoo::aoo_static ALIAS aoo_static)
+# link with "libatomic" if available and necessary
+if (AOO_HAVE_LIB_ATOMIC AND
+        (NOT AOO_HAVE_ATOMIC_DOUBLE OR NOT AOO_HAVE_ATOMIC_INT64))
+    target_link_options(aoo PRIVATE -latomic)
 endif()
 
+set_target_properties(aoo PROPERTIES
+    SOVERSION ${aoo_version_major}
+    VERSION ${aoo_version})
+
+# static library
+if (NOT BUILD_SHARED_LIBS AND MSVC)
+    # for MSVC we add a "_static" suffix to avoid a name clash
+    # with the "aoo.lib" import library
+    set_target_properties(aoo PROPERTIES OUTPUT_NAME "aoo_static")
+endif()
+
+add_library(AOO::aoo ALIAS aoo)
+
 #-------------------------------------------------------------
-# AOO shared library
+# public properties (for libaoo consumers)
 #-------------------------------------------------------------
 
-if (AOO_BUILD_SHARED_LIBRARY)
-    # HACK: shared add_library() wants at least 1 source file...
-    add_library(aoo SHARED "src/aoo.cpp")
+target_compile_definitions(aoo PUBLIC
+    $<$<BOOL:${BUILD_SHARED_LIBS}>:AOO_SHARED>
+    AOO_NET=$<BOOL:${AOO_NET}>
+    AOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>
+    AOO_USE_OPUS=$<BOOL:${AOO_USE_OPUS}>
+    AOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE}
+    $<$<BOOL:${AOO_HAVE_SA_LEN}>:AOO_HAVE_SA_LEN>)
 
-    target_compile_definitions(aoo PRIVATE AOO_BUILD)
+target_include_directories(aoo PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aoo>)
 
-    if (WIN32)
-        target_compile_definitions(aoo PUBLIC DLL_EXPORT)
+if (LINUX)
+    target_compile_options(aoo_common INTERFACE -pthread)
+    target_link_libraries(aoo PUBLIC -pthread)
+endif()
+
+if (MINGW)
+    if (NOT AOO_STATIC_LIBS)
+        target_link_libraries(aoo PUBLIC pthread)
     endif()
+    if (AOO_USE_OPUS)
+        target_link_libraries(aoo PUBLIC ssp) # for fortified functions
+    endif()
+endif()
 
-    target_link_libraries(aoo
-        PRIVATE aoo_common aoo_private PUBLIC aoo_public)
+if (APPLE)
+    target_link_libraries(aoo PUBLIC pthread)
+endif()
 
-    set_target_properties(aoo PROPERTIES
-        SOVERSION ${AOO_VERSION_MAJOR}
-        VERSION ${AOO_VERSION})
+if (WIN32)
+    target_link_libraries(aoo PUBLIC ws2_32)
+endif()
 
-    add_library(Aoo::aoo ALIAS aoo)
-else()
-    # so that clients can just link with "Aoo::aoo"
-    add_library(Aoo::aoo ALIAS aoo_static)
+if (AOO_USE_OPUS)
+    target_link_libraries(aoo PUBLIC Opus::opus)
 endif()
 
 #-------------------------------------------------------------
 # AOO installation
 #-------------------------------------------------------------
 
-if (AOO_BUILD_SHARED_LIBRARY OR AOO_BUILD_STATIC_LIBRARY)
-    # install library files
-    if (AOO_BUILD_SHARED_LIBRARY)
-        list(APPEND targets aoo)
-    endif()
+# install library files
+install(TARGETS aoo aoo_common
+    EXPORT AooTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT AooDevelopment
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT AooRuntime
+            NAMELINK_COMPONENT AooDevelopment
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            COMPONENT AooRuntime
+)
 
-    if (AOO_BUILD_STATIC_LIBRARY)
-        list(APPEND targets aoo_static)
-    endif()
+# TODO: install PDB file (Visual Studio)
 
-    install(TARGETS ${targets}
-        EXPORT AooTargets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-    # TODO: install PDB file (Visual Studio)
-
-    # install public headers (note the trailing slash!)
-    install(DIRECTORY "../include/"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo")
-endif()
+# install public headers (note the trailing slash!)
+install(DIRECTORY "../include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo"
+    COMPONENT AooDevelopment)

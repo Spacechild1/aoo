@@ -1,6 +1,6 @@
 set(STATIC_LIBAOO TRUE)
 if (STATIC_LIBAOO)
-    set(test_libs aoo_static aoo_common)
+    set(test_libs aoo aoo_common)
 else()
     set(test_libs aoo aoo_common)
 endif()

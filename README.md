@@ -29,9 +29,7 @@ It is fundamentally connectionless and allows to send audio in real time and on 
 
 * AOO sinks and sources can operate at different blocksizes and samplerates.
 
-* AOO sources can dynamically change the channel onset.
-
-* timing differences (e.g. due to clock drifts) can be adjusted automatically (= dynamic resampling).
+* clock differences between machines can be adjusted automatically (= dynamic resampling).
 
 * the stream format can be set independently for each source.
 
@@ -41,23 +39,23 @@ It is fundamentally connectionless and allows to send audio in real time and on 
 * the sink jitter buffer helps to deal with network jitter, packet reordering and packet loss
   at the cost of latency. The size can be adjusted dynamically.
 
-* sinks can ask the source(s) to resend dropped packets; the settings are free adjustable.
+* sinks can ask the source(s) to resend dropped packets.
 
-* settable UDP packet size (to optimize for local networks or the internet).
+* settable UDP packet size (= MTU) to optimize for local networks or the internet.
 
-* ping messages are automatically sent between sources and sinks at a configurable rate.
+* pings are exchanged between sources and sinks at a configurable rate.
   They carry NTP timestamps, so the user can calculate the network latency and perform latency compensation.
   The source also receives the current average packet loss percentage.
 
 * several diagnostic events about packet loss, resent packets, etc.
 
-* an AOO server is a UDP hole punching server [^Udp] that facilitates peer-to-peer communication in a local network or over the public internet.
+* the AOO server is a connection server [^Udp] that facilitates peer-to-peer communication in a local network or over the public internet.
 
-* an AOO client can manage several AOO sources/sinks and connects to an AOO server.
+* the AOO client manages multiple AOO sources/sinks (on the same port) and may connect to an AOO server.
 
-* AOO clients can send each other timestamped messages, with optional reliable transmission.
+* AOO clients can send each other timestamped messages with optional reliable transmission.
 
-* AOO is realtime-safe, i.e. it will never block the audio thread. (Network I/O is done on dedicated threads.)
+* AOO is realtime-safe, i.e. it will never block the audio thread. (Network I/O is handled on dedicated threads.)
 
 * the C/C++ library can be easily embedded in host applications or plugins.
 
@@ -79,25 +77,27 @@ and also helped reviving the Virtual IEM Computer Music Ensemble [^VICE] within 
 
 ### Content
 
-`aoo`     - AOO C/C++ library source code
+`aoo`      - AOO C/C++ library source code
 
-`cmake`   - CMake helper files
+`cmake`    - CMake helper files
 
-`common`  - shared code
+`common`   - shared code
 
-`deps`    - dependencies
+`deps`     - dependencies
 
-`doc`     - documentation
+`doc`      - documentation
 
-`doxygen` - doxygen documentation
+`doxygen`  - doxygen documentation
 
-`include` - public headers
+`examples` - examples
 
-`pd`      - Pd external
+`include`  - public headers
 
-`server`  - the `aooserver` command line program
+`pd`       - Pd external
 
-`tests`   - test suite
+`server`   - the `aooserver` command line program
+
+`tests`    - test suite
 
 ---
 
@@ -109,7 +109,7 @@ To generate the API documentation you need to have `doxygen` installed. Just run
 command in the toplevel folder and it will store the generated files in the `doxygen` folder.
 You can view the documentation in a standard web browser by opening `doxygen/html/index.html`.
 
-The library features 4 object classes:
+The library features four object classes:
 
 `AooSource` - AOO source object, see `aoo_source.h` resp. `aoo_source.hpp` in `include/aoo`.
 
@@ -150,8 +150,8 @@ The Pd external is available on Deken (in Pd -> Help -> "Find externals" search 
 
 ### The aooserver command line program
 
-If you want to host your own (private or public) AOO server, you only have to run
-`aooserver --port <port>` and make sure that clients can connect to your machine.
+If you want to host your own (private or public) AOO server, you only have to run `aooserver`
+on the command line or as a service and make sure that clients can connect to your machine.
 
 Run `aooserver -h` to see all available options.
 
@@ -162,10 +162,15 @@ Run `aooserver -h` to see all available options.
 #### Prerequisites
 
 1. Install CMake [^CMake]
+
 2. Install Git [^Git]
-2. Get the AOO source code: http://git.iem.at/cm/aoo/
-   SSH: `git clone git@git.iem.at:cm/aoo.git`
+
+3. Get the AOO source code: http://git.iem.at/cm/aoo/
    HTTPS: `git clone https://git.iem.at/cm/aoo.git`
+   SSH: `git clone git@git.iem.at:cm/aoo.git`
+
+4. Fetch submodules:
+   `git submodule update --init`
 
 
 #### Pure Data
@@ -173,12 +178,14 @@ Run `aooserver -h` to see all available options.
 1. Install Pure Data.
    Windows/macOS: http://msp.ucsd.edu/software.html
    Linux: `sudo apt-get install pure-data-dev`
-2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
-3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
-4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
-5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
-If you do *not* want to build the Pd external, set `AOO_BUILD_PD_EXTERNAL` to `OFF`!
+2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
+
+3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
+
+4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
+
+5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
 
 #### Opus
@@ -198,13 +205,18 @@ a) Link with the system wide `opus` library
 
 b) Use local Opus library (default)
 
-1. Run `git submodule update --init` to fetch the Opus source code.
-2. Make sure that `AOO_LOCAL_OPUS` CMake variable is `ON` (default).
-3. Now Opus will be included in the project and you can configure it as needed.
-   **NOTE**: Don't build the shared library, i.e. `OPUS_BUILD_SHARED_LIBRARY` should be `OFF`.
+1. Make sure that `AOO_LOCAL_OPUS` CMake variable is `ON` (default).
 
-**NOTE**: by default, a) will link dynamically with the Opus library and b) will link statically.
-For local builds, a) is more convenient. If you want to ship it to other people, b) might be preferred.
+2. Now Opus will be included in the project and you can configure it as needed.
+
+   **NOTE**: by default Opus will be built as a static library.
+   If `BUILD_SHARED_LIBS` or `AOO_BUILD_SHARED_LIBRARY` is `ON`,
+   both AOO and Opus will be built as shared libraries.
+
+
+#### PortAudio
+
+PortAudio is only required for the examples (`AOO_BUILD_EXAMPLES`).
 
 
 #### macOS
