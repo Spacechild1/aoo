@@ -221,6 +221,7 @@ add_library(aoo
     "../common/bit_utils.hpp"
     "../common/copyable_atomic.hpp"
     "../common/lockfree.hpp"
+    "../common/log.hpp"
     "../common/net_utils.cpp"
     "../common/net_utils.hpp"
     "../common/priority_queue.hpp"

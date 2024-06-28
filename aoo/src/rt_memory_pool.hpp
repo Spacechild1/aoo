@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/bit_utils.hpp"
+#include "common/log.hpp"
 #include "common/utils.hpp"
 
 #include <limits.h>

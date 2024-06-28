@@ -3,6 +3,7 @@
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
 #include "time.hpp"
+#include "log.hpp"
 
 #include <stdexcept>
 #include <string>

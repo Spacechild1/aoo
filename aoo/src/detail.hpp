@@ -9,6 +9,7 @@
 
 #include "common/net_utils.hpp"
 #include "common/lockfree.hpp"
+#include "common/log.hpp"
 #include "common/sync.hpp"
 #include "common/time.hpp"
 #include "common/utils.hpp"

@@ -9,6 +9,7 @@
 #include "aoo.h"
 #include "aoo_client.hpp"
 
+#include "common/log.hpp"
 #include "common/net_utils.hpp"
 #include "common/priority_queue.hpp"
 

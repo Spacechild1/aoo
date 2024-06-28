@@ -4,13 +4,7 @@
 
 #pragma once
 
-#include "aoo_config.h"
-#include "aoo_defines.h"
-#include "aoo_types.h"
-
 #include <stdint.h>
-#include <cstring>
-#include <ostream>
 
 /*------------------ alloca -----------------------*/
 #ifdef _WIN32
@@ -22,36 +16,6 @@
 # include <alloca.h> // linux, mac, mingw, cygwin
 #else
 # include <stdlib.h> // BSDs for example
-#endif
-
-/*------------------- logging ----------------------*/
-
-#define DO_LOG(level, msg) do { aoo::Log(level) << msg; } while (false)
-
-#define LOG_ALL(msg) DO_LOG(kAooLogLevelNone, msg)
-
-#if AOO_LOG_LEVEL >= kAooLogLevelError
-# define LOG_ERROR(msg) DO_LOG(kAooLogLevelError, msg)
-#else
-# define LOG_ERROR(msg)
-#endif
-
-#if AOO_LOG_LEVEL >= kAooLogLevelWarning
-# define LOG_WARNING(msg) DO_LOG(kAooLogLevelWarning, msg)
-#else
-# define LOG_WARNING(msg)
-#endif
-
-#if AOO_LOG_LEVEL >= kAooLogLevelVerbose
-# define LOG_VERBOSE(msg) DO_LOG(kAooLogLevelVerbose, msg)
-#else
-# define LOG_VERBOSE(msg)
-#endif
-
-#if AOO_LOG_LEVEL >= kAooLogLevelDebug
-# define LOG_DEBUG(msg) DO_LOG(kAooLogLevelDebug, msg)
-#else
-# define LOG_DEBUG(msg)
 #endif
 
 /*------------------ endianess -------------------*/
@@ -88,26 +52,6 @@
 
 namespace aoo {
 
-class Log final : std::streambuf, public std::ostream {
-public:
-    static const int32_t buffer_size = 256;
-
-    Log(AooLogLevel level = kAooLogLevelNone)
-        : std::ostream(this), level_(level) {}
-    ~Log();
-private:
-    using int_type = std::streambuf::int_type;
-    using char_type = std::streambuf::char_type;
-
-    int_type overflow(int_type c) override;
-
-    std::streamsize xsputn(const char_type *s, std::streamsize n) override;
-
-    AooLogLevel level_;
-    int32_t pos_ = 0;
-    char buffer_[buffer_size];
-};
-
 // simple scope guard class that relies on CTAD (since C++17)
 template<typename T>
 class scope_guard {
@@ -137,7 +81,7 @@ T from_bytes(const B *b){
     static_assert(sizeof(B) == 1, "from_bytes() expects byte argument");
     union {
         T t;
-        AooByte b[sizeof(T)];
+        uint8_t b[sizeof(T)];
     } c;
 #if BYTE_ORDER == BIG_ENDIAN
     memcpy(c.b, b, sizeof(T));
@@ -161,7 +105,7 @@ void to_bytes(T v, B *b){
     static_assert(sizeof(B) == 1, "to_bytes() expects byte argument");
     union {
         T t;
-        AooByte b[sizeof(T)];
+        uint8_t b[sizeof(T)];
     } c;
     c.t = v;
 #if BYTE_ORDER == BIG_ENDIAN

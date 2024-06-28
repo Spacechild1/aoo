@@ -307,4 +307,9 @@ AOO_API AooError AOO_CALL aoo_getLastSystemError(AooInt32 *errorCode,
 
 /*------------------------------------------------------*/
 
+/**
+ * \brief log a message
+ */
+AOO_API AooError AOO_CALL aoo_logMessage(AooLogLevel level, const AooChar *msg);
+
 AOO_PACK_END

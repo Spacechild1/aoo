@@ -9,6 +9,7 @@
 #include "detail.hpp"
 #include "rt_memory_pool.hpp"
 
+#include "common/log.hpp"
 #include "common/sync.hpp"
 #include "common/time.hpp"
 #include "common/utils.hpp"
@@ -38,9 +39,10 @@
 # include "esp_system.h"
 #endif
 
-namespace aoo {
-
 //--------------------- interface table -------------------//
+
+namespace aoo {
+namespace {
 
 void * AOO_CALL default_allocator(void *ptr, AooSize oldsize, AooSize newsize);
 
@@ -54,7 +56,12 @@ static AooCodecHostInterface g_interface = {
     default_logfunc
 };
 
+} // namespace
+} // aoo
+
 //--------------------- helper functions -----------------//
+
+namespace aoo {
 
 int32_t get_random_id(){
 #if defined(ESP_PLATFORM)
@@ -75,12 +82,17 @@ int32_t get_random_id(){
 #endif
 }
 
+} // namespace "aoo"
+
 //----------------------- logging --------------------------//
+
+namespace aoo {
+namespace {
 
 #if CERR_LOG_FUNCTION
 
 #if CERR_LOG_MUTEX
-static sync::mutex g_log_mutex;
+sync::mutex g_log_mutex;
 #endif
 
 void AOO_CALL default_logfunc(AooLogLevel level, const char *message) {
@@ -105,7 +117,7 @@ void AOO_CALL default_logfunc(AooLogLevel level, const char *message) {
     }
 #endif
 
-    const auto size = Log::buffer_size;
+    const auto size = aoo::Log::buffer_size + 12;
     char buffer[size];
     int count;
     if (label) {
@@ -134,39 +146,21 @@ void
 
 #endif // CERR_LOG_FUNCTION
 
-Log::int_type Log::overflow(int_type c) {
-    if (pos_ < buffer_size - 1) {
-        buffer_[pos_++] = c;
-        return 0;
-    } else {
-        return std::streambuf::traits_type::eof();
-    }
-}
-
-std::streamsize Log::xsputn(const char_type *s, std::streamsize n) {
-    auto limit = buffer_size - 1;
-    if (pos_ < limit) {
-        if (pos_ + n > limit) {
-            n = limit - pos_;
-        }
-        memcpy(buffer_ + pos_, s, n);
-        pos_ += n;
-        return n;
-    } else {
-        return 0;
-    }
-}
-
-Log::~Log() {
-    if (aoo::g_interface.log) {
-        buffer_[pos_] = '\0';
-        aoo::g_interface.log(level_, buffer_);
-    }
-}
-
+} // namespace
 } // aoo
 
-static std::array g_error_names {
+AOO_API AooError AOO_CALL aoo_logMessage(AooLogLevel level, const AooChar *msg) {
+    if (aoo::g_interface.log) {
+        aoo::g_interface.log(level, msg);
+    }
+    return kAooOk;
+}
+
+//----------------------- aoo_strerror ------------------------//
+
+namespace {
+
+std::array g_error_names {
     "no error",
     "not implemented",
     "not permitted",
@@ -193,7 +187,7 @@ static std::array g_error_names {
 static_assert(g_error_names.size() == kAooErrorUserDefined + 1,
               "errors are missing");
 
-static std::array g_server_error_names {
+std::array g_server_error_names {
     "request in progress",
     "unhandled request",
     "version not supported",
@@ -213,6 +207,8 @@ static std::array g_server_error_names {
 
 static_assert(g_server_error_names.size() == kAooErrorNotResponding + 1 - 1000,
               "errors are missing");
+
+} // namespace
 
 const char *aoo_strerror(AooError e) {
     if (e < 0) {
@@ -483,7 +479,9 @@ const char *aoo_getVersionString() {
 
 //---------------------- AooData ----------------------//
 
-static std::unordered_map<std::string_view, AooDataType> g_data_type_map = {
+namespace {
+
+std::unordered_map<std::string_view, AooDataType> g_data_type_map = {
     { "unspecified", kAooDataUnspecified },
     { "raw", kAooDataRaw },
     { "binary", kAooDataBinary },
@@ -500,7 +498,7 @@ static std::unordered_map<std::string_view, AooDataType> g_data_type_map = {
     { "int64", kAooDataInt64 }
 };
 
-static std::array g_data_type_names {
+std::array g_data_type_names {
     "raw", // same as "binary"!
     "text",
     "osc",
@@ -517,6 +515,8 @@ static std::array g_data_type_names {
 
 static_assert(g_data_type_names.size() == kAooDataInt64 + 1,
               "missing data type");
+
+} // namespace
 
 AooDataType AOO_CALL aoo_dataTypeFromString(const AooChar *str) {
     auto it = g_data_type_map.find(str);
@@ -663,7 +663,13 @@ AooError check_version(const char *version) {
     }
 }
 
+} // aoo
+
 //------------------- allocator ------------------//
+
+namespace aoo {
+
+namespace {
 
 #if AOO_DEBUG_MEMORY
 std::atomic<ptrdiff_t> total_memory{0};
@@ -693,6 +699,8 @@ void * AOO_CALL default_allocator(void *ptr, AooSize oldsize, AooSize newsize) {
     return nullptr;
 }
 
+} // namespace
+
 #if AOO_CUSTOM_ALLOCATOR || AOO_DEBUG_MEMORY
 
 void * allocate(size_t size) {
@@ -709,9 +717,15 @@ void deallocate(void *ptr, size_t size){
 
 #endif
 
+} // aoo
+
 //---------------------- RT memory --------------------------//
 
-static rt_memory_pool<true, aoo::allocator<char>> g_rt_memory_pool;
+namespace aoo {
+
+namespace {
+aoo::rt_memory_pool<true, aoo::allocator<char>> g_rt_memory_pool;
+}
 
 void * rt_allocate(size_t size) {
     auto ptr = g_rt_memory_pool.allocate(size);
