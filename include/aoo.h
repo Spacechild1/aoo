@@ -260,8 +260,9 @@ AOO_API AooSize AOO_CALL aoo_sockAddrHash(
  *        e.g. `sockaddr_storage` or `AooSockAddrStorage`
  * \param [in,out] addrlen buffer size; updated to actual size
  */
-AOO_API AooError aoo_ipEndpointToSockAddr(const AooChar *ipAddress, AooUInt16 port,
-        AooSocketFlags type, void *sockaddr, AooAddrSize *addrlen);
+AOO_API AooError AOO_CALL aoo_ipEndpointToSockAddr(
+        const AooChar *ipAddress, AooUInt16 port, AooSocketFlags type,
+        void *sockaddr, AooAddrSize *addrlen);
 
 /**
  * \brief get IP endpoint from sockaddr
@@ -273,8 +274,10 @@ AOO_API AooError aoo_ipEndpointToSockAddr(const AooChar *ipAddress, AooUInt16 po
  * \param [out] port port Number
  * \param [out] type (optional) IP type
  */
-AOO_API AooError aoo_sockAddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
-        AooChar *ipAddressBuffer, AooSize *ipAddressSize, AooUInt16 *port, AooSocketFlags *type);
+AOO_API AooError AOO_CALL aoo_sockAddrToIpEndpoint(
+        const void *sockaddr, AooSize addrlen,
+        AooChar *ipAddressBuffer, AooSize *ipAddressSize,
+        AooUInt16 *port, AooSocketFlags *type);
 
 /**
  * \brief get last socket error
@@ -286,7 +289,7 @@ AOO_API AooError aoo_sockAddrToIpEndpoint(const void *sockaddr, AooSize addrlen,
  * \param [in,out] errorMessageSize (optional) error message buffer size;
  *                updated to actual size (excluding the 0 character)
  */
-AOO_API AooError aoo_getLastSocketError(AooInt32 *errorCode,
+AOO_API AooError AOO_CALL aoo_getLastSocketError(AooInt32 *errorCode,
         AooChar *errorMessageBuffer, AooSize *errorMessageSize);
 
 /**
@@ -299,7 +302,7 @@ AOO_API AooError aoo_getLastSocketError(AooInt32 *errorCode,
  * \param [in,out] errorMessageSize (optional) error message buffer size;
  *                updated to actual size (excluding the 0 character)
  */
-AOO_API AooError aoo_getLastSystemError(AooInt32 *errorCode,
+AOO_API AooError AOO_CALL aoo_getLastSystemError(AooInt32 *errorCode,
         AooChar *errorMessageBuffer, AooSize *errorMessageSize);
 
 /*------------------------------------------------------*/
