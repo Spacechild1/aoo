@@ -198,17 +198,9 @@ AOO_API const AooChar * AOO_CALL aoo_dataTypeToString(AooDataType type);
  */
 typedef struct AooSockAddrStorage
 {
-#if AOO_HAVE_SA_LEN
-    /* e.g. macOS, BSD and ESP32 */
-    AooByte len;    /**< address length */
-    AooByte family; /**< address family */
-#else
-    AooUInt16 family; /**< address family */
-#endif
     /** \cond DO_NOT_DOCUMENT */
-    AooByte pad1[6];
     AooUInt64 align;
-    AooByte pad2[16];
+    AooByte pad[24];
     /** \endcond */
 } AooSockAddrStorage;
 

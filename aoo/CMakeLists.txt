@@ -335,8 +335,7 @@ target_compile_definitions(aoo PUBLIC
     AOO_NET=$<BOOL:${AOO_NET}>
     AOO_USE_IPV6=$<BOOL:${AOO_USE_IPV6}>
     AOO_USE_OPUS=$<BOOL:${AOO_USE_OPUS}>
-    AOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE}
-    $<$<BOOL:${AOO_HAVE_SA_LEN}>:AOO_HAVE_SA_LEN>)
+    AOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE})
 
 target_include_directories(aoo PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>

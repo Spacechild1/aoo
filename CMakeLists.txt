@@ -141,32 +141,6 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     endif()
 endif()
 
-# check for sa_len in sockaddr
-if (NOT DEFINED AOO_HAVE_SA_LEN)
-    # FIXME: for some reason ESP-IDF cannot find any system headers inside try_compile().
-    # We know that on the ESP32 platform sockaddr has the sa_lan member.
-    if (ESP_PLATFORM)
-        set(AOO_HAVE_SA_LEN TRUE CACHE INTERNAL "'sockaddr' has 'sa_len' member")
-    else()
-        message(STATUS "Testing for 'sa_len' member in 'sockaddr'")
-
-        try_compile(RESULT_VAR
-            "${CMAKE_CURRENT_BINARY_DIR}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sa_len.cpp"
-            COMPILE_DEFINITIONS -DESP_PLATFORM=1
-            OUTPUT_VARIABLE COMPILE_OUTPUT)
-
-        if (RESULT_VAR)
-            message(STATUS "- yes")
-        else()
-            message(STATUS "- no")
-            message(VERBOSE ${COMPILE_OUTPUT})
-        endif()
-
-        set(AOO_HAVE_SA_LEN ${RESULT_VAR} CACHE INTERNAL "'sockaddr' has 'sa_len' member")
-    endif()
-endif()
-
 #-----------------------------------------------------------------
 # build options
 #-----------------------------------------------------------------
