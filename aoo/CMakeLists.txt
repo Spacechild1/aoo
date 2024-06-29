@@ -304,8 +304,10 @@ target_compile_definitions(aoo PRIVATE
     $<$<BOOL:${AOO_HAVE_PTHREAD_RWLOCK}>:AOO_HAVE_PTHREAD_RWLOCK>
 )
 
-target_link_libraries(aoo PRIVATE aoo_common
-    $<$<BOOL:BUILD_SHARED_LIBS>:aoo_binary>)
+target_link_libraries(aoo PRIVATE aoo_common)
+if (BUILD_SHARED_LIBS)
+    target_link_libraries(aoo PRIVATE aoo_binary)
+endif()
 
 # link with "libatomic" if available and necessary
 if (AOO_HAVE_LIB_ATOMIC AND
@@ -373,7 +375,7 @@ endif()
 #-------------------------------------------------------------
 
 # install library files
-install(TARGETS aoo aoo_common
+install(TARGETS aoo
     EXPORT AooTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT Aoo_Development
@@ -383,6 +385,13 @@ install(TARGETS aoo aoo_common
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             COMPONENT Aoo_Runtime
 )
+
+if (NOT BUILD_SHARED_LIBS)
+    # for some reason the static library has aoo_common
+    # as a dependency, even though the latter does not
+    # contain any link options...
+    install(TARGETS aoo_common EXPORT AooTargets)
+endif()
 
 # TODO: install PDB file (Visual Studio)
 
@@ -424,3 +433,38 @@ install(FILES
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo/codec"
     COMPONENT Aoo_Development
 )
+
+#-------------------------------------------------------------
+# CMake package module
+#-------------------------------------------------------------
+if (AOO_INSTALL_CMAKE_CONFIG_MODULE)
+    include (CMakePackageConfigHelpers)
+
+    set(AOO_INSTALL_CMAKE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/aoo"
+        CACHE STRING "Path to AOO CMake files")
+    mark_as_advanced(AOO_INSTALL_CMAKE_DIR)
+
+    if (BUILD_SHARED_LIBS)
+        set(type "Shared")
+    else()
+        set(type "Static")
+    endif()
+
+    install(EXPORT AooTargets
+            DESTINATION "${AOO_INSTALL_CMAKE_DIR}"
+            NAMESPACE Aoo::
+            FILE "Aoo${type}Targets.cmake"
+            COMPONENT Aoo_Development)
+
+    configure_package_config_file("../cmake/AooConfig.cmake.in"
+        "AooConfig.cmake"
+        INSTALL_DESTINATION "${AOO_INSTALL_CMAKE_DIR}")
+
+    write_basic_package_version_file("AooConfigVersion.cmake"
+        VERSION "${aoo_version}"
+        COMPATIBILITY SameMajorVersion)
+
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/AooConfig.cmake"
+                  "${CMAKE_CURRENT_BINARY_DIR}/AooConfigVersion.cmake"
+            DESTINATION "${AOO_INSTALL_CMAKE_DIR}")
+endif()
