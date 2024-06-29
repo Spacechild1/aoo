@@ -324,7 +324,7 @@ if (NOT BUILD_SHARED_LIBS AND MSVC)
     set_target_properties(aoo PROPERTIES OUTPUT_NAME "aoo_static")
 endif()
 
-add_library(AOO::aoo ALIAS aoo)
+add_library(Aoo::aoo ALIAS aoo)
 
 #-------------------------------------------------------------
 # public properties (for libaoo consumers)
@@ -376,12 +376,12 @@ endif()
 install(TARGETS aoo aoo_common
     EXPORT AooTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT AooDevelopment
+            COMPONENT Aoo_Development
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT AooRuntime
-            NAMELINK_COMPONENT AooDevelopment
+            COMPONENT Aoo_Runtime
+            NAMELINK_COMPONENT Aoo_Development
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT AooRuntime
+            COMPONENT Aoo_Runtime
 )
 
 # TODO: install PDB file (Visual Studio)
@@ -400,7 +400,7 @@ install(FILES
     "../include/aoo_source.hpp"
     "../include/aoo_types.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo"
-    COMPONENT AooDevelopment
+    COMPONENT Aoo_Development
 )
 
 # AOO_NET headers
@@ -412,7 +412,7 @@ if (AOO_NET)
         "../include/aoo_server.h"
         "../include/aoo_server.hpp"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo"
-        COMPONENT AooDevelopment
+        COMPONENT Aoo_Development
     )
 endif()
 
@@ -422,5 +422,5 @@ install(FILES
     "../include/codec/aoo_pcm.h"
     $<$<BOOL:${AOO_USE_OPUS}>:${CMAKE_CURRENT_SOURCE_DIR}/../include/codec/aoo_opus.h>
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/aoo/codec"
-    COMPONENT AooDevelopment
+    COMPONENT Aoo_Development
 )
