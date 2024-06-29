@@ -1,0 +1,16 @@
+# AOO pkg-config file
+
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: AOO
+Description: audio over OSC
+URL: https://git.iem.at/cm/aoo
+Version: @aoo_version@
+Requires: @PKGCONFIG_REQUIRES@
+Conflicts:
+Libs: -L${libdir} -laoo
+Libs.private: -L${libdir} @PKGCONFIG_LDFLAGS_PRIVATE@
+Cflags: -I${includedir}/aoo @PKGCONFIG_CFLAGS@

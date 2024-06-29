@@ -468,3 +468,53 @@ if (AOO_INSTALL_CMAKE_CONFIG_MODULE)
                   "${CMAKE_CURRENT_BINARY_DIR}/AooConfigVersion.cmake"
             DESTINATION "${AOO_INSTALL_CMAKE_DIR}")
 endif()
+
+#-------------------------------------------------------------
+# pkg-config module
+#-------------------------------------------------------------
+if (AOO_INSTALL_PKG_CONFIG_MODULE)
+    set(AOO_INSTALL_PKG_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+        CACHE STRING "Path to AOO pkg-config file")
+    mark_as_advanced(AOO_INSTALL_PKG_CONFIG_DIR)
+
+    # CFLAGS
+    if (BUILD_SHARED_LIBS)
+        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_SHARED")
+    endif()
+
+    if (AOO_NET)
+        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_NET=1")
+    else()
+        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_NET=0")
+    endif()
+
+    set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE}")
+
+    # LDFLAGS
+    if (LINUX)
+        set(PKGCONFIG_LDFLAGS_PRIVATE "${PKGCONFIG_LDFLAGS_PRIVATE} -pthread")
+    elseif (NOT MSVC)
+        set(PKGCONFIG_LDFLAGS_PRIVATE "${PKGCONFIG_LDFLAGS_PRIVATE} -lpthread")
+    endif()
+
+    if (WIN32)
+        set(PKGCONFIG_LDFLAGS_PRIVATE "${PKGCONFIG_LDFLAGS_PRIVATE} -lws2_32")
+    endif()
+
+    # Opus
+    if (AOO_USE_OPUS)
+        set(PKGCONFIG_REQUIRES "${PKGCONFIG_REQUIRES} opus")
+        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_USE_OPUS=1")
+        if (MINGW)
+            set(PKGCONFIG_LDFLAGS_PRIVATE "${PKGCONFIG_LDFLAGS_PRIVATE} -lssp")
+        endif()
+     else()
+        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_USE_OPUS=0")
+    endif()
+
+    # pkg-config module
+    configure_file("../cmake/aoo.pc.in" "aoo.pc" @ONLY)
+
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aoo.pc"
+        DESTINATION "${AOO_INSTALL_PKG_CONFIG_DIR}")
+endif()
