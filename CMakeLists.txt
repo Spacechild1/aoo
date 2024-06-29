@@ -21,7 +21,7 @@ include(cmake/test_linker_flag.cmake)
 
 message(STATUS "\n*** Global settings ***\n")
 
-if(UNIX AND NOT APPLE AND NOT MINGW)
+if (UNIX AND NOT APPLE AND NOT MINGW)
     set(LINUX TRUE)
 endif()
 
@@ -84,6 +84,7 @@ if (MINGW AND CMAKE_COMPILER_IS_GNUCXX)
     option(AOO_STATIC_RUNTIME "link with static runtime libraries (libstdc++, libgcc and libphread)" ON)
 endif()
 
+# TODO: should AOO_STATIC_RUNTIME try to link with a static libopus?
 if (DEFINED AOO_STATIC_RUNTIME)
     message(STATUS "Build with static runtime libraries: ${AOO_STATIC_RUNTIME}")
 endif()
@@ -164,6 +165,9 @@ endif()
 # dependencies
 #-----------------------------------------------------------------
 
+# PkgConfig
+find_package(PkgConfig)
+
 # Opus
 if (AOO_USE_OPUS)
     option(AOO_LOCAL_OPUS "use local Opus library" ON)
@@ -175,7 +179,18 @@ if (AOO_USE_OPUS)
             target_compile_definitions(opus PRIVATE OPUS_EXPORT=extern)
         endif()
     else()
-        find_package(Opus REQUIRED)
+        # TODO: write proper find module for Opus so that find_package(Aoo)
+        # automatically handles our dependencies. Currently, it would look
+        # for a PkgConfig::Opus target, which naturally does not exist...
+        if (PkgConfig_FOUND)
+            # last time I've checked, most distros only provide pkg-config modules
+            pkg_check_modules(Opus IMPORTED_TARGET opus)
+        endif()
+        if (Opus_FOUND)
+            add_library(Opus::opus ALIAS PkgConfig::Opus)
+        else()
+            find_package(Opus REQUIRED)
+        endif()
     endif()
 endif()
 
@@ -197,7 +212,7 @@ add_subdirectory("aoo")
 #-----------------------------------------------------------------
 if (AOO_BUILD_PD_EXTERNAL)
     message(STATUS "\n*** Pd external ***\n")
-    if (AOO_BUILD_SHARED_LIBRARY)
+    if (BUILD_SHARED_LIBS)
         # FIXME: the externals use common (private) code
         message(WARNING "AOO_BUILD_PD_EXTERNAL=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
     else()
@@ -213,7 +228,7 @@ endif()
 #-----------------------------------------------------------------
 if (AOO_BUILD_SERVER)
     message(STATUS "\n*** AOO server ***\n")
-    if (AOO_BUILD_SHARED_LIBRARY)
+    if (BUILD_SHARED_LIBS)
         # FIXME: aooserver uses common (private) code
         message(WARNING "AOO_BUILD_SERVER=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
     else()
@@ -229,7 +244,7 @@ endif()
 #-----------------------------------------------------------------
 if (AOO_BUILD_TESTS)
     message(STATUS "\n*** Test suite ***\n")
-    if (AOO_BUILD_SHARED_LIBRARY)
+    if (BUILD_SHARED_LIBS)
         # FIXME: get rid of common (private) code
         message(WARNING "AOO_BUILD_TESTS=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
     else()
