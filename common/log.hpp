@@ -43,6 +43,7 @@ public:
     Log(AooLogLevel level = kAooLogLevelNone)
         : std::ostream(this), level_(level) {}
     ~Log() {
+        buffer_[pos_] = 0;
         aoo_logMessage(level_, buffer_);
     }
 private:
