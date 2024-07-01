@@ -53,15 +53,8 @@ add_library(aoo
     "../common/time.cpp"
     "../common/time.hpp"
     "../common/utils.hpp"
-    # only build required files in "osc" folder
-    "../deps/oscpack/osc/OscException.h"
-    "../deps/oscpack/osc/OscHostEndianness.h"
-    "../deps/oscpack/osc/OscOutboundPacketStream.cpp"
-    "../deps/oscpack/osc/OscOutboundPacketStream.h"
-    "../deps/oscpack/osc/OscReceivedElements.cpp"
-    "../deps/oscpack/osc/OscReceivedElements.h"
-    "../deps/oscpack/osc/OscTypes.cpp"
-    "../deps/oscpack/osc/OscTypes.h")
+    # oscpack
+    $<TARGET_OBJECTS:aoo_oscpack>)
 
 target_include_directories(aoo PRIVATE ".")
 
@@ -87,10 +80,9 @@ if (AOO_NET)
         "src/net/tcp_server.cpp"
         "src/net/tcp_server.hpp"
         "src/net/udp_server.cpp"
-        "src/net/udp_server.hpp"
-        # md5
-        "../deps/md5/md5.c"
-        "../deps/md5/md5.h")
+        "src/net/udp_server.hpp")
+
+    target_sources(aoo PRIVATE $<TARGET_OBJECTS:aoo_md5>)
 endif()
 
 if (AOO_USE_OPUS)
