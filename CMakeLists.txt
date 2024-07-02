@@ -165,8 +165,7 @@ endif()
 # dependencies
 #-----------------------------------------------------------------
 
-# PkgConfig
-find_package(PkgConfig)
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Opus
 if (AOO_USE_OPUS)
@@ -179,21 +178,7 @@ if (AOO_USE_OPUS)
             target_compile_definitions(opus PRIVATE OPUS_EXPORT=extern)
         endif()
     else()
-        # TODO: write proper find module for Opus so that find_package(Aoo)
-        # automatically handles our dependencies. Currently, it would look
-        # for a PkgConfig::Opus target, which naturally does not exist...
-        if (PkgConfig_FOUND)
-            # last time I've checked, most distros only provide pkg-config modules
-            pkg_check_modules(Opus IMPORTED_TARGET opus)
-        endif()
-        if (Opus_FOUND)
-            add_library(Opus::opus ALIAS PkgConfig::Opus)
-        else()
-            # CMake package
-            message(STATUS "Find Opus")
-            find_package(Opus REQUIRED)
-            message(STATUS "- ok")
-        endif()
+        find_package(Opus REQUIRED)
     endif()
 endif()
 

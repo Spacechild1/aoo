@@ -275,6 +275,12 @@ if (AOO_INSTALL_CMAKE_CONFIG_MODULE)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/AooConfig.cmake"
                   "${CMAKE_CURRENT_BINARY_DIR}/AooConfigVersion.cmake"
             DESTINATION "${AOO_INSTALL_CMAKE_DIR}")
+
+    if (AOO_USE_OPUS)
+        # needed for AooConfig.cmake so find_package(Opus) works in downstream projects
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/FindOpus.cmake"
+                DESTINATION "${AOO_INSTALL_CMAKE_DIR}")
+    endif()
 endif()
 
 #-------------------------------------------------------------
