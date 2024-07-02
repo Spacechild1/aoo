@@ -21,5 +21,11 @@ add_executable(test_rt_memory_pool "test_rt_memory_pool.cpp")
 target_link_libraries(test_rt_memory_pool PRIVATE ${test_libs})
 
 # relay test
-add_executable(test_relay "test_relay.cpp")
-target_link_libraries(test_relay PRIVATE ${test_libs})
+if (BUILD_SHARED_LIBS)
+    message(STATUS "skip 'test_relay' because it requires a static AOO library")
+elseif (NOT AOO_NET)
+    message(STATUS "skip 'test_relay' because it requires AOO_NET=ON")
+else()
+    add_executable(test_relay "test_relay.cpp")
+    target_link_libraries(test_relay PRIVATE ${test_libs})
+endif()

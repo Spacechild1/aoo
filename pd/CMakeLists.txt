@@ -52,6 +52,18 @@ add_library(pd MODULE
     "src/aoo_server.cpp"
     "src/aoo_setup.cpp")
 
+if (BUILD_SHARED_LIBS)
+    target_sources(pd PRIVATE
+        "../common/net_utils.cpp"
+        "../common/net_utils.hpp"
+        "../common/log.hpp"
+        "../common/priority_queue.hpp"
+        "../common/sync.cpp"
+        "../common/sync.hpp"
+        "../common/time.cpp"
+        "../common/time.hpp")
+endif()
+
 target_include_directories(pd PRIVATE ${PD_INCLUDE_DIR})
 
 target_link_libraries(pd PRIVATE aoo aoo_common aoo_binary)

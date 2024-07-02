@@ -389,15 +389,10 @@ add_subdirectory(aoo)
 #-----------------------------------------------------------------
 if (AOO_BUILD_PD_EXTERNAL)
     message(STATUS "\n*** Pd external ***\n")
-    if (BUILD_SHARED_LIBS)
-        # FIXME: the externals use common (private) code
-        message(WARNING "AOO_BUILD_PD_EXTERNAL=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
-    else()
-        if (NOT AOO_NET)
-            message(FATAL_ERROR "Pd external requires AOO_NET")
-        endif()
-        add_subdirectory(pd)
+    if (NOT AOO_NET)
+        message(FATAL_ERROR "Pd external requires AOO_NET")
     endif()
+    add_subdirectory(pd)
 endif()
 
 #-----------------------------------------------------------------
@@ -405,15 +400,10 @@ endif()
 #-----------------------------------------------------------------
 if (AOO_BUILD_SERVER)
     message(STATUS "\n*** AOO server ***\n")
-    if (BUILD_SHARED_LIBS)
-        # FIXME: aooserver uses common (private) code
-        message(WARNING "AOO_BUILD_SERVER=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
-    else()
-        if (NOT AOO_NET)
-            message(FATAL_ERROR "AOO server requires AOO_NET")
-        endif()
-        add_subdirectory(server)
+    if (NOT AOO_NET)
+        message(FATAL_ERROR "AOO server requires AOO_NET")
     endif()
+    add_subdirectory(server)
 endif()
 
 #-----------------------------------------------------------------
@@ -421,10 +411,5 @@ endif()
 #-----------------------------------------------------------------
 if (AOO_BUILD_TESTS)
     message(STATUS "\n*** Test suite ***\n")
-    if (BUILD_SHARED_LIBS)
-        # FIXME: get rid of common (private) code
-        message(WARNING "AOO_BUILD_TESTS=ON requires AOO_BUILD_SHARED_LIBRARY=OFF")
-    else()
-        add_subdirectory(tests)
-    endif()
+    add_subdirectory(tests)
 endif()
