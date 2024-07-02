@@ -103,30 +103,29 @@ and also helped reviving the Virtual IEM Computer Music Ensemble [^VICE] within 
 
 ### C/C++ library
 
-The public API headers are contained in the `aoo/include` directory.
+The `aoo` library is written in C++17 and provides a pure C API as well as a C++ API. The public API headers are contained in the [`include`](include) directory.
+
+For build instructions please see [INSTALL.md](INSTALL.md).
+
+The C API may be used for creating bindings to other languages, such as Rust, Python, Java or C#.
+
+**NOTE**:
+In general, C++ does not have a standardized ABI. However, by following certain COM idioms, we provide portable C++ interfaces. This means you can use a pre-build version of the `aoo` shared library, even though it may have been built with a different compiler (version).
+
+The library features four object classes:
+
+- `AooSource` - AOO source object, see [`aoo_source.hpp`](include/aoo_source.hpp) resp. [`aoo_source.h`](include/aoo_source.h).
+
+- `AooSink` - AOO sink object, see [`aoo_sink.hpp`](include/aoo_sink.hpp) resp. [`aoo_sink.h`](include/aoo_sink.h).
+
+- `AooClient` - AOO client object, see [`aoo_client.hpp`](include/aoo_client.hpp) resp. [`aoo_client.h`](include/aoo_client.h).
+
+- `AooServer` - AOO UDP hole punching server, see [`aoo_server.hpp`](include/aoo_server.hpp) resp. [`aoo_server.h`](include/aoo_server.h).
+
 
 To generate the API documentation you need to have `doxygen` installed. Just run the `doxygen`
 command in the toplevel folder and it will store the generated files in the `doxygen` folder.
 You can view the documentation in a standard web browser by opening `doxygen/html/index.html`.
-
-The library features four object classes:
-
-`AooSource` - AOO source object, see `aoo_source.h` resp. `aoo_source.hpp` in `include/aoo`.
-
-`AooSink` - AOO sink object, see `aoo_sink.h` resp. `aoo_sink.hpp` in `include/aoo`.
-
-`AooClient` - AOO client object, see `aoo_client.h` resp. `aoo_client.hpp` in `include/aoo`.
-
-`AooServer` - AOO UDP hole punching server, see `aoo_server.h` resp. `aoo_server.hpp` in `include/aoo`.
-
-**NOTE**:
-By following COM conventions (no virtual destructors, no method overloading, only simple
-function parameters and return types), we achieve portable C++ interfaces on Windows and all other
-platforms with a stable vtable layout (generally true for Linux and macOS in my experience).
-This means you can take a pre-build version of the AOO shared library, which might have been built
-with another compiler (version), and directly use it in your C++ project.
-
-The C interface is meant to be used in C projects and for creating bindings to other languages.
 
 ---
 
@@ -154,126 +153,6 @@ If you want to host your own (private or public) AOO server, you only have to ru
 on the command line or as a service and make sure that clients can connect to your machine.
 
 Run `aooserver -h` to see all available options.
-
----
-
-### Build instructions
-
-#### Prerequisites
-
-1. Install CMake [^CMake]
-
-2. Install Git [^Git]
-
-3. Get the AOO source code: http://git.iem.at/cm/aoo/
-   HTTPS: `git clone https://git.iem.at/cm/aoo.git`
-   SSH: `git clone git@git.iem.at:cm/aoo.git`
-
-4. Fetch submodules:
-   `git submodule update --init`
-
-
-#### Pure Data
-
-1. Install Pure Data.
-   Windows/macOS: http://msp.ucsd.edu/software.html
-   Linux: `sudo apt-get install pure-data-dev`
-
-2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
-
-3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
-
-4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
-
-5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
-
-
-#### Opus
-
-Opus[^Opus] is a high quality low latency audio codec.
-If you want to build AOO with integrated Opus support there are two options:
-
-a) Link with the system wide `opus` library
-
-1. Install Opus:
-  * macOS -> homebrew: `brew install opus`
-  * Windows -> Msys2: `pacman -S mingw32/mingw-w64-i686-opus` (32 bit) resp.
-                      `pacman -S mingw64/mingw-w64-x86_64-opus` (64 bit)
-  * Linux -> apt: `sudo apt-get install libopus-dev`
-
-2. Set the `AOO_LOCAL_OPUS` CMake variable to `OFF` (see below)
-
-b) Use local Opus library (default)
-
-1. Make sure that `AOO_LOCAL_OPUS` CMake variable is `ON` (default).
-
-2. Now Opus will be included in the project and you can configure it as needed.
-
-   **NOTE**: by default Opus will be built as a static library.
-   If `BUILD_SHARED_LIBS` or `AOO_BUILD_SHARED_LIBRARY` is `ON`,
-   both AOO and Opus will be built as shared libraries.
-
-
-#### PortAudio
-
-PortAudio is only required for the examples (`AOO_BUILD_EXAMPLES`).
-
-
-#### macOS
-
-By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
-
-
-#### Build
-
-1. In the "aoo" folder create a subfolder named "build".
-2. Navigate to `build` and execute `cmake .. <options>`. Available options are listed below.
-3. Build the project with `cmake --build .`
-4. Install the project with `cmake --build . --target install/strip`
-
-
-#### CMake options
-
-CMake options are set with the following syntax:
-`cmake .. -D<name1>=<value1> -D<name2>=<value2>` etc.
-
-**HINT**: setting options is much more convenient in a graphical interface like `cmake-gui`.
-(You might need to install it seperately.)
-
-These are the most important project options:
-
-* `CMAKE_BUILD_TYPE` (STRING) - Choose one of the following build types:
-   "Release", "RelMinSize", "RelWithDebInfo", "Debug". Default: "Release".
-
-* `CMAKE_INSTALL_PREFIX` (PATH) - Where to install the AOO C/C++ library.
-
-* `AOO_BUILD_STATIC_LIBRARY` (BOOL) - Build static AOO library. Default: `ON`.
-
-* `AOO_BUILD_SHARED_LIBRARY` (BOOL) - Build shared AOO library. Default: `ON`.
-
-* `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. Default: `ON`.
-
-* `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` command line program. Default: `ON`
-
-* `AOO_USE_OPUS` (BOOL) - Enable/disable built-in Opus support
-
-* `AOO_LOG_LEVEL` (STRING) - Choose one of the following log levels:
-   "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".
-
-* `AOO_STATIC_RUNTIME` (BOOL) - Linux and MinGW only:
-   Link statically with `libgcc`, `libstdc++` and - on MinGW - also `libpthread`.
-   This makres sure that the resulting binaries don't depend on specific system library versions.
-   Default: `ON` for MinGW, `OFF` for Linux.
-
-* `AOO_NATIVE` (BOOL) - optimize for this particular machine.
-  NB: the resulting binaries are not portable and might not run on other machines!
-
-* `AOO_NET` (BOOL) - Build with integrated networking support (`AooClient` and `AooServer`).
-  Disable it if you don't need it and want to reduce code size.
-  **NOTE**: It is required for the Pd external. Default: `ON`.
-
-
-`cmake-gui` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.
 
 ---
 

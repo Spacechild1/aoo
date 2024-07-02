@@ -1,0 +1,207 @@
+AOO (audio over OSC) v2.0-test3
+===============================
+
+### Usage
+
+There are several ways of integrating the AOO library into your own projects.
+
+#### 1. CMake subproject
+  
+You can copy the source code into your project, e.g. as a git submodule or subtree,
+and then simply include it in your CMake project:
+
+```cmake
+project(my_project)
+
+# assuming that `deps` contains the `aoo` source code
+add_subdirectory(deps/aoo EXCLUDE_FROM_ALL)
+
+add_executable(my_project main.cpp)
+
+target_link_libraries(my_project PRIVATE Aoo::aoo)
+```
+
+If `BUILD_SHARED_LIBRARIES` or `AOO_BUILD_SHARED_LIBRARIES` is set to `ON`,
+`aoo` will be built as a shared library. Otherwise it is built as a static library.
+
+See [Build instructions](INSTALL.md#build-instructions) for the most important options.
+The default configuration should be fine for most projects.
+
+#### 2. CMake package
+
+If the `aoo` library is installed (locally or system-wide), you can import to your CMake project with `find_package()`:
+
+```cmake
+project(my_project)
+
+find_package(Aoo REQUIRED)
+
+add_executable(my_project main.cpp)
+
+target_link_libraries(my_project PRIVATE Aoo::aoo)
+```
+
+The CMake package honors the `BUILD_SHARED_LIBS` variable.
+In addition, you can force the shared or static library by setting `AOO_SHARED_LIBS` to `ON` resp. `OFF` *before* calling `find_library(Aoo)`.
+
+Typically, the `AooConfig.cmake` file is located at `<aoo_install_prefix>/lib/cmake/aoo`.
+
+**NOTE:** If `aoo` has been installed in a non-standard location, you need to add the *install prefix* to the `CMAKE_PREFIX_PATH`:
+
+```cmake
+list(APPEND CMAKE_PREFIX_PATH "<aoo_install_prefix>")
+```
+
+If you build and install `aoo` yourself, make sure that `AOO_INSTALL_CMAKE_CONFIG_MODULE` is set to `ON` (default).
+
+
+#### 3. pkg-config module
+
+By default, `aoo` also provides a pkg-config file (`aoo.pc`).
+This allows `aoo` to be used with other build systems via `pkg-config`.
+
+Here is a simple example Makefile:
+
+```make
+CC = gcc
+CFLAGS = -g -Wall `pkg-config --cflags aoo`
+LDFLAGS = `pkg-config --libs aoo`
+
+all: my_project
+
+main.o: main.c
+	$(CC) -c main.c $(CFLAGS)
+
+my_project: main.o
+	$(CC) -o my_project main.o $(LDFLAGS)
+```
+
+Typically, the `aoo.pc` file is located at `<aoo_install_prefix>/lib/pkgconfig`.
+
+**NOTE:** If `aoo` has been installed in a non-standard location, you need to add the relevant path to the `PKG_CONFIG_PATH` environment variable, e.g.:
+
+```sh
+export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:<aoo_install_prefix>/lib/pkconfig"
+```
+
+If you build and install `aoo` yourself, make sure that `AOO_INSTALL_PKG_CONFIG_MODULE` is set to `ON` (default).
+
+---
+
+### Build instructions
+
+#### Prerequisites
+
+1. Install CMake [^CMake]
+
+2. Install Git [^Git]
+
+3. Get the AOO source code: http://git.iem.at/cm/aoo/
+   HTTPS: `git clone https://git.iem.at/cm/aoo.git`
+   SSH: `git clone git@git.iem.at:cm/aoo.git`
+
+4. Fetch submodules:
+   `git submodule update --init`
+
+
+#### Pure Data
+
+1. Install Pure Data.
+   Windows/macOS: http://msp.ucsd.edu/software.html
+   Linux: `sudo apt-get install pure-data-dev`
+
+2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`
+
+3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
+
+4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
+
+5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
+
+
+#### Opus
+
+Opus[^Opus] is a high quality low latency audio codec.
+If you want to build AOO with integrated Opus support there are two options:
+
+a) Link with the system wide `opus` library
+
+1. Install Opus:
+  * macOS -> homebrew: `brew install opus`
+  * Windows -> Msys2: `pacman -S mingw32/mingw-w64-i686-opus` (32 bit) resp.
+                      `pacman -S mingw64/mingw-w64-x86_64-opus` (64 bit)
+  * Linux -> apt: `sudo apt-get install libopus-dev`
+
+2. Set the `AOO_LOCAL_OPUS` CMake variable to `OFF` (see below)
+
+b) Use local Opus library (default)
+
+1. Make sure that `AOO_LOCAL_OPUS` CMake variable is `ON` (default).
+
+2. Now Opus will be included in the project and you can configure it as needed.
+
+   **NOTE**: by default Opus will be built as a static library.
+   If `BUILD_SHARED_LIBS` or `AOO_BUILD_SHARED_LIBRARY` is `ON`,
+   both AOO and Opus will be built as shared libraries.
+
+
+#### PortAudio
+
+PortAudio is only required for the examples (`AOO_BUILD_EXAMPLES`).
+
+
+#### macOS
+
+By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
+
+
+#### Build
+
+1. In the "aoo" folder create a subfolder named "build".
+2. Navigate to `build` and execute `cmake .. <options>`. Available options are listed below.
+3. Build the project with `cmake --build .`
+4. Install the project with `cmake --build . --target install/strip`
+
+
+#### CMake options
+
+CMake options are set with the following syntax:
+`cmake .. -D<name1>=<value1> -D<name2>=<value2>` etc.
+
+**HINT**: setting options is much more convenient in a graphical interface like `cmake-gui` or `ccmake`.
+(You might need to install it seperately.)
+
+These are the most important project options:
+
+* `CMAKE_BUILD_TYPE` (STRING) - Choose one of the following build types:
+   "Release", "RelMinSize", "RelWithDebInfo", "Debug". Default: "Release".
+
+* `CMAKE_INSTALL_PREFIX` (PATH) - Where to install the AOO C/C++ library.
+
+* `AOO_BUILD_STATIC_LIBRARY` (BOOL) - Build static AOO library. Default: `ON`.
+
+* `AOO_BUILD_SHARED_LIBRARY` (BOOL) - Build shared AOO library. Default: `ON`.
+
+* `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. Default: `ON`.
+
+* `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` command line program. Default: `ON`
+
+* `AOO_USE_OPUS` (BOOL) - Enable/disable built-in Opus support
+
+* `AOO_LOG_LEVEL` (STRING) - Choose one of the following log levels:
+   "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".
+
+* `AOO_STATIC_RUNTIME` (BOOL) - Linux and MinGW only:
+   Link statically with `libgcc`, `libstdc++` and - on MinGW - also `libpthread`.
+   This makres sure that the resulting binaries are portable across systems.
+   Default: `ON` for MinGW, `OFF` for Linux.
+
+* `AOO_NATIVE` (BOOL) - optimize for this particular machine.
+  NB: the resulting binaries are not portable and might not run on other machines!
+
+* `AOO_NET` (BOOL) - Build with integrated networking support (`AooClient` and `AooServer`).
+  Disable it if you don't need it and want to reduce code size.
+  **NOTE**: It is required for the Pd external. Default: `ON`.
+
+
+`cmake-gui` resp. `ccmake` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.
