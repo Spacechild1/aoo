@@ -6,6 +6,10 @@ if (BUILD_SHARED_LIBS)
         "../common/net_utils.hpp"
         "../common/sync.cpp"
         "../common/sync.hpp")
+
+    if (WIN32)
+        target_link_libraries(aooserver PRIVATE ws2_32)
+    endif()
 endif()
 
 target_link_libraries(aooserver PRIVATE aoo aoo_common aoo_binary)
