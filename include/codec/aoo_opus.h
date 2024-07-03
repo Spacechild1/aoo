@@ -20,7 +20,7 @@ struct AooSource;
 
 /** \cond DO_NOT_DOCUMENT */
 AOO_API AooError AOO_CALL AooSource_codecControl(
-        AooSource *source, const AooChar *codec,
+        struct AooSource *source, const AooChar *codec,
         AooCtl ctl, AooIntPtr index,
         void *data, AooSize size);
 /** \endcond */
@@ -38,9 +38,9 @@ typedef struct AooFormatOpus
     AooFormat header;
     /** Opus application type.
      * Possible values:
-     * `OPUS_APPLICATION_VOIP`,
-     * `OPUS_APPLICATION_AUDIO` or
+     * `OPUS_APPLICATION_AUDIO`
      * `OPUS_APPLICATION_RESTRICTED_LOWDELAY`
+     * `OPUS_APPLICATION_VOIP`
      */
     opus_int32 applicationType;
 } AooFormatOpus;
@@ -70,7 +70,8 @@ AOO_INLINE void AooFormatOpus_init(
  * \param bitrate bits/s, `OPUS_BITRATE_MAX` or `OPUS_AUTO`
  */
 AOO_INLINE AooError AooSource_setOpusBitrate(
-        AooSource *src, const AooEndpoint *sink, opus_int32 bitrate) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 bitrate)
+{
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_SET_BITRATE_REQUEST, (AooIntPtr)sink,
                 &bitrate, sizeof(bitrate));
@@ -78,7 +79,8 @@ AOO_INLINE AooError AooSource_setOpusBitrate(
 
 /** \brief get bitrate */
 AOO_INLINE AooError AooSource_getOpusBitrate(
-        AooSource *src, const AooEndpoint *sink, opus_int32 *bitrate) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 *bitrate)
+{
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_GET_BITRATE_REQUEST, (AooIntPtr)sink,
                 bitrate, sizeof(*bitrate));
@@ -91,7 +93,8 @@ AOO_INLINE AooError AooSource_getOpusBitrate(
  * \param complexity the complexity (0-10 or `OPUS_AUTO`)
  */
 AOO_INLINE AooError AooSource_setOpusComplexity(
-        AooSource *src, const AooEndpoint *sink, opus_int32 complexity) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 complexity)
+{
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_SET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
                 &complexity, sizeof(complexity));
@@ -99,7 +102,8 @@ AOO_INLINE AooError AooSource_setOpusComplexity(
 
 /** \brief get complexity */
 AOO_INLINE AooError AooSource_getOpusComplexity(
-        AooSource *src, const AooEndpoint *sink, opus_int32 *complexity) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 *complexity)
+{
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_GET_COMPLEXITY_REQUEST, (AooIntPtr)sink,
                 complexity, sizeof(*complexity));
@@ -113,7 +117,8 @@ AOO_INLINE AooError AooSource_getOpusComplexity(
  * (`OPUS_SIGNAL_VOICE`, `OPUS_SIGNAL_MUSIC` or `OPUS_AUTO`)
  */
 AOO_INLINE AooError AooSource_setOpusSignalType(
-        AooSource *src, const AooEndpoint *sink, opus_int32 signalType) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 signalType)
+{
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_SET_SIGNAL_REQUEST, (AooIntPtr)sink,
                 &signalType, sizeof(signalType));
@@ -121,7 +126,7 @@ AOO_INLINE AooError AooSource_setOpusSignalType(
 
 /** \brief get signal type */
 AOO_INLINE AooError AooSource_getOpusSignalType(
-        AooSource *src, const AooEndpoint *sink, opus_int32 *signalType) {
+        struct AooSource *src, const AooEndpoint *sink, opus_int32 *signalType) {
     return AooSource_codecControl(src, kAooCodecOpus,
                 OPUS_GET_SIGNAL_REQUEST, (AooIntPtr)sink,
                 signalType, sizeof(*signalType));
