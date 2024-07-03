@@ -265,3 +265,11 @@ These are the most important project options:
 
 
 `cmake-gui` resp. `ccmake` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.
+
+---
+
+### Footnotes
+
+[^CMake]: https://cmake.org/
+
+[^Git]: https://git-scm.com/

@@ -1,77 +1,66 @@
 AOO (audio over OSC) v2.0-test3
 ===============================
 
-AOO ("audio over OSC") is a message based audio system, using Open Sound Control [^OSC] as the underlying transport protocol.
+AOO ("audio over OSC") is a lightweight and flexible peer-to-peer audio streaming and messaging solution, using Open Sound Control [^OSC] as the underlying transport protocol.
+
 It is fundamentally connectionless and allows to send audio in real time and on demand between arbitrary network endpoints.
+
+The C/C++ library can be easily embedded in host applications or plugins. It even runs on embedded devices, such as the ESP32. In addition, the project contains a Pure Data external, and soon also a SuperCollider extension.
+
+The following article provides a high-level overview: https://www.soundingfuture.com/en/article/aoo-low-latency-peer-peer-audio-streaming-and-messaging
 
 **WARNING**: AOO is still alpha software, there are breaking changes between pre-releases!
 
 ---
 
-### Features
+### Selected features
 
-* peer-to-peer audio networks (IPv4 and IPv6) of any topology with arbitrary ad-hoc connections.
+- Peer-to-peer audio networks (IPv4 and IPv6) of any topology with arbitrary ad-hoc connections.
 
-* each endpoint can have multiple sources/sinks (each with their own ID).
+- Each IP endpoint can have multiple so-called 'sources' (= senders) and 'sinks' (= receivers), each with their own ID.
 
-* AOO sources can send audio to any sink at any time.
+- Sources can send audio to several sinks.
+  Conversely, sinks can listen to several sources, summing the signals at the output.
 
-* AOO sinks can listen to several sources at the same time, summing the signals.
+- AOO sinks can listen to several sources at the same time, summing the signals.
 
-* AOO is connectionless: streams can start/stop at any time, enabling a "message-based audio" approach.
+- AOO is connectionless: streams can start/stop at any time, enabling a "message-based audio" approach.
 
-* AOO sinks can "invite" and "uninvite" sources, i.e. ask them to send resp. stop sending audio.
+- AOO sinks can "invite" and "uninvite" sources, i.e. ask them to send resp. stop sending audio.
   The source may accept the (un)invitation or decline it.
 
-* streams and invitations can contain arbitrary metadata.
+- Sources can send arbitrary messages with sample-accurate timestamps together with the audio data. For example, this may be used to embed control data, timing information or MIDI messages.
 
-* AOO sources can send arbitrary messages together with the audio data with sample accuracy.
+- Sources and sinks can operate at different blocksizes and samplerates. Streams are resampled and reblocked automatically.
 
-* AOO sinks and sources can operate at different blocksizes and samplerates.
+- Clock differences between machines can be adjusted automatically with dynamic resampling.
 
-* clock differences between machines can be adjusted automatically (= dynamic resampling).
-
-* the stream format can be set independently for each source.
-
-* support for different audio codecs. Currently, only PCM (uncompressed) and Opus (compressed) are implemented,
+- Support for different audio codecs. Currently, only PCM (uncompressed) and Opus (compressed) are implemented,
   but additional codecs can be added with the codec plugin API.
 
-* the sink jitter buffer helps to deal with network jitter, packet reordering and packet loss
-  at the cost of latency. The size can be adjusted dynamically.
+- Network jitter, packet reordering and packet loss are handled by the sink jitter buffer deals. The latency can be adjusted dynamically.
 
-* sinks can ask the source(s) to resend dropped packets.
+- Sinks can ask sources to resend dropped packets.
 
-* settable UDP packet size (= MTU) to optimize for local networks or the internet.
+- Several diagnostic events about packet loss, resent packets, etc.
 
-* pings are exchanged between sources and sinks at a configurable rate.
-  They carry NTP timestamps, so the user can calculate the network latency and perform latency compensation.
-  The source also receives the current average packet loss percentage.
+- A connection server (`aooserver`) facilitates peer-to-peer communication in local networks or over the public internet.
 
-* several diagnostic events about packet loss, resent packets, etc.
-
-* the AOO server is a connection server [^Udp] that facilitates peer-to-peer communication in a local network or over the public internet.
-
-* the AOO client manages multiple AOO sources/sinks (on the same port) and may connect to an AOO server.
-
-* AOO clients can send each other timestamped messages with optional reliable transmission.
-
-* AOO is realtime-safe, i.e. it will never block the audio thread. (Network I/O is handled on dedicated threads.)
-
-* the C/C++ library can be easily embedded in host applications or plugins.
+- AOO clients can send each other timestamped messages with optional reliable transmission.
 
 ---
 
 ### History
 
-The vision of AOO was first proposed in 2009 by Winfried Ritsch together with an initial draft of realisation for embedded devices.
-In 2010 it has been implemented by Wolfgang Jäger as a library (v1.0-b2) with externals for Pure Data (Pd) [^Pd],
-but major issues with the required networking objects made this version unpracticable and so it was not used extensively.
-More on this version of AOO as "message based audio system" was published at LAC 2014 [^LAC14]
+The vision of AOO was first presented in 2009 by Winfried Ritsch together with a proof-of-concept for embedded devices.
+In 2010 it has been implemented by Wolfgang Jäger as a library (v1.0-b2) with externals for Pure Data (Pd) [^Jaeger], but its practical use remained limited.
+AOO 1.0 is the topic of Winfried Ritsch's paper "towards message based audio systems" which he presented at LAC 2014 [^LAC14].
 
-A new version (2.0, not backwards compatible) has been written from scratch by Christof Ressi, with a first pre-release in April 2020.
-It has been initially developed in February 2020 for a network streaming project at Kunsthaus Graz with Bill Fontana, using an independent
-wireless network infrastructure FunkFeuer Graz [^0xFF]. It was subsequently used for the Virtual Rehearsal Room project [^VRR]
-and also helped reviving the Virtual IEM Computer Music Ensemble [^VICE] within a seminar at the IEM [^IEM] in Graz.
+In 2020 AOO has been reimplemented from scratch by Christof Ressi.
+The first draft version has been developed in February 2020 for a network streaming project at Kunsthaus Graz with Bill Fontana, using an independent wireless network infrastructure FunkFeuer Graz [^0xFF].
+It was subsequently used for the Virtual Rehearsal Room project [^VRR] which allowed musicians at the University of Arts Graz to rehearse and perform remotely during the early Covid pandemic.
+The first public pre-release of AOO 2.0 has been published in April 2020.
+Since then it has been used in several art projects and software applications.
 
 ---
 
@@ -158,26 +147,13 @@ Run `aooserver -h` to see all available options.
 
 ### Footnotes
 
-[^CMake]: https://cmake.org/
-
-[^Git]: https://git-scm.com/
-
-[^IEM]: http://iem.at/
-
 [^Jaeger]: https://phaidra.kug.ac.at/view/o:11413
 
-[^LAC14]: see docu/lac2014_aoo.pdf
+[^LAC14]: http://lac.linuxaudio.org/2014/papers/36.pdf
 
 [^Opus]: https://opus-codec.org/
 
 [^OSC]: http://opensoundcontrol.org/
-
-[^Pd]: http://puredata.info/
-
-[^Udp]: https://en.wikipedia.org/wiki/
-UDP_hole_punching
-
-[^VICE]: https://iaem.at/projekte/ice/overview
 
 [^VRR]: https://vrr.iem.at/
 
