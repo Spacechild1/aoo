@@ -292,10 +292,6 @@ if (AOO_INSTALL_PKG_CONFIG_MODULE)
     mark_as_advanced(AOO_INSTALL_PKG_CONFIG_DIR)
 
     # CFLAGS
-    if (BUILD_SHARED_LIBS)
-        set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_SHARED")
-    endif()
-
     if (AOO_NET)
         set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_NET=1")
     else()
@@ -303,6 +299,14 @@ if (AOO_INSTALL_PKG_CONFIG_MODULE)
     endif()
 
     set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_SAMPLE_SIZE=${AOO_SAMPLE_SIZE}")
+
+    # NOTE: pkg-config files cannot really distinguish between shared and static
+    # libraries. Fortunately, We can get away with not defining AOO_SHARED for
+    # the shared library. On Linux and macOS this doesn't do anything; on Windows
+    # we only get a minor performance penalty by omitting the __declspec(dllimport).
+    # if (BUILD_SHARED_LIBS)
+    #     set(PKGCONFIG_CFLAGS "${PKGCONFIG_CFLAGS} -DAOO_SHARED")
+    # endif()
 
     # LDFLAGS
     if (LINUX)
