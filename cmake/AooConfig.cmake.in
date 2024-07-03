@@ -52,8 +52,3 @@ else()
         Aoo_load_targets(shared)
     endif()
 endif()
-
-set(AOO_LIBRARY Aoo::aoo)
-set(AOO_LIBRARIES Aoo::aoo)
-
-set(AOO_FOUND 1)
