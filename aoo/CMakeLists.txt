@@ -154,24 +154,24 @@ target_include_directories(aoo PUBLIC
 
 if (LINUX)
     target_compile_options(aoo_common INTERFACE -pthread)
-    target_link_libraries(aoo PUBLIC -pthread)
+    target_link_libraries(aoo PRIVATE -pthread)
 endif()
 
 if (MINGW)
     if (NOT AOO_STATIC_LIBS)
-        target_link_libraries(aoo PUBLIC pthread)
+        target_link_libraries(aoo PRIVATE pthread)
     endif()
     if (AOO_USE_OPUS)
-        target_link_libraries(aoo PUBLIC ssp) # for fortified functions
+        target_link_libraries(aoo PRIVATE ssp) # for fortified functions
     endif()
 endif()
 
 if (APPLE)
-    target_link_libraries(aoo PUBLIC pthread)
+    target_link_libraries(aoo PRIVATE pthread)
 endif()
 
 if (WIN32)
-    target_link_libraries(aoo PUBLIC ws2_32)
+    target_link_libraries(aoo PRIVATE ws2_32)
 endif()
 
 if (AOO_USE_OPUS)
