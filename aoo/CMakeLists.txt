@@ -246,6 +246,18 @@ install(FILES
     COMPONENT Aoo_Development
 )
 
+# README and LICENSE
+install(FILES
+    "../README.md" "../INSTALL.md" "../LICENSE"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/aoo"
+)
+
+# documentation
+install(FILES
+    "../doc/aoo_protocol.md"
+    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+)
+
 #-------------------------------------------------------------
 # CMake package module
 #-------------------------------------------------------------
