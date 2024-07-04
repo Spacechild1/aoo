@@ -182,6 +182,10 @@ endif()
 # AOO installation
 #-------------------------------------------------------------
 
+if (NOT AOO_INSTALL_LIBRARY)
+    return()
+endif()
+
 # install library files
 install(TARGETS aoo
     EXPORT AooTargets

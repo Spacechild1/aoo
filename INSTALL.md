@@ -119,7 +119,7 @@ With the static library you also need to manually link with the `opus` library!
 
 ### Build instructions
 
-#### Prerequisites
+### Prerequisites
 
 1. Install CMake [^CMake]
 
@@ -190,11 +190,14 @@ Follow these instructions if you want to build the Pd external.
 
 5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
+**NOTE**: If you *only* want to build and install the Pd external,
+set `AOO_INSTALL_LIBRARY` to `OFF` to prevent the `aoo` library from being installed as well.
+
 ---
 
 #### PortAudio
 
-PortAudio is only required for the examples (`AOO_BUILD_EXAMPLES=ON`).
+PortAudio is required for the example programs (`AOO_BUILD_EXAMPLES=ON`).
 
 By default, the local portaudio in `deps/portaudio` will be used. If for some reason you want to use the system portaudio library, you can set `AOO_LOCAL_PORTAUDIO` to `OFF`.
 
@@ -206,7 +209,7 @@ By default, the minimum macOS deployment target is OSX 10.13. You may choose a *
 
 ---
 
-#### Build
+### Build
 
 1. In the "aoo" folder create a subfolder named "build".
 
@@ -218,7 +221,7 @@ By default, the minimum macOS deployment target is OSX 10.13. You may choose a *
 
 ---
 
-#### CMake options
+### CMake options
 
 CMake options are set with the following syntax:
 `cmake .. -D<name1>=<value1> -D<name2>=<value2>` etc.
@@ -232,15 +235,15 @@ These are the most important project options:
 
 - `CMAKE_INSTALL_PREFIX` (PATH) - Where to install the AOO C/C++ library.
 
-- `AOO_BUILD_SHARED_LIBRARY` (BOOL) - Build shared AOO library. Default: `ON`.
+- `AOO_BUILD_SHARED_LIBRARY` (BOOL) - Build shared AOO library. (Default = `OFF`)
 
-- `AOO_BUILD_EXAMPLES` (BOOL) - Build the example programs. Default: `OFF`
+- `AOO_BUILD_EXAMPLES` (BOOL) - Build the example programs. (Default = `OFF`)
 
-- `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. Default: `OFF`.
+- `AOO_BUILD_PD_EXTERNAL` (BOOL) - Build the Pd external. (Default = `OFF`)
 
-- `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` program. Default: `OFF`
+- `AOO_BUILD_SERVER` (BOOL) - Build the `aooserver` program. (Default = `OFF`)
 
-- `AOO_BUILD_TESTS` (BOOL) - Build the test suite. Default: `OFF`.
+- `AOO_BUILD_TESTS` (BOOL) - Build the test suite. (Default = `OFF`)
 
 - `AOO_USE_OPUS` (BOOL) - Enable/disable built-in Opus support
 
@@ -249,19 +252,21 @@ These are the most important project options:
 
 - `AOO_NET` (BOOL) - Build with integrated networking support (`AooClient` and `AooServer`).
   Disable it if you don't need it and want to reduce code size.
-  **NOTE**: This option is required for the Pd external and `aooserver` program. Default: `ON`.
+  **NOTE**: This option is required for the Pd external and `aooserver` program. (Default = `ON`)
 
 - `AOO_STATIC_RUNTIME` (BOOL) - Linux and MinGW only:
    Link all binaries with static versions of `libgcc` and `libstdc++` and - on MinGW - also `libpthread`.
    This makres sure that the resulting binaries are portable across systems.
-   Default: `ON` for MinGW, `OFF` for Linux.
+   (MingGW: default = `ON`, Linux: default = `OFF`)
 
 - `AOO_NATIVE` (BOOL) - optimize for this particular machine.
-  NB: the resulting binaries are not portable and might not run on other machines!
+  NB: the resulting binaries are not portable and might not run on other machines! (Default = `OFF`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [2. CMake package](#2-cmake-package).
+- `CMAKE_INSTALL_LIBRARY` (BOOL) - Install the `aoo` library. (Default = `ON`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [3. pkg-config](#3-pkg-config).
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [2. CMake package](#2-cmake-package). (Default = `ON`)
+
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [3. pkg-config](#3-pkg-config). (Default = `ON`)
 
 
 `cmake-gui` resp. `ccmake` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.

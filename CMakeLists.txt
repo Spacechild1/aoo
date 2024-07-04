@@ -152,6 +152,7 @@ option(AOO_BUILD_PD_EXTERNAL "build Pd external" OFF)
 option(AOO_BUILD_SERVER "build AOO server program" OFF)
 option(AOO_BUILD_SHARED_LIBRARY "build shared AOO library" OFF)
 option(AOO_BUILD_TESTS "build test suite" OFF)
+option(AOO_INSTALL_LIBRARY "install the AOO library" ON)
 option(AOO_INSTALL_PKG_CONFIG_MODULE "install pkg-config module" ON)
 option(AOO_INSTALL_CMAKE_CONFIG_MODULE "install CMake package config module" ON)
 
@@ -354,10 +355,10 @@ endif()
 # NOTE: we can't add these link options to aoo_common because
 # consumers of the static library would inherit them, although
 # they are supposed to be private.
-# static runtime linker flags
 add_library(aoo_binary INTERFACE)
 
 if (AOO_STATIC_RUNTIME)
+    # static runtime linker flags
     if (LINUX)
         target_link_options(aoo_binary INTERFACE -static-libstdc++ -static-libgcc)
     elseif (MINGW)
