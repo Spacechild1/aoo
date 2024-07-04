@@ -148,6 +148,7 @@ endif()
 
 option(AOO_USE_OPUS "use Opus codec" ON)
 
+option(AOO_BUILD_DOCUMENTATION "build API documentation" OFF)
 option(AOO_BUILD_PD_EXTERNAL "build Pd external" OFF)
 option(AOO_BUILD_SERVER "build AOO server program" OFF)
 option(AOO_BUILD_SHARED_LIBRARY "build shared AOO library" OFF)
@@ -415,4 +416,12 @@ endif()
 if (AOO_BUILD_TESTS)
     message(STATUS "\n*** Test suite ***\n")
     add_subdirectory(tests)
+endif()
+
+#-----------------------------------------------------------------
+# doxygen documentation
+#-----------------------------------------------------------------
+if (AOO_BUILD_DOCUMENTATION)
+    message(STATUS "\n*** Documentation ***\n")
+    add_subdirectory(doxygen)
 endif()

@@ -51,15 +51,16 @@ variables:
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
-    -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON
+    -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON -DAOO_BUILD_DOCUMENTATION=${DOXYGEN}
     -DAOO_BUILD_PD_EXTERNAL=ON -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin"
     -DPD_INSTALL_DIR="${prefix}/pd" -DPD_EXTENSION=${PD_EXTENSION}
 #    -DPD_BUILD_SC_EXTENSION -DSC_INCLUDEDIR="${SC_PATH}" -DSC_INSTALLDIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
   # shared library
   - cmake -H. -Bbuild_shared -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
-    -DAOO_BUILD_SHARED_LIBRARY=ON -DCMAKE_DEPENDS_USE_COMPILER=OFF
+    -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
+    -DAOO_BUILD_SHARED_LIBRARY=ON
 
    # NOTE: by default, CMake 3.21+ uses the compiler to obtain dependencies for makefiles ('compiler_depends.make').
    # For some reason, on the 'Hopper' runner that file would contain bogus file paths which will cause the following
@@ -107,9 +108,10 @@ variables:
   image: registry.git.iem.at/devtools/docker/debiancross:amd64
   variables:
     SUPERNOVA: 1
+    DOXYGEN: 1
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends
-      make cmake wget git
+      make cmake wget git doxygen
     - test "x${TARGETDEBARCH}" != "x" &&
       { export CC=${TARGETARCH}-gcc; export CXX=${TARGETARCH}-g++; }
     - git submodule update --init
@@ -142,8 +144,10 @@ variables:
   variables:
     OSX_ARCHITECTURES: "arm64;x86_64"
     SUPERNOVA: 1
+    DOXYGEN: 0
     PD_EXTENSION: d_fat
   before_script:
+  # TODO: install doxygen (homebrew is too slow...)
     - git submodule update --init
 #    - *script_sc
     - *script_pd
@@ -158,10 +162,11 @@ variables:
   variables:
     IEMCI_CONFIGURATIONS: mingw32
     SUPERNOVA: 1
+    DOXYGEN: 1
     STATIC_RUNTIME: 1
     PD_URL: http://msp.ucsd.edu/Software/pd-${PD_VERSION}-i386.msw.zip
   before_script:
-    - pacman --noconfirm -S "${MINGW_PACKAGE_PREFIX}-cmake"
+    - pacman --noconfirm -S ${MINGW_PACKAGE_PREFIX}-cmake doxygen
     - git submodule update --init
 #    - *script_sc
     - *script_pd_app

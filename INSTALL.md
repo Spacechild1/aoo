@@ -203,6 +203,12 @@ By default, the local portaudio in `deps/portaudio` will be used. If for some re
 
 ---
 
+#### Doxygen
+
+Doxygen is required for building the API documentation (`AOO_BUILD_DOCUMENTATION=ON`).
+
+---
+
 #### macOS
 
 By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
@@ -236,6 +242,8 @@ These are the most important project options:
 - `CMAKE_INSTALL_PREFIX` (PATH) - Where to install the AOO C/C++ library.
 
 - `AOO_BUILD_SHARED_LIBRARY` (BOOL) - Build shared AOO library. (Default = `OFF`)
+
+- `AOO_BUILD_DOCUMENTATION` (BOOL) - Build the API documentation. (Default = `OFF`)
 
 - `AOO_BUILD_EXAMPLES` (BOOL) - Build the example programs. (Default = `OFF`)
 

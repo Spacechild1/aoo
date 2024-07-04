@@ -111,11 +111,6 @@ The library features four object classes:
 
 - `AooServer` - AOO UDP hole punching server, see [`aoo_server.hpp`](include/aoo_server.hpp) resp. [`aoo_server.h`](include/aoo_server.h).
 
-
-To generate the API documentation you need to have `doxygen` installed. Just run the `doxygen`
-command in the toplevel folder and it will store the generated files in the `doxygen` folder.
-You can view the documentation in a standard web browser by opening `doxygen/html/index.html`.
-
 ---
 
 ### Pd external
