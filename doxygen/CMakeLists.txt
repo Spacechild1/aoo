@@ -8,7 +8,7 @@ endif()
 # provide absolute paths to the INPUT property and therefore generate the
 # Doxyfile with configure_file().
 
-# items must be separated by whitespace!
+# doxygen input paths must be separated by whitespace!
 set(DOXYGEN_INPUT
     "${CMAKE_CURRENT_SOURCE_DIR}/../README.md \
 ${CMAKE_CURRENT_SOURCE_DIR}/../INSTALL.md \
@@ -20,12 +20,23 @@ set(doxyfile "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
 
 configure_file("Doxyfile.in" ${doxyfile} @ONLY)
 
-# TODO: only build target when necessary
-add_custom_target(doxygen ALL
+file(GLOB _headers "../include/*.h" "../include/*.hpp" "../include/codec/*.h")
+
+# This is the actual command that runs doxygen. We add the input files as
+# dependencies, so the docs are only built if any files have changed or
+# index.html does not exist yet.
+add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
     COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generating API documentation with Doxygen"
+    DEPENDS "${doxyfile}" "../README.md" "../INSTALL.md" ${_headers}
     VERBATIM
+)
+
+# The actual build target which depends on the command output above.
+add_custom_target(doxygen ALL
+    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
+    COMMENT "Generating API documentation with Doxygen"
 )
 
 install(DIRECTORY
