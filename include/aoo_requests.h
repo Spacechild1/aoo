@@ -431,15 +431,15 @@ typedef struct AooResponseCustom
 /** \brief union of all client requests */
 union AooRequest
 {
-    AooRequestType type; /**< request type */
-    AooRequestConnect connect; /**< connect */
-    AooRequestDisconnect disconnect; /**< disconnect */
-    AooRequestLogin login; /**< login */
-    AooRequestGroupJoin groupJoin; /**< join group */
-    AooRequestGroupLeave groupLeave; /**< leave group */
-    AooRequestGroupUpdate groupUpdate; /**< update group */
-    AooRequestUserUpdate userUpdate; /**< update user */
-    AooRequestCustom custom; /**< custom */
+    AooRequestType type; /**< \brief request type */
+    AooRequestConnect connect; /**< \brief connect */
+    AooRequestDisconnect disconnect; /**< \brief disconnect */
+    AooRequestLogin login; /**< \brief login */
+    AooRequestGroupJoin groupJoin; /**< \brief join group */
+    AooRequestGroupLeave groupLeave; /**< \brief leave group */
+    AooRequestGroupUpdate groupUpdate; /**< \brief update group */
+    AooRequestUserUpdate userUpdate; /**< \brief update user */
+    AooRequestCustom custom; /**< \brief custom */
 };
 
 /*----------------------------------------------------------*/
@@ -447,16 +447,16 @@ union AooRequest
 /** \brief union of all client responses */
 union AooResponse
 {
-    AooRequestType type; /**< request type */
-    AooResponseError error; /**< error */
-    AooResponseConnect connect; /**< connect */
-    AooResponseDisconnect disconnect; /**< disconnect */
-    AooResponseLogin login; /**< login */
-    AooResponseGroupJoin groupJoin; /**< join group */
-    AooResponseGroupLeave groupLeave; /**< leave group */
-    AooResponseGroupUpdate groupUpdate; /**< update group */
-    AooResponseUserUpdate userUpdate; /**< update user */
-    AooResponseCustom custom; /**< custom */
+    AooRequestType type; /**< \brief request type */
+    AooResponseError error; /**< \brief error */
+    AooResponseConnect connect; /**< \brief connect */
+    AooResponseDisconnect disconnect; /**< \brief disconnect */
+    AooResponseLogin login; /**< \brief login */
+    AooResponseGroupJoin groupJoin; /**< \brief join group */
+    AooResponseGroupLeave groupLeave; /**< \brief leave group */
+    AooResponseGroupUpdate groupUpdate; /**< \brief update group */
+    AooResponseUserUpdate userUpdate; /**< \brief update user */
+    AooResponseCustom custom; /**< \brief custom */
 };
 
 /*----------------------------------------------------------*/

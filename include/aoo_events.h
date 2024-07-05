@@ -514,55 +514,55 @@ typedef struct AooEventGroupLeave
 /** \brief union holding all possible events */
 union AooEvent
 {
-    AooEventType type; /**< the event type */
-    AooEventBase base; /**< base */
-    AooEventError error; /**< error */
+    AooEventType type; /**< \brief the event type */
+    AooEventBase base; /**< \brief base */
+    AooEventError error; /**< \brief error */
     /* AOO source/sink events */
-    AooEventEndpoint endpoint; /**< endpoint */
-    AooEventSourcePing sourcePing; /**< source ping */
-    AooEventSinkPing sinkPing; /**< sink ping */
-    AooEventInvite invite; /**< invite */
-    AooEventUninvite uninvite; /**< uninvite */
-    AooEventSinkAdd sinkAdd; /**< sink added */
-    AooEventSinkRemove sinkRemove; /**< sink removed */
-    AooEventSourceAdd sourceAdd; /**< source added */
-    AooEventSourceRemove sourceRemove;/**< source removed */
-    AooEventStreamStart streamStart; /**< stream started */
-    AooEventStreamStop streamStop; /**< stream stopped */
-    AooEventStreamState streamState; /**< stream state changed */
-    AooEventStreamTime streamTime; /**< stream time */
-    AooEventFormatChange formatChange; /**< format changed */
-    AooEventInviteDecline inviteDecline; /**< invitation declined */
-    AooEventInviteTimeout inviteTimeout; /**< invitation timed out */
-    AooEventUninviteTimeout uninviteTimeout; /**< uninvitation timed out */
-    AooEventBufferOverrun bufferOverrrun; /**< jitter buffer overrun */
-    AooEventBufferUnderrun bufferUnderrun; /**< jitter buffer underrun */
-    AooEventBlockDrop blockDrop; /**< block dropped */
-    AooEventBlockResend blockResend; /**< bock resent */
-    AooEventBlockXRun blockXRun; /**< empty block for source xrun */
-    AooEventFrameResend frameResend; /**< frames resent */
+    AooEventEndpoint endpoint; /**< \brief endpoint */
+    AooEventSourcePing sourcePing; /**< \brief source ping */
+    AooEventSinkPing sinkPing; /**< \brief sink ping */
+    AooEventInvite invite; /**< \brief invite */
+    AooEventUninvite uninvite; /**< \brief uninvite */
+    AooEventSinkAdd sinkAdd; /**< \brief sink added */
+    AooEventSinkRemove sinkRemove; /**< \brief sink removed */
+    AooEventSourceAdd sourceAdd; /**< \brief source added */
+    AooEventSourceRemove sourceRemove;/**< \brief source removed */
+    AooEventStreamStart streamStart; /**< \brief stream started */
+    AooEventStreamStop streamStop; /**< \brief stream stopped */
+    AooEventStreamState streamState; /**< \brief stream state changed */
+    AooEventStreamTime streamTime; /**< \brief stream time */
+    AooEventFormatChange formatChange; /**< \brief format changed */
+    AooEventInviteDecline inviteDecline; /**< \brief invitation declined */
+    AooEventInviteTimeout inviteTimeout; /**< \brief invitation timed out */
+    AooEventUninviteTimeout uninviteTimeout; /**< \brief uninvitation timed out */
+    AooEventBufferOverrun bufferOverrrun; /**< \brief jitter buffer overrun */
+    AooEventBufferUnderrun bufferUnderrun; /**< \brief jitter buffer underrun */
+    AooEventBlockDrop blockDrop; /**< \brief block dropped */
+    AooEventBlockResend blockResend; /**< \brief bock resent */
+    AooEventBlockXRun blockXRun; /**< \brief empty block for source xrun */
+    AooEventFrameResend frameResend; /**< \brief frames resent */
     /* AooClient/AooServer events */
-    AooEventDisconnect disconnect; /**< disconnected from server */
-    AooEventNotification notification; /**< server notification */
-    AooEventGroupEject groupEject; /**< ejected from group */
-    AooEventPeer peer; /**< peer event */
-    AooEventPeerPing peerPing; /**< peer ping */
-    AooEventPeerState peerState; /**< peer state changed */
-    AooEventPeerHandshake peerHandshake; /**< peer handshake started */
-    AooEventPeerTimeout peerTimeout; /**< peer handshake timed out */
-    AooEventPeerJoin peerJoin; /**< peer joined group */
-    AooEventPeerLeave peerLeave; /**< peer left group */
-    AooEventPeerMessage peerMessage; /**< peer message */
-    AooEventPeerUpdate peerUpdate; /**< peer metadata changed */
-    AooEventGroupUpdate groupUpdate; /**< group metadata changed */
-    AooEventUserUpdate userUpdate; /**< own user metadata changed */
-    AooEventClientError clientError; /**< generic client error */
-    AooEventClientLogin clientLogin; /**< client tried to log in */
-    AooEventClientLogout clientLogout; /**< client logged out */
-    AooEventGroupAdd groupAdd; /**< group added (automatically) */
-    AooEventGroupRemove groupRemove; /**< group removed (automatically) */
-    AooEventGroupJoin groupJoin; /**< user joined group */
-    AooEventGroupLeave groupLeave;/**< user left group */
+    AooEventDisconnect disconnect; /**< \brief disconnected from server */
+    AooEventNotification notification; /**< \brief server notification */
+    AooEventGroupEject groupEject; /**< \brief ejected from group */
+    AooEventPeer peer; /**< \brief peer event */
+    AooEventPeerPing peerPing; /**< \brief peer ping */
+    AooEventPeerState peerState; /**< \brief peer state changed */
+    AooEventPeerHandshake peerHandshake; /**< \brief peer handshake started */
+    AooEventPeerTimeout peerTimeout; /**< \brief peer handshake timed out */
+    AooEventPeerJoin peerJoin; /**< \brief peer joined group */
+    AooEventPeerLeave peerLeave; /**< \brief peer left group */
+    AooEventPeerMessage peerMessage; /**< \brief peer message */
+    AooEventPeerUpdate peerUpdate; /**< \brief peer metadata changed */
+    AooEventGroupUpdate groupUpdate; /**< \brief group metadata changed */
+    AooEventUserUpdate userUpdate; /**< \brief own user metadata changed */
+    AooEventClientError clientError; /**< \brief generic client error */
+    AooEventClientLogin clientLogin; /**< \brief client tried to log in */
+    AooEventClientLogout clientLogout; /**< \brief client logged out */
+    AooEventGroupAdd groupAdd; /**< \brief group added (automatically) */
+    AooEventGroupRemove groupRemove; /**< \brief group removed (automatically) */
+    AooEventGroupJoin groupJoin; /**< \brief user joined group */
+    AooEventGroupLeave groupLeave;/**< \brief user left group */
 };
 
 /*-------------------------------------------------*/
