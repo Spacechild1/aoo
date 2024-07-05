@@ -35,6 +35,7 @@ AOO_PACK_BEGIN
 /** \brief Opus codec format */
 typedef struct AooFormatOpus
 {
+    /** format header */
     AooFormat header;
     /** Opus application type.
      * Possible values:

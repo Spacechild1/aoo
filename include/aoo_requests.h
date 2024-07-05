@@ -44,9 +44,11 @@ AOO_ENUM(AooRequestType)
 /*============================================================*/
 
 /** \brief common header for all request structures */
-#define AOO_REQUEST_HEADER  \
-    AooRequestType type;    \
-    AooUInt32 structSize;
+#define AOO_REQUEST_HEADER          \
+    /** \cond DO_NOT_DOCUMENT */    \
+    AooRequestType type;            \
+    AooUInt32 structSize;           \
+    /** \endcond */
 
 /** \brief basic request */
 typedef struct AooRequestBase
@@ -430,14 +432,14 @@ typedef struct AooResponseCustom
 union AooRequest
 {
     AooRequestType type; /**< request type */
-    AooRequestConnect connect;
-    AooRequestDisconnect disconnect;
-    AooRequestLogin login;
-    AooRequestGroupJoin groupJoin;
-    AooRequestGroupLeave groupLeave;
-    AooRequestGroupUpdate groupUpdate;
-    AooRequestUserUpdate userUpdate;
-    AooRequestCustom custom;
+    AooRequestConnect connect; /**< connect */
+    AooRequestDisconnect disconnect; /**< disconnect */
+    AooRequestLogin login; /**< login */
+    AooRequestGroupJoin groupJoin; /**< join group */
+    AooRequestGroupLeave groupLeave; /**< leave group */
+    AooRequestGroupUpdate groupUpdate; /**< update group */
+    AooRequestUserUpdate userUpdate; /**< update user */
+    AooRequestCustom custom; /**< custom */
 };
 
 /*----------------------------------------------------------*/
@@ -446,15 +448,15 @@ union AooRequest
 union AooResponse
 {
     AooRequestType type; /**< request type */
-    AooResponseError error;
-    AooResponseConnect connect;
-    AooResponseDisconnect disconnect;
-    AooResponseLogin login;
-    AooResponseGroupJoin groupJoin;
-    AooResponseGroupLeave groupLeave;
-    AooResponseGroupUpdate groupUpdate;
-    AooResponseUserUpdate userUpdate;
-    AooResponseCustom custom;
+    AooResponseError error; /**< error */
+    AooResponseConnect connect; /**< connect */
+    AooResponseDisconnect disconnect; /**< disconnect */
+    AooResponseLogin login; /**< login */
+    AooResponseGroupJoin groupJoin; /**< join group */
+    AooResponseGroupLeave groupLeave; /**< leave group */
+    AooResponseGroupUpdate groupUpdate; /**< update group */
+    AooResponseUserUpdate userUpdate; /**< update user */
+    AooResponseCustom custom; /**< custom */
 };
 
 /*----------------------------------------------------------*/

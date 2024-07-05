@@ -129,22 +129,36 @@ typedef AooError (AOO_CALL *AooCodecDeserializeFunc)(
 /** \brief interface to be implemented by AOO codec classes */
 typedef struct AooCodecInterface
 {
+    /** struct size */
     AooSize structSize;
+    /** the code name */
     const AooChar * name;
     /* encoder methods */
+    /** create a new encoder instance */
     AooCodecNewFunc encoderNew;
+    /** destroy encoder instance */
     AooCodecFreeFunc encoderFree;
+    /** setup encoder */
     AooCodecSetupFunc encoderSetup;
+    /** encoder controls */
     AooCodecControlFunc encoderControl;
+    /** encode audio data */
     AooCodecEncodeFunc encoderEncode;
     /* decoder methods */
+    /** create a new decoder instance */
     AooCodecNewFunc decoderNew;
+    /** destroy decoder instance */
     AooCodecFreeFunc decoderFree;
+    /** setup decoder */
     AooCodecSetupFunc decoderSetup;
+    /** decoder controls */
     AooCodecControlFunc decoderControl;
+    /** decode audio data */
     AooCodecDecodeFunc decoderDecode;
     /* free functions */
+    /** serialize format extension */
     AooCodecSerializeFunc serialize;
+    /** deserialize format extension */
     AooCodecDeserializeFunc deserialize;
 } AooCodecInterface;
 
@@ -222,9 +236,13 @@ typedef AooError (AOO_CALL *AooCodecRegisterFunc)(
 /** \brief host interface passed to codec plugins */
 typedef struct AooCodecHostInterface
 {
+    /** struct size */
     AooSize structSize;
+    /** function for registering new codecs */
     AooCodecRegisterFunc registerCodec;
+    /** allocator function */
     AooAllocFunc alloc;
+    /** log function */
     AooLogFunc log;
 } AooCodecHostInterface;
 

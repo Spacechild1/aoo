@@ -26,6 +26,7 @@ AOO_PACK_BEGIN
  */
 typedef struct AooSettings
 {
+    /** struct size */
     AooSize structSize;
     /** custom allocator function, or `NULL` */
     AooAllocFunc allocFunc;
@@ -140,7 +141,7 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
  *
  * This function can be used to implement a basic AOO relay server.
  *
- * \note You don't need to parse the incoming message with `aoo_parsePattern`;
+ * \note You don't need to parse the incoming message with aoo_parsePattern();
  *       if the message is not a valid AOO relay message, the function will
  *       simply ignore it and return #kAooErrorBadFormat.
  *
@@ -156,7 +157,7 @@ AOO_API AooError AOO_CALL aoo_parsePattern(
  *
  * \note In case of a "real" dual stack setup (i.e. dedicated
  *       IPv6 socket + IPv4 socket), you must pass the flags
- *       `kAooSocketIPv4 | kAooSocketIPv6` to `socketType`.
+ *       `kAooSocketIPv4 | kAooSocketIPv6` to \p socketType.
  *       The send function will be called with either an
  *       IPv4 or IPv6 address and you must forward it to
  *       the corresponding socket.
@@ -207,10 +208,10 @@ typedef struct AooSockAddrStorage
 /**
  * \brief compare two socket addresses for equality
  *
- * \param address 1
- * \param size of address 1
- * \param address 2
- * \param size of address 2
+ * \param sockaddr1 first address
+ * \param addrlen1 size of first address
+ * \param sockaddr2 second address
+ * \param addrlen2 size of second address
  * \return #kAooTrue if both addresses are equal
  *
  * \note Both addresses must be valid!
@@ -229,8 +230,8 @@ AOO_API AooBool AOO_CALL aoo_sockAddrEqual(
  * For example, this allows to use socket addresses
  * as keys in a hashtable.
  *
- * \param address
- * \param address size
+ * \param sockaddr the socket address
+ * \param addrlen the socket address size
  * \return the hash value
  *
  * \note the socket address must be valid!

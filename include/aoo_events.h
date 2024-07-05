@@ -120,9 +120,11 @@ AOO_ENUM(AooEventType)
 /*--------------------------------------------*/
 
 /** \brief common header of all event structs */
-#define AOO_EVENT_HEADER \
-    AooEventType type; \
-    AooUInt32 structSize;
+#define AOO_EVENT_HEADER            \
+    /** \cond DO_NOT_DOCUMENT */    \
+    AooEventType type;              \
+    AooUInt32 structSize;           \
+    /** \endcond */
 
 /** \brief base event */
 typedef struct AooEventBase
@@ -136,6 +138,7 @@ typedef struct AooEventError
     AOO_EVENT_HEADER
     /** platform- or application-specific error code */
     AooInt32 errorCode;
+    /** error message */
     const AooChar *errorMessage;
 } AooEventError;
 
@@ -147,14 +150,14 @@ typedef struct AooEventError
 typedef struct AooEventEndpoint
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
+    AooEndpoint endpoint; /**< source/sink endpoint */
 } AooEventEndpoint;
 
 /** \brief received ping (reply) from source */
 typedef struct AooEventSourcePing
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
+    AooEndpoint endpoint; /**< source endpoint */
     AooNtpTime t1; /**< sink send time */
     AooNtpTime t2; /**< source receive time */
     AooNtpTime t3; /**< source send time */
@@ -165,7 +168,7 @@ typedef struct AooEventSourcePing
 typedef struct AooEventSinkPing
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
+    AooEndpoint endpoint; /**< sink endpoint */
     AooNtpTime t1; /**< source send time */
     AooNtpTime t2; /**< sink receive time */
     AooNtpTime t3; /**< sink send time */
@@ -195,39 +198,13 @@ typedef AooEventEndpoint AooEventBufferUnderrun;
 typedef struct AooEventStreamStart
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooNtpTime tt;
-    const AooData * metadata;
+    AooEndpoint endpoint; /**< source endpoint */
+    AooNtpTime tt; /**< stream start time (source-side) */
+    const AooData *metadata; /**< optional stream metadata */
 } AooEventStreamStart;
 
 /** \brief (AooSink) a stream has stopped */
 typedef AooEventEndpoint AooEventStreamStop;
-
-/** \brief (AooSource) received invitation by sink */
-typedef struct AooEventInvite
-{
-    AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooId token;
-    const AooData *metadata;
-} AooEventInvite;
-
-/** \brief (AooSource) received uninvitation by sink */
-typedef struct AooEventUninvite
-{
-    AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooId token;
-} AooEventUninvite;
-
-/** \brief (AooSink) invitation has been declined */
-typedef AooEventEndpoint AooEventInviteDecline;
-
-/** \brief (AooSink) invitation has timed out */
-typedef AooEventEndpoint AooEventInviteTimeout;
-
-/** \brief (AooSink) uninvitation has timed out */
-typedef AooEventEndpoint AooEventUninviteTimeout;
 
 /** \brief stream states */
 AOO_ENUM(AooStreamState)
@@ -244,26 +221,60 @@ AOO_ENUM(AooStreamState)
 typedef struct AooEventStreamState
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooStreamState state;
-    AooInt32 sampleOffset;
+        AooEndpoint endpoint; /**< source endpoint */
+    AooStreamState state; /**< new stream state */
+    AooInt32 sampleOffset; /**< corresponding sample offset */
 } AooEventStreamState;
+
+/** \brief (AooSink) the source stream format has changed */
+typedef struct AooEventFormatChange
+{
+    AOO_EVENT_HEADER
+        AooEndpoint endpoint; /**< source endpoint */
+    const AooFormat *format; /**< new stream format */
+} AooEventFormatChange;
+
+/** \brief (AooSource) received invitation by sink */
+typedef struct AooEventInvite
+{
+    AOO_EVENT_HEADER
+    AooEndpoint endpoint; /**< sink endpoint */
+    AooId token; /**< stream token (for AooSource::handleInvite) */
+    const AooData *metadata; /**< optional metadata */
+} AooEventInvite;
+
+/** \brief (AooSource) received uninvitation by sink */
+typedef struct AooEventUninvite
+{
+    AOO_EVENT_HEADER
+    AooEndpoint endpoint; /**< sink endpoint */
+    AooId token; /**< stream token (for AooSource::handleUninvite) */
+} AooEventUninvite;
+
+/** \brief (AooSink) invitation has been declined */
+typedef AooEventEndpoint AooEventInviteDecline;
+
+/** \brief (AooSink) invitation has timed out */
+typedef AooEventEndpoint AooEventInviteTimeout;
+
+/** \brief (AooSink) uninvitation has timed out */
+typedef AooEventEndpoint AooEventUninviteTimeout;
 
 /** \brief (AooSink) stream time event */
 typedef struct AooEventStreamTime
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooNtpTime tt;
-    AooInt32 sampleOffset;
+    AooEndpoint endpoint; /**< source endpoint */
+    AooNtpTime tt; /**< time stamp (source-side) */
+    AooInt32 sampleOffset; /**< corresponding sample offset */
 } AooEventStreamTime;
 
-/** \brief generic stream diagnostic event */
+/** \brief (AooSink) generic stream diagnostic event */
 typedef struct AooEventBlock
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooInt32 count;
+    AooEndpoint endpoint; /**< source endpoint */
+    AooInt32 count; /**< event count */
 } AooEventBlock;
 
 /** \brief (AooSink) blocks had to be skipped/dropped */
@@ -275,20 +286,12 @@ typedef AooEventBlock AooEventBlockResend;
 /** \brief (AooSink) empty blocks caused by source xrun */
 typedef AooEventBlock AooEventBlockXRun;
 
-/** \brief (AooSink) the source stream format has changed */
-typedef struct AooEventFormatChange
-{
-    AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    const AooFormat *format;
-} AooEventFormatChange;
-
 /** \brief (AooSource) frames have been resent */
 typedef struct AooEventFrameResend
 {
     AOO_EVENT_HEADER
-    AooEndpoint endpoint;
-    AooInt32 count;
+    AooEndpoint endpoint; /**< sink end point */
+    AooInt32 count;  /**< number of resent frames */
 } AooEventFrameResend;
 
 /*-------------------------------------------------*/
@@ -304,14 +307,14 @@ typedef AooEventError AooEventDisconnect;
 typedef struct AooEventNotification
 {
     AOO_EVENT_HEADER
-    AooData message;
+    AooData message; /**< the message */
 } AooEventNotification;
 
 /** \brief we have been ejected from a group */
 typedef struct AooEventGroupEject
 {
     AOO_EVENT_HEADER
-    AooId groupId;
+    AooId groupId; /**< the group ID */
 } AooEventGroupEject;
 
 /** \brief group metadata has been updated,
@@ -319,25 +322,19 @@ typedef struct AooEventGroupEject
 typedef struct AooEventGroupUpdate
 {
     AOO_EVENT_HEADER
-    /** the group ID */
-    AooId groupId;
-    /** the user who updated the group;
-     * #kAooIdNone if updated on the server */
-    AooId userId;
-    /** the new group metadata */
-    AooData groupMetadata;
+    AooId groupId; /**< the group ID */
+    AooId userId; /**< the user who updated the group;
+                  #kAooIdNone if updated on the server */
+    AooData groupMetadata; /**< the new group metadata */
 } AooEventGroupUpdate;
 
 /** \brief user metadata has been updated by the server */
 typedef struct AooEventUserUpdate
 {
     AOO_EVENT_HEADER
-    /** the group ID */
-    AooId groupId;
-    /** the user ID */
-    AooId userId;
-    /** the new metadata */
-    AooData userMetadata;
+    AooId groupId; /**< the group ID */
+    AooId userId; /**< the user ID */
+    AooData userMetadata; /**< the new metadata */
 } AooEventUserUpdate;
 
 /* peer events */
@@ -346,26 +343,18 @@ typedef struct AooEventUserUpdate
 typedef struct AooEventPeer
 {
     AOO_EVENT_HEADER
-    /** the group ID */
-    AooId groupId;
-    /** the user ID */
-    AooId userId;
-    /** the group name */
-    const AooChar *groupName;
-    /** the user name */
-    const AooChar *userName;
-    /** the socket address used for peer-to-peer communication */
-    AooSockAddr address;
-    /** flags */
-    AooPeerFlags flags;
-    /** the peer's AOO version string */
-    const AooChar *version;
-    /** (optional) peer metadata,
-     * see AooResponseGroupJoin::userMetadata */
-    const AooData *metadata;
+    AooId groupId; /**< the group ID */
+    AooId userId; /**< the user ID */
+    const AooChar *groupName; /**< the group name */
+    const AooChar *userName; /**< the user name */
+    AooSockAddr address; /**< the socket address used for
+                         peer-to-peer communication */
+    AooPeerFlags flags; /**< flags */
+    const AooChar *version; /**< the peer's AOO version string */
+    const AooData *metadata; /**< (optional) peer metadata,
+                             see AooResponseGroupJoin::userMetadata */
 #if 0
-    /** relay address provided by this peer,
-     * see AooClient::joinGroup() */
+    /** relay address providedby this peer, see AooClient::joinGroup() */
     const AooIpEndpoint *relayAddress;
 #endif
 } AooEventPeer;
@@ -395,8 +384,8 @@ typedef struct AooEventPeerLeave
 typedef struct AooEventPeerPing
 {
     AOO_EVENT_HEADER
-    AooId group;
-    AooId user;
+    AooId group; /**< group ID */
+    AooId user; /**< user ID */
     AooNtpTime t1; /**< local send time */
     AooNtpTime t2; /**< remote receive time */
     AooNtpTime t3; /**< remote send time */
@@ -407,8 +396,8 @@ typedef struct AooEventPeerPing
 typedef struct AooEventPeerState
 {
     AOO_EVENT_HEADER
-    AooId group;
-    AooId user;
+    AooId group; /**< group ID */
+    AooId user; /**< user ID */
     AooBool active; /**< peer is (in)active */
 } AooEventPeerState;
 
@@ -416,10 +405,10 @@ typedef struct AooEventPeerState
 typedef struct AooEventPeerMessage
 {
     AOO_EVENT_HEADER
-    AooId groupId;
-    AooId userId;
-    AooNtpTime timeStamp;
-    AooData data;
+    AooId groupId; /**< group ID */
+    AooId userId; /**< user ID */
+    AooNtpTime timeStamp; /**< send time */
+    AooData data; /**< the message data */
 } AooEventPeerMessage;
 
 /** \brief peer metadata has been updated,
@@ -427,9 +416,9 @@ typedef struct AooEventPeerMessage
 typedef struct AooEventPeerUpdate
 {
     AOO_EVENT_HEADER
-    AooId groupId;
-    AooId userId;
-    AooData userMetadata;
+    AooId groupId; /**< group ID */
+    AooId userId; /**< user ID */
+    AooData userMetadata; /**< the new user metadata */
 } AooEventPeerUpdate;
 
 /* server events */
@@ -438,43 +427,45 @@ typedef struct AooEventPeerUpdate
 typedef struct AooEventClientError
 {
     AOO_EVENT_HEADER
-    AooId id;
-    AooError error;
-    const AooChar *message;
+    AooId id; /**< client Id */
+    AooError error; /**< error code */
+    const AooChar *message; /**< error message */
 } AooEventClientError;
 
-/** \brief client logged in */
+/** \brief client tried to log in */
 typedef struct AooEventClientLogin
 {
     AOO_EVENT_HEADER
-    AooId id;
-    AooError error;
+    AooId id; /**< client ID */
+    AooError error; /**< error code;
+                    #kAooOk if logged in successfully */
     /* TODO: error message? */
     /* TODO: socket address */
-    const AooChar *version;
-    const AooData *metadata;
+    const AooChar *version; /**< the client's AOO version */
+    const AooData *metadata; /**< optional metadata */
 } AooEventClientLogin;
 
 /** \brief client logged out */
 typedef struct AooEventClientLogout
 {
     AOO_EVENT_HEADER
-    AooId id;
+    AooId id; /**< client ID */
     /* TODO: socket address? */
-    AooError errorCode;
-    const AooChar *errorMessage;
+    AooError errorCode; /**< error code;
+                        #kAooErrorNone if logged out normally */
+    const AooChar *errorMessage; /**< error message */
 } AooEventClientLogout;
 
 /** \brief group added */
 typedef struct AooEventGroupAdd
 {
     AOO_EVENT_HEADER
-    AooId id;
-    AooGroupFlags flags;
-    const AooChar *name;
-    const AooData *metadata;
+    AooId id; /**< group ID */
+    AooGroupFlags flags; /**< flags */
+    const AooChar *name; /**< group name */
+    const AooData *metadata; /**< optional group metadata */
 #if 0
-    const AooIpEndpoint *relayAddress;
+    const AooIpEndpoint *relayAddress; /**< optional relay address */
 #endif
 } AooEventGroupAdd;
 
@@ -482,9 +473,9 @@ typedef struct AooEventGroupAdd
 typedef struct AooEventGroupRemove
 {
     AOO_EVENT_HEADER
-    AooId id;
+    AooId id; /**< group ID */
 #if 1
-    const AooChar *name;
+    const AooChar *name; /**< group name */
 #endif
 } AooEventGroupRemove;
 
@@ -492,17 +483,17 @@ typedef struct AooEventGroupRemove
 typedef struct AooEventGroupJoin
 {
     AOO_EVENT_HEADER
-    AooId groupId;
-    AooId userId;
+    AooId groupId; /**< group ID */
+    AooId userId; /**< user ID */
 #if 1
-    const AooChar *groupName;
+    const AooChar *groupName; /**< group name */
 #endif
-    const AooChar *userName;
-    AooId clientId;
-    AooUserFlags userFlags;
-    const AooData *userMetadata;
+    const AooChar *userName; /**< user name */
+    AooId clientId; /**< client ID */
+    AooUserFlags userFlags; /**< user flags */
+    const AooData *userMetadata; /**< optional user metadata */
 #if 0
-    const AooIpEndpoint *relayAddress;
+    const AooIpEndpoint *relayAddress; /**< optional relay address */
 #endif
 } AooEventGroupJoin;
 
@@ -510,11 +501,11 @@ typedef struct AooEventGroupJoin
 typedef struct AooEventGroupLeave
 {
     AOO_EVENT_HEADER
-    AooId groupId;
-    AooId userId;
+    AooId groupId; /**< group ID */
+    AooId userId; /**< user ID */
 #if 1
-    const AooChar *groupName;
-    const AooChar *userName;
+    const AooChar *groupName; /**< group name */
+    const AooChar *userName; /**< user name */
 #endif
 } AooEventGroupLeave;
 
@@ -524,54 +515,54 @@ typedef struct AooEventGroupLeave
 union AooEvent
 {
     AooEventType type; /**< the event type */
-    AooEventBase base;
-    AooEventError error;
+    AooEventBase base; /**< base */
+    AooEventError error; /**< error */
     /* AOO source/sink events */
-    AooEventEndpoint endpoint;
-    AooEventSourcePing sourcePing;
-    AooEventSinkPing sinkPing;
-    AooEventInvite invite;
-    AooEventUninvite uninvite;
-    AooEventSinkAdd sinkAdd;
-    AooEventSinkRemove sinkRemove;
-    AooEventSourceAdd sourceAdd;
-    AooEventSourceRemove sourceRemove;
-    AooEventStreamStart streamStart;
-    AooEventStreamStop streamStop;
-    AooEventStreamState streamState;
-    AooEventStreamTime streamTime;
-    AooEventFormatChange formatChange;
-    AooEventInviteDecline inviteDecline;
-    AooEventInviteTimeout inviteTimeout;
-    AooEventUninviteTimeout uninviteTimeout;
-    AooEventBufferOverrun bufferOverrrun;
-    AooEventBufferUnderrun bufferUnderrun;
-    AooEventBlockDrop blockDrop;
-    AooEventBlockResend blockResend;
-    AooEventBlockXRun blockXRun;
-    AooEventFrameResend frameResend;
+    AooEventEndpoint endpoint; /**< endpoint */
+    AooEventSourcePing sourcePing; /**< source ping */
+    AooEventSinkPing sinkPing; /**< sink ping */
+    AooEventInvite invite; /**< invite */
+    AooEventUninvite uninvite; /**< uninvite */
+    AooEventSinkAdd sinkAdd; /**< sink added */
+    AooEventSinkRemove sinkRemove; /**< sink removed */
+    AooEventSourceAdd sourceAdd; /**< source added */
+    AooEventSourceRemove sourceRemove;/**< source removed */
+    AooEventStreamStart streamStart; /**< stream started */
+    AooEventStreamStop streamStop; /**< stream stopped */
+    AooEventStreamState streamState; /**< stream state changed */
+    AooEventStreamTime streamTime; /**< stream time */
+    AooEventFormatChange formatChange; /**< format changed */
+    AooEventInviteDecline inviteDecline; /**< invitation declined */
+    AooEventInviteTimeout inviteTimeout; /**< invitation timed out */
+    AooEventUninviteTimeout uninviteTimeout; /**< uninvitation timed out */
+    AooEventBufferOverrun bufferOverrrun; /**< jitter buffer overrun */
+    AooEventBufferUnderrun bufferUnderrun; /**< jitter buffer underrun */
+    AooEventBlockDrop blockDrop; /**< block dropped */
+    AooEventBlockResend blockResend; /**< bock resent */
+    AooEventBlockXRun blockXRun; /**< empty block for source xrun */
+    AooEventFrameResend frameResend; /**< frames resent */
     /* AooClient/AooServer events */
-    AooEventDisconnect disconnect;
-    AooEventNotification notification;
-    AooEventGroupEject groupEject;
-    AooEventPeer peer;
-    AooEventPeerPing peerPing;
-    AooEventPeerState peerState;
-    AooEventPeerHandshake peerHandshake;
-    AooEventPeerTimeout peerTimeout;
-    AooEventPeerJoin peerJoin;
-    AooEventPeerLeave peerLeave;
-    AooEventPeerMessage peerMessage;
-    AooEventPeerUpdate peerUpdate;
-    AooEventGroupUpdate groupUpdate;
-    AooEventUserUpdate userUpdate;
-    AooEventClientError clientError;
-    AooEventClientLogin clientLogin;
-    AooEventClientLogout clientLogout;
-    AooEventGroupAdd groupAdd;
-    AooEventGroupRemove groupRemove;
-    AooEventGroupJoin groupJoin;
-    AooEventGroupLeave groupLeave;
+    AooEventDisconnect disconnect; /**< disconnected from server */
+    AooEventNotification notification; /**< server notification */
+    AooEventGroupEject groupEject; /**< ejected from group */
+    AooEventPeer peer; /**< peer event */
+    AooEventPeerPing peerPing; /**< peer ping */
+    AooEventPeerState peerState; /**< peer state changed */
+    AooEventPeerHandshake peerHandshake; /**< peer handshake started */
+    AooEventPeerTimeout peerTimeout; /**< peer handshake timed out */
+    AooEventPeerJoin peerJoin; /**< peer joined group */
+    AooEventPeerLeave peerLeave; /**< peer left group */
+    AooEventPeerMessage peerMessage; /**< peer message */
+    AooEventPeerUpdate peerUpdate; /**< peer metadata changed */
+    AooEventGroupUpdate groupUpdate; /**< group metadata changed */
+    AooEventUserUpdate userUpdate; /**< own user metadata changed */
+    AooEventClientError clientError; /**< generic client error */
+    AooEventClientLogin clientLogin; /**< client tried to log in */
+    AooEventClientLogout clientLogout; /**< client logged out */
+    AooEventGroupAdd groupAdd; /**< group added (automatically) */
+    AooEventGroupRemove groupRemove; /**< group removed (automatically) */
+    AooEventGroupJoin groupJoin; /**< user joined group */
+    AooEventGroupLeave groupLeave;/**< user left group */
 };
 
 /*-------------------------------------------------*/

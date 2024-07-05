@@ -35,8 +35,8 @@ AOO_ENUM(AooPcmBitDepth)
 /** \brief PCM codec format */
 typedef struct AooFormatPcm
 {
-    AooFormat header;
-    AooPcmBitDepth bitDepth;
+    AooFormat header; /**< format header */
+    AooPcmBitDepth bitDepth; /**< bit depth */
 } AooFormatPcm;
 
 /*------------------------------------------------*/

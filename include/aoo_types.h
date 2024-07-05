@@ -128,7 +128,9 @@ typedef AooUInt32 AooAddrSize;
 /** \brief socket address */
 typedef struct AooSockAddr
 {
+    /** pointer to sockaddr */
     const void *data;
+    /** sockaddr size */
     AooAddrSize size;
 } AooSockAddr;
 
@@ -146,7 +148,9 @@ typedef struct AooEndpoint
 /** \brief AOO IP endpoint */
 typedef struct AooIpEndpoint
 {
+    /** host name or IP string */
     const AooChar *hostName;
+    /** port number */
     AooUInt16 port;
 } AooIpEndpoint;
 
@@ -643,7 +647,9 @@ typedef struct AooFormat
 /** \brief helper struct large enough to hold any AOO format struct */
 typedef struct AooFormatStorage
 {
+    /** format header */
     AooFormat header;
+    /** opaque data */
     AooByte data[kAooFormatExtMaxSize];
 } AooFormatStorage;
 

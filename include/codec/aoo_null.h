@@ -24,7 +24,7 @@ AOO_PACK_BEGIN
 /** \brief null codec format */
 typedef struct AooFormatNull
 {
-    AooFormat header;
+    AooFormat header; /**< format header */
 } AooFormatNull;
 
 /*------------------------------------------------*/

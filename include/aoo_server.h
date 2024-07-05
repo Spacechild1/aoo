@@ -38,7 +38,7 @@ AOO_API AooError AOO_CALL AooServer_setup(
 AOO_API AooError AOO_CALL AooServer_run(
         AooServer *server, AooSeconds timeout);
 
-/** \copydoc AooServer::receiveUDP() */
+/** \copydoc AooServer::receive() */
 AOO_API AooError AOO_CALL AooServer_receive(
         AooServer *server, AooSeconds timeout);
 
