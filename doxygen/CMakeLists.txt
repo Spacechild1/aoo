@@ -12,6 +12,7 @@ endif()
 set(DOXYGEN_INPUT
     "${CMAKE_CURRENT_SOURCE_DIR}/../README.md \
 ${CMAKE_CURRENT_SOURCE_DIR}/../INSTALL.md \
+${CMAKE_CURRENT_SOURCE_DIR}/../doc/aoo_protocol.md \
 ${CMAKE_CURRENT_SOURCE_DIR}/../include \
 ${CMAKE_CURRENT_SOURCE_DIR}/../include/codec"
 )
@@ -29,7 +30,8 @@ add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
     COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS "${doxyfile}" "../README.md" "../INSTALL.md" ${_headers}
+    DEPENDS "${doxyfile}" "../README.md" "../INSTALL.md"
+            "../doc/aoo_protocol.md" ${_headers}
     VERBATIM
 )
 

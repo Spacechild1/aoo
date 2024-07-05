@@ -18,11 +18,15 @@ Messages exchanged between AOO sources and AOO sinks.
 
 <br>
 
-## `/aoo/sink/<id>/start`
+### /start (source → sink)
 
 Start a new stream.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/start`
+
+#### Arguments:
 
 | type  | description                         |
 | ----: | ----------------------------------- |
@@ -45,11 +49,15 @@ Start a new stream.
 
 ---
 
-## `/aoo/source/<id>/start`
+### /start (sink → source)
 
 Request a start message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/source/<id>/start`
+
+#### Arguments:
 
 | type | description    |
 | ---: | -------------- |
@@ -58,11 +66,15 @@ Request a start message.
 
 ---
 
-## `/aoo/sink/<id>/stop`
+### /stop (source → sink)
 
 Stop a stream.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/stop`
+
+#### Arguments:
 
 | type  | description   |
 | ----: | ------------- |
@@ -72,11 +84,15 @@ Stop a stream.
 
 ---
 
-## `/aoo/source/<id>/stop`
+### /stop (sink → source)
 
 Request a stop message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/source/<id>/stop`
+
+#### Arguments:
 
 | type | description |
 | ---: | ----------- |
@@ -85,11 +101,15 @@ Request a stop message.
 
 ---
 
-## `/aoo/sink/<id>/data`
+### /data (source → sink)
 
 Send stream data.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/data`
+
+#### Arguments:
 
 | type  | description            |
 | ----: | ---------------------- |
@@ -107,11 +127,15 @@ Send stream data.
 
 ---
 
-## `/aoo/source/<id>/data`
+### /data (sink → source)
 
 Request stream data.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/source/<id>/data`
+
+#### Arguments:
 
 | type  | description   |
 | ----: | ------------- |
@@ -125,11 +149,15 @@ Request stream data.
 
 ---
 
-## `/aoo/source/<id>/invite`
+### /invite (sink → source)
 
 Invite a source.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/source/<id>/invite`
+
+#### Arguments:
 
 | type  | description                      |
 | ----: | -------------------------------- |
@@ -140,11 +168,15 @@ Invite a source.
 
 ---
 
-## `/aoo/source/<id>/uninvite`
+### /uninvite (sink → source)
 
 Uninvite a source.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/source/<id>/uninvite`
+
+#### Arguments:
 
 | type | description |
 | ---: | ----------- |
@@ -153,11 +185,15 @@ Uninvite a source.
 
 ---
 
-## `/aoo/sink/<id>/decline`
+### /decline (source → sink)
 
 Decline an invitation.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/decline`
+
+#### Arguments:
 
 | type | description |
 | ---: | ----------- |
@@ -166,11 +202,17 @@ Decline an invitation.
 
 ---
 
-## `/aoo/[source|sink]/<id>/ping`
+### /ping (source ↔ sink)
 
 Send a ping.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/ping`
+
+`/aoo/source/<id>/ping`
+
+#### Arguments:
 
 | type | description      |
 | ---: | ---------------- |
@@ -179,11 +221,17 @@ Send a ping.
 
 ---
 
-## `/aoo/[source|sink]/<id>/pong`
+### /pong (source ↔ sink)
 
 Reply to ping message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/sink/<id>/pong`
+
+`/aoo/source/<id>/pong`
+
+#### Arguments:
 
 | type  | description            |
 | ----: | ---------------------- |
@@ -203,11 +251,15 @@ Messages exchanged between AOO peers.
 
 <br>
 
-## `/aoo/peer/ping`
+### /ping (peer ↔ peer)
 
 Send a ping to a peer.
 
-### Arguments:
+##### Pattern:
+
+`/aoo/peer/ping`
+
+##### Arguments:
 
 | type  | description      |
 | ----: | ---------------- |
@@ -219,11 +271,15 @@ Note: *tt* is `nil` in handshake pings.
 
 ---
 
-## `/aoo/peer/pong`
+### /pong (peer ↔ peer)
 
 Reply to ping message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/peer/pong`
+
+#### Arguments:
 
 | type  | description        |
 | ----: | ------------------ |
@@ -237,11 +293,15 @@ Note: *tt1*, *tt2* and *tt3* are `nil` in handshake pongs.
 
 ---
 
-## `/aoo/peer/msg`
+### /msg (peer ↔ peer)
 
 Send a message to a peer.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/peer/msg`
+
+#### Arguments:
 
 | type  | description                      |
 | ----: | -------------------------------- |
@@ -262,11 +322,15 @@ Possible values for *flags*:
 
 ---
 
-## `/aoo/peer/ack`
+### /ack (peer ↔ peer)
 
 Send message acknowledgements.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/peer/ack`
+
+#### Arguments:
 
 | type  | description      |
 | ----: | ---------------- |
@@ -296,21 +360,29 @@ The following messages are used for NAT traversal resp. UDP hole punching.
 
 <br>
 
-## `/aoo/server/query`
+### /query (client → server)
 
 Query the public IPv4 address and port.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/query`
+
+#### Arguments:
 
 None
 
 ---
 
-## `/aoo/client/query`
+### /query (server → client)
 
 Reply to a `/query` message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/query`
+
+#### Arguments:
 
 | type | description           |
 | ---: | --------------------- |
@@ -319,21 +391,29 @@ Reply to a `/query` message.
 
 ---
 
-## `/aoo/server/ping`
+### /ping (client → server)
 
 Send a ping message to keep the port open.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/ping`
+
+#### Arguments:
 
 None
 
 ---
 
-## `/aoo/client/pong`
+### /pong (server → client)
 
 Reply to a `/ping` message.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/pong`
+
+#### Arguments:
 
 None
 
@@ -347,11 +427,15 @@ Client requests and server responses over a TCP socket connection.
 
 <br>
 
-## `/aoo/server/login`
+### /login (client → server)
 
 Login to server.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/login`
+
+#### Arguments:
 
 | type  | description                      |
 | ----: | -------------------------------- |
@@ -369,11 +453,15 @@ Login to server.
 
 ---
 
-## `/aoo/client/login`
+### /login (server → client)
 
 Login response.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/login`
+
+#### Arguments:
 
 1. success:
 
@@ -391,11 +479,15 @@ Login response.
 
 ---
 
-## `/aoo/server/group/join`
+### /group/join (client → server)
 
 Join a group on the server.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/group/join`
+
+#### Arguments:
 
 | type  | description                            |
 | ----: | -------------------------------------- |
@@ -413,11 +505,15 @@ Join a group on the server.
 
 ---
 
-## `/aoo/client/group/join`
+### /group/join (server → client)
 
 Group join response.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/group/join`
+
+#### Arguments:
 
 1. success:
 
@@ -442,11 +538,15 @@ Group join response.
 
 ---
 
-## `/aoo/server/group/leave`
+### /group/leave (client → server)
 
 Leave a group on the server.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/group/leave`
+
+#### Arguments:
 
 | type | description   |
 | ---: | ------------- |
@@ -455,11 +555,15 @@ Leave a group on the server.
 
 ---
 
-## `/aoo/client/group/leave`
+### /group/leave (server → client)
 
 Group leave response.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/group/leave`
+
+#### Arguments:
 
 1. success:
 
@@ -472,11 +576,15 @@ Group leave response.
 
 ---
 
-## `/aoo/server/group/update`
+### /group/update (client → server)
 
 Update group metadata.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/group/update`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -487,11 +595,15 @@ Update group metadata.
 
 ---
 
-## `/aoo/client/group/update`
+### /group/update (server → client)
 
 Group update response.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/group/update`
+
+#### Arguments:
 
 1. success:
 
@@ -506,11 +618,15 @@ Group update response.
 
 ---
 
-## `/aoo/server/user/update`
+### /user/update (client → server)
 
 Update user metadata.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/user/update`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -521,11 +637,15 @@ Update user metadata.
 
 ---
 
-## `/aoo/client/user/update`
+### /user/update (server → client)
 
 User update response.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/user/update`
+
+#### Arguments:
 
 1. success:
 
@@ -540,11 +660,15 @@ User update response.
 
 ---
 
-## `/aoo/server/request`
+### /request (client → server)
 
 Send custom request.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/request`
+
+#### Arguments:
 
 | type | description                  |
 | ---: | ---------------------------- |
@@ -555,11 +679,15 @@ Send custom request.
 
 ---
 
-## `/aoo/client/request`
+### /request (server → client)
 
 Response to custom request.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/request`
+
+#### Arguments:
 
 1. success:
 
@@ -596,11 +724,15 @@ The following messages are sent by the server over a TCP connection to notify on
 
 <br>
 
-## `/aoo/client/peer/join`
+### /peer/join (server → client)
 
 A peer has joined the group.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/peer/join`
+
+#### Arguments:
 
 | type  | description                      |
 | ----: | -------------------------------- |
@@ -623,11 +755,15 @@ A peer has joined the group.
 
 ---
 
-## `/aoo/client/peer/leave`
+### /peer/leave (server → client)
 
 A peer has left the group.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/peer/leave`
+
+#### Arguments:
 
 | type | description |
 | ---: | ----------- |
@@ -636,11 +772,15 @@ A peer has left the group.
 
 ---
 
-## `/aoo/client/peer/changed`
+### /peer/changed (server → client)
 
 Peer metadata has changed.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/peer/changed`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -651,11 +791,15 @@ Peer metadata has changed.
 
 ---
 
-## `/aoo/client/user/changed`
+### /user/changed (server → client)
 
 User metadata has changed.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/user/changed`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -666,11 +810,15 @@ User metadata has changed.
 
 ---
 
-## `/aoo/client/group/changed`
+### /group/changed (server → client)
 
 Group metadata has changed.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/group/changed`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -684,11 +832,15 @@ The user ID refers to the user that updated the group.
 
 ---
 
-## `/aoo/client/group/eject`
+### /group/eject (server → client)
 
 Ejected from group.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/group/eject`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -696,11 +848,15 @@ Ejected from group.
 
 ---
 
-## `/aoo/client/msg`
+### /msg (server → client)
 
 Generic server notification.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/msg`
+
+#### Arguments:
 
 | type | description                      |
 | ---: | -------------------------------- |
@@ -713,41 +869,57 @@ Generic server notification.
 
 <br>
 
-## `/aoo/server/ping`
+### /ping (client → server)
 
 Send a ping message to the server. This is used as a heartbeat to keep the TCP connection open. (For example, NAT proxies or firewalls tend to drop connections after a certain timeout.)
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/ping`
+
+#### Arguments:
 
 None
 
 ---
 
-## `/aoo/client/pong`
+### /pong (server → client)
 
 Reply to a client `/ping` message. This can be used to detect broken server connections.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/pong`
+
+#### Arguments:
 
 None
 
 ---
 
-## `/aoo/client/ping`
+### /ping (server → client)
 
 Send a ping message to the client. This is used as a heartbeat to keep the TCP connection open.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/client/ping`
+
+#### Arguments:
 
 None
 
 ---
 
-## `/aoo/server/pong`
+### /pong (server → client)
 
 Reply to a server `/ping` message. This can be used to detect broken client connections.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/server/pong`
+
+#### Arguments:
 
 None
 
@@ -757,13 +929,17 @@ None
 
 <br>
 
-## `/aoo/relay`
+### /relay
 
 A relayed message.
 
 If sent from an AOO peer to an AOO relay server, the message contains the destination endpoint address (IP address + port) together with the original message data. The server extracts the destination endpoint address, replaces it with the source endpoint address and forwards the message to the destination. The destination extracts the source endpoint address and message data and forwards the original message to the appropriate receiver.
 
-### Arguments:
+#### Pattern:
+
+`/aoo/relay`
+
+#### Arguments:
 
 | type | description |
 | ---: | ----------- |
