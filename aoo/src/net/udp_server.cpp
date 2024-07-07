@@ -17,6 +17,7 @@ void udp_server::start(int port, receive_handler receive, bool threaded) {
     // TODO: figure out if some operating systems let UDP sockets linger.
     try {
         socket_ = udp_socket(port_tag{}, port, false);
+        bind_addr_ = socket_.address();
     } catch (const socket_error& e) {
         throw udp_error(e);
     }
