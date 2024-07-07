@@ -89,10 +89,6 @@ AOO_API AooError AOO_CALL AooClient_setup(
 
 AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
 {
-    if (auto err = udp_client_.setup(*this, settings); err != kAooOk) {
-        return err;
-    }
-
     if (settings.options & kAooClientExternalUDPSocket) {
         if (settings.sendFunc) {
             udp_sendfn_ = sendfn(settings.sendFunc, settings.userData);
@@ -103,10 +99,11 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         udp_sendfn_ = sendfn(udp_client::send, &udp_client_);
     }
 
-    if (auto err = udp_client_.setup(*this, settings);
-        err != kAooOk) {
+    if (auto err = udp_client_.setup(*this, settings); err != kAooOk) {
         return err;
     }
+
+    LOG_DEBUG("AooClient: listen on port " << udp_client_.port());
 
     message_handler_ = settings.messageHandler;
     user_data_ = settings.userData;
