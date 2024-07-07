@@ -958,55 +958,52 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
     dsp_add(aoo_send_perform, 2, (t_int)x, (t_int)x->x_blocksize);
 }
 
-static void aoo_send_port(t_aoo_send *x, t_floatarg f)
+static void aoo_send_set(t_aoo_send *x, t_floatarg f1, t_floatarg f2)
 {
-    int port = f;
+    int port = f1;
+    AooId id = f2;
 
-    // 0 is allowed -> don't listen
-    if (port < 0){
-        pd_error(x, "%s: bad port %d", classname(x), port);
+    if (id == x->x_id && port == x->x_port) {
         return;
     }
 
-    if (x->x_node){
-        x->x_node->release((t_pd *)x, x->x_source.get());
-    }
-
-    if (port){
-        x->x_node = t_node::get((t_pd *)x, port, x->x_source.get(), x->x_id);
-    } else {
-        x->x_node = nullptr;
-    }
-
-    x->x_port = port;
-}
-
-static void aoo_send_id(t_aoo_send *x, t_floatarg f)
-{
-    AooId id = f;
-
-    if (id == x->x_id){
-        return;
-    }
-
-    if (id < 0){
+    if (id < 0) {
         pd_error(x, "%s: bad id %d", classname(x), id);
         return;
     }
 
-    if (x->x_node){
+    if (port < 0) {
+        // NB: 0 is allowed (= don't listen)!
+        pd_error(x, "%s: bad port %d", classname(x), id);
+        return;
+    }
+
+    // always release node!
+    if (x->x_node) {
         x->x_node->release((t_pd *)x, x->x_source.get());
     }
 
-    x->x_source->setId(id);
+    if (id != x->x_id) {
+        x->x_source->setId(id);
+        x->x_id = id;
+    }
 
-    if (x->x_port){
-        x->x_node = t_node::get((t_pd *)x, x->x_port, x->x_source.get(), x->x_id);
+    if (port) {
+        x->x_node = t_node::get((t_pd *)x, port, x->x_source.get(), id);
     } else {
         x->x_node = nullptr;
     }
+    x->x_port = port;
+}
 
-    x->x_id = id;
+static void aoo_send_port(t_aoo_send *x, t_floatarg f)
+{
+    aoo_send_set(x, f, x->x_id);
+}
+
+static void aoo_send_id(t_aoo_send *x, t_floatarg f)
+{
+    aoo_send_set(x, x->x_port, f);
 }
 
 static void * aoo_send_new(t_symbol *s, int argc, t_atom *argv)
@@ -1069,11 +1066,11 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
 
     // arg #2 (optional): port number
     // NB: 0 means "don't listen"
-    x_port = atom_getfloatarg(1, argc, argv);
+    int port = atom_getfloatarg(1, argc, argv);
 
     // arg #3 (optional): ID
     AooId id = atom_getfloatarg(2, argc, argv);
-    if (id < 0){
+    if (id < 0) {
         pd_error(this, "%s: bad id % d, setting to 0", classname(this), id);
         id = 0;
     }
@@ -1106,7 +1103,7 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
     x_source->setBufferSize(DEFBUFSIZE * 0.001);
 
     // finally we're ready to receive messages
-    aoo_send_port(this, x_port);
+    aoo_send_port(this, port);
 }
 
 static void aoo_send_free(t_aoo_send *x)
@@ -1136,6 +1133,8 @@ void aoo_send_tilde_setup(void)
                     gensym("port"), A_FLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_id,
                     gensym("id"), A_FLOAT, A_NULL);
+    class_addmethod(aoo_send_class, (t_method)aoo_send_set,
+                    gensym("set"), A_DEFFLOAT, A_DEFFLOAT, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_add,
                     gensym("add"), A_GIMME, A_NULL);
     class_addmethod(aoo_send_class, (t_method)aoo_send_remove,
