@@ -112,7 +112,7 @@ SimpleReceiver::SimpleReceiver(const SimpleReceiverOptions& opt)
     }
 
     // add sink to client
-    client_->addSink(sink_.get(), opt.id);
+    client_->addSink(sink_.get());
 
     // invite source, if provided by the user
     if (!source_host_.empty()) {

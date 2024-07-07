@@ -225,7 +225,7 @@ int SimpleReceiver_init(SimpleReceiver *x,
     }
 
     // add sink to client
-    AooClient_addSink(x->client, x->sink, opt->id);
+    AooClient_addSink(x->client, x->sink);
 
     // invite source, if provided by the user
     if (opt->source_host) {

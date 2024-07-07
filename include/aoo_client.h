@@ -74,7 +74,7 @@ AOO_API AooError AOO_CALL AooClient_pollEvents(AooClient *client);
 
 /** \copydoc AooClient::addSource() */
 AOO_API AooError AOO_CALL AooClient_addSource(
-        AooClient *client, struct AooSource *source, AooId id);
+        AooClient *client, struct AooSource *source);
 
 /** \copydoc AooClient::removeSource() */
 AOO_API AooError AOO_CALL AooClient_removeSource(
@@ -82,7 +82,7 @@ AOO_API AooError AOO_CALL AooClient_removeSource(
 
 /** \copydoc AooClient::addSink() */
 AOO_API AooError AOO_CALL AooClient_addSink(
-        AooClient *client, struct AooSink *sink, AooId id);
+        AooClient *client, struct AooSink *sink);
 
 /** \copydoc AooClient::removeSink() */
 AOO_API AooError AOO_CALL AooClient_removeSink(

@@ -134,7 +134,7 @@ SimpleSender::SimpleSender(const SimpleSenderOptions& opt) {
     }
 
     // add source to client
-    client_->addSource(source_.get(), opt.id);
+    client_->addSource(source_.get());
 
     // add sink to source, if provided by the user
     if (!opt.sink_host.empty()) {

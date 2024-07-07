@@ -304,7 +304,7 @@ int SimpleSender_init(SimpleSender *x,
     }
 
     // add source to client
-    AooClient_addSource(x->client, x->source, opt->id);
+    AooClient_addSource(x->client, x->source);
 
     // add sink to source, if provided by the user
     if (opt->sink_host) {

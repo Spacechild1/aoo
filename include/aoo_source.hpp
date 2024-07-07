@@ -257,6 +257,9 @@ public:
 
     /** \brief Set AOO source ID
      * \param id The new ID
+     *
+     * \attention Do not change the ID while the source is being managed
+     * by an AooClient instance!
      */
     AooError setId(AooId id) {
         return control(kAooCtlSetId, 0, AOO_ARG(id));

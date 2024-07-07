@@ -258,11 +258,11 @@ public:
 
     AooError AOO_CALL pollEvents() override;
 
-    AooError AOO_CALL addSource(AooSource *src, AooId id) override;
+    AooError AOO_CALL addSource(AooSource *src) override;
 
     AooError AOO_CALL removeSource(AooSource *src) override;
 
-    AooError AOO_CALL addSink(AooSink *sink, AooId id) override;
+    AooError AOO_CALL addSink(AooSink *sink) override;
 
     AooError AOO_CALL removeSink(AooSink *sink) override;
 

@@ -341,10 +341,10 @@ int SimplePeer_init(SimplePeer *x, const SimplePeerOptions *opt) {
     }
 
     // add source to client
-    AooClient_addSource(x->client, x->source, DEFAULT_ID);
+    AooClient_addSource(x->client, x->source);
 
     // add sink to client
-    AooClient_addSink(x->client, x->sink, DEFAULT_ID);
+    AooClient_addSink(x->client, x->sink);
 
     // portaudio input stream parameters
     PaStreamParameters inparams;

@@ -181,9 +181,9 @@ SimplePeer::SimplePeer(const SimplePeerOptions& opt) {
     }
 
     // add source to client
-    client_->addSource(source_.get(), DEFAULT_ID);
+    client_->addSource(source_.get());
     // add sink to client
-    client_->addSink(sink_.get(), DEFAULT_ID);
+    client_->addSink(sink_.get());
 
     // get audio device
     auto indev = get_audio_input_device(opt.indevno);

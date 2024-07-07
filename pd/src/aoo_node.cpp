@@ -193,12 +193,12 @@ bool t_node_imp::add_object(t_pd *obj, void *x, AooId id)
             return false;
         }
     } else  if (pd_class(obj) == aoo_send_class){
-        if (x_client->addSource((AooSource *)x, id) != kAooOk){
+        if (x_client->addSource((AooSource *)x) != kAooOk){
             pd_error(obj, "%s with ID %d on port %d already exists!",
                      classname(obj), id, port());
         }
     } else if (pd_class(obj) == aoo_receive_class){
-        if (x_client->addSink((AooSink *)x, id) != kAooOk){
+        if (x_client->addSink((AooSink *)x) != kAooOk){
             pd_error(obj, "%s with ID %d on port %d already exists!",
                      classname(obj), id, port());
         }

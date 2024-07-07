@@ -528,14 +528,16 @@ AooError AOO_CALL aoo::net::Client::pollEvents(){
 }
 
 AOO_API AooError AOO_CALL AooClient_addSource(
-        AooClient *client, AooSource *src, AooId id)
+        AooClient *client, AooSource *src)
 {
-    return client->addSource(src, id);
+    return client->addSource(src);
 }
 
-AooError AOO_CALL aoo::net::Client::addSource(
-        AooSource *src, AooId id)
+AooError AOO_CALL aoo::net::Client::addSource(AooSource *src)
 {
+    assert(src);
+    AooId id;
+    src->getId(id);
     sync::scoped_lock lock(source_sink_mutex_); // writer lock!
 #if 1
     for (auto& s : sources_){
@@ -561,8 +563,7 @@ AOO_API AooError AOO_CALL AooClient_removeSource(
     return client->removeSource(src);
 }
 
-AooError AOO_CALL aoo::net::Client::removeSource(
-        AooSource *src)
+AooError AOO_CALL aoo::net::Client::removeSource(AooSource *src)
 {
     sync::scoped_lock lock(source_sink_mutex_); // writer lock!
     for (auto it = sources_.begin(); it != sources_.end(); ++it){
@@ -577,14 +578,16 @@ AooError AOO_CALL aoo::net::Client::removeSource(
 }
 
 AOO_API AooError AOO_CALL AooClient_addSink(
-        AooClient *client, AooSink *sink, AooId id)
+        AooClient *client, AooSink *sink)
 {
-    return client->addSink(sink, id);
+    return client->addSink(sink);
 }
 
-AooError AOO_CALL aoo::net::Client::addSink(
-        AooSink *sink, AooId id)
+AooError AOO_CALL aoo::net::Client::addSink(AooSink *sink)
 {
+    assert(sink);
+    AooId id;
+    sink->getId(id);
     sync::scoped_lock lock(source_sink_mutex_); // writer lock!
 #if 1
     for (auto& s : sinks_){
