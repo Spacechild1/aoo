@@ -462,76 +462,6 @@ typedef AooError (AOO_CALL *AooReceiveFunc)(
 
 /*------------------------------------------------------------------*/
 
-/** \brief options for AooClientSettings */
-AOO_FLAG(AooClientOptions)
-{
-    /** use external UDP socket */
-    kAooClientExternalUDPSocket = 0x01
-};
-
-/** \brief settings for AooClient::setup() */
-typedef struct AooClientSettings
-{
-    /** struct size */
-    AooSize structSize;
-    /** option flags */
-    AooClientOptions options;
-    /** the listening port of the UDP socket; if set to 0, AooClient will
-     *  pick a free port and update this field accordingly.
-     *  If you use an external UDP socket, you must specify the port. */
-    AooUInt16 portNumber;
-    /** socket type; by default, it will try to create a dual-stack socket.
-     *  If you use an external UDP socket, you must specify the socket type. */
-    AooSocketFlags socketType;
-    /** (optional) user data passed to callback functions, e.g. `sendFunc`
-     * or `messageHandler`. */
-    void *userData;
-    /** (optional) UDP send function; only for external UDP socket */
-    AooSendFunc sendFunc;
-    /** (optional) default handler for non-AOO messages; typically used
-     * to implement message "side-channels" */
-    AooReceiveFunc messageHandler;
-} AooClientSettings;
-
-/** \brief default initializer for AooClientSettings struct */
-#define AOO_CLIENT_SETTINGS_INIT() \
-    { AOO_STRUCT_SIZE(AooClientSettings, messageHandler), 0, 0, \
-        kAooSocketDefault, NULL, NULL, NULL }
-
-/*------------------------------------------------------------------*/
-
-/** \brief options for AooServerSettings */
-AOO_FLAG(AooServerOptions)
-{
-    /** use external UDP socket */
-    kAooServerExternalUDPSocket = 0x01
-};
-
-/** \brief settings for AooClient::setup() */
-typedef struct AooServerSettings
-{
-    /** struct size */
-    AooSize structSize;
-    /** option flags */
-    AooServerOptions options;
-    /** the listening port of the UDP and TCP socket */
-    AooUInt16 portNumber;
-    /** socket type; by default it will try to create a dual-stack socket.
-     *  If you use an external UDP socket, you must specify the socket type. */
-    AooSocketFlags socketType;
-    /** (optional) send function for external UDP socket */
-    AooSendFunc sendFunc;
-    /** (optional) user data for send function */
-    void *userData;
-} AooServerSettings;
-
-/** \brief default initializer for AooServerSettings struct */
-#define AOO_SERVER_SETTINGS_INIT() \
-    { AOO_STRUCT_SIZE(AooServerSettings, userData), 0, 0, \
-        kAooSocketDefault, NULL, NULL }
-
-/*------------------------------------------------------------------*/
-
 /** \brief AOO data types */
 AOO_ENUM(AooDataType)
 {
@@ -652,6 +582,160 @@ typedef struct AooFormatStorage
     /** opaque data */
     AooByte data[kAooFormatExtMaxSize];
 } AooFormatStorage;
+
+/*------------------------------------------------------------------*/
+
+/** \brief options for AooClientSettings */
+AOO_FLAG(AooClientOptions)
+{
+    /** use external UDP socket */
+    kAooClientExternalUDPSocket = 0x01
+};
+
+/** \brief settings for AooClient::setup() */
+typedef struct AooClientSettings
+{
+#ifdef __cplusplus
+    /** default constructor */
+    AooClientSettings()
+        : structSize(AOO_STRUCT_SIZE(AooClientSettings, messageHandler)),
+          options(0), portNumber(0), socketType(kAooSocketDefault),
+          userData(NULL), sendFunc(NULL), messageHandler(NULL) {}
+#endif
+
+    /** struct size */
+    AooSize structSize;
+    /** option flags */
+    AooClientOptions options;
+    /** the listening port of the UDP socket; if set to 0, AooClient will
+     *  pick a free port and update this field accordingly.
+     *  If you use an external UDP socket, you must specify the port. */
+    AooUInt16 portNumber;
+    /** socket type; by default, it will try to create a dual-stack socket.
+     *  If you use an external UDP socket, you must specify the socket type. */
+    AooSocketFlags socketType;
+    /** (optional) user data passed to callback functions, e.g. sendFunc
+     * or messageHandler. */
+    void *userData;
+    /** (optional) UDP send function; only for external UDP socket */
+    AooSendFunc sendFunc;
+    /** (optional) default handler for non-AOO messages; typically used
+     * to implement message "side-channels" */
+    AooReceiveFunc messageHandler;
+} AooClientSettings;
+
+/** \brief (C only) default initializer for AooClientSettings struct */
+#define AOO_CLIENT_SETTINGS_INIT() \
+    { AOO_STRUCT_SIZE(AooClientSettings, messageHandler), 0, 0, \
+        kAooSocketDefault, NULL, NULL, NULL }
+
+/*------------------------------------------------------------------*/
+
+/** \brief arguments for AooClient::connect() method */
+typedef struct AooClientConnect {
+#ifdef __cplusplus
+    AooClientConnect()
+        : structSize(AOO_STRUCT_SIZE(AooClientConnect, metadata)),
+          hostName(NULL), port(0), password(NULL), metadata(NULL) {}
+#endif
+
+    /** struct size */
+    AooSize structSize;
+    /** the AOO server host name */
+    const AooChar *hostName;
+    /** port the AOO server port */
+    AooUInt16 port;
+    /** password (optional) password */
+    const AooChar *password;
+    /** (optional) metadata */
+    const AooData *metadata;
+} AooClientConnect;
+
+/** \brief (C only) default initializer for AooClientConnect struct */
+#define AOO_CLIENT_CONNECT_INIT() \
+    { AOO_STRUCT_SIZE(AooClientConnect, metadata), \
+        NULL, 0, NULL, NULL }
+
+/*------------------------------------------------------------------*/
+
+/** \brief arguments for AooClient::groupJoin() method */
+typedef struct AooClientJoinGroup {
+#ifdef __cplusplus
+    /** default constructor */
+    AooClientJoinGroup()
+        : structSize(AOO_STRUCT_SIZE(AooClientJoinGroup, relayAddress)),
+          groupName(NULL), groupPassword(NULL), groupMetadata(NULL),
+          userName(NULL), userPassword(NULL), userMetadata(NULL),
+          relayAddress(NULL) {}
+#endif
+
+    /** struct size */
+    AooSize structSize;
+    /** group name */
+    const AooChar *groupName;
+    /** (optional) group password */
+    const AooChar *groupPassword;
+    /** (optional) group metadata
+         *  See AooResponseGroupJoin::groupMetadata. */
+    const AooData *groupMetadata;
+    /** user name */
+    const AooChar *userName;
+    /** (optional) user password */
+    const AooChar *userPassword;
+    /** (optional) user metadata
+         *  See AooResponseGroupJoin::userMetadata resp.
+         *  AooEventPeer::metadata. */
+    const AooData *userMetadata;
+    /** (optional) relay address
+         *  If `hostName` is `NULL`, it means that the relay
+         *  has the same IP address(es) as the AOO client. */
+    const AooIpEndpoint *relayAddress;
+} AooClientJoinGroup;
+
+/** \brief (C only) default initializer for AooClientJoinGroup struct */
+#define AOO_CLIENT_JOIN_GROUP_INIT() \
+    { AOO_STRUCT_SIZE(AooClientJoinGroup, relayAddress), \
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL }
+
+/*------------------------------------------------------------------*/
+
+/** \brief options for AooServerSettings */
+AOO_FLAG(AooServerOptions)
+{
+    /** use external UDP socket */
+    kAooServerExternalUDPSocket = 0x01
+};
+
+/** \brief settings for AooClient::setup() */
+typedef struct AooServerSettings
+{
+#ifdef __cplusplus
+    /** default constructor */
+    AooServerSettings()
+        : structSize(AOO_STRUCT_SIZE(AooServerSettings, userData)),
+          options(0), portNumber(0), socketType(kAooSocketDefault),
+          userData(NULL), sendFunc(NULL) {}
+#endif
+
+    /** struct size */
+    AooSize structSize;
+    /** option flags */
+    AooServerOptions options;
+    /** the listening port of the UDP and TCP socket */
+    AooUInt16 portNumber;
+    /** socket type; by default it will try to create a dual-stack socket.
+     *  If you use an external UDP socket, you must specify the socket type. */
+    AooSocketFlags socketType;
+    /** (optional) user data for callback functions, e.g. sendFunc */
+    void *userData;
+    /** (optional) send function for external UDP socket */
+    AooSendFunc sendFunc;
+} AooServerSettings;
+
+/** \brief (C only) default initializer for AooServerSettings struct */
+#define AOO_SERVER_SETTINGS_INIT() \
+    { AOO_STRUCT_SIZE(AooServerSettings, userData), 0, 0, \
+        kAooSocketDefault, NULL, NULL }
 
 /*------------------------------------------------------------------*/
 

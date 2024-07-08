@@ -273,7 +273,7 @@ int main(int argc, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    AooSettings settings = AOO_SETTINGS_INIT();
+    AooSettings settings;
     settings.logFunc = log_function;
     if (auto err = aoo_initialize(&settings); err != kAooOk) {
         std::cout << "Could not initialize AOO library: "
@@ -296,8 +296,9 @@ int main(int argc, const char **argv) {
         g_server->setPassword(password.c_str());
     }
 
-    AooServerSettings server_settings = AOO_SERVER_SETTINGS_INIT();
+    AooServerSettings server_settings;
     server_settings.portNumber = port;
+
     auto err = g_server->setup(server_settings);
     if (err != kAooOk) {
         std::string msg;

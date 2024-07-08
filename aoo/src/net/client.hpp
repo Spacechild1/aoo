@@ -266,16 +266,13 @@ public:
 
     AooError AOO_CALL removeSink(AooSink *sink) override;
 
-    AooError AOO_CALL connect(
-            const AooChar *hostName, AooInt32 port, const AooChar *password,
-            const AooData *metadata, AooResponseHandler cb, void *context) override;
+    AooError AOO_CALL connect(const AooClientConnect& args,
+            AooResponseHandler cb, void *context) override;
 
     AooError AOO_CALL disconnect(AooResponseHandler cb, void *context) override;
 
-    AooError AOO_CALL joinGroup(
-            const AooChar *groupName, const AooChar *groupPwd, const AooData *groupMetadata,
-            const AooChar *userName, const AooChar *userPwd, const AooData *userMetadata,
-            const AooIpEndpoint *relayAddress, AooResponseHandler cb, void *context) override;
+    AooError AOO_CALL joinGroup(const AooClientJoinGroup& args,
+            AooResponseHandler cb, void *context) override;
 
     AooError AOO_CALL leaveGroup(AooId group, AooResponseHandler cb, void *context) override;
 
@@ -522,10 +519,10 @@ public:
     struct connect_cmd : callback_cmd
     {
         // NB: pwd may be NULL!
-        connect_cmd(std::string_view hostname, int port, const char *pwd,
-                    const AooData *metadata, AooResponseHandler cb, void *user)
+        connect_cmd(const AooClientConnect& args, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
-              host_(hostname, port), pwd_(pwd ? pwd : ""), metadata_(metadata) {}
+              host_(args.hostName, args.port), pwd_(args.password ? args.password : ""),
+              metadata_(args.metadata) {}
 
         void perform(Client& obj) override {
             obj.perform(*this);
@@ -536,16 +533,14 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestConnect request = AOO_REQUEST_CONNECT_INIT();
-            request.address.hostName = host_.name.c_str();
-            request.address.port = host_.port;
-            if (!pwd_.empty()) {
-                request.password = pwd_.c_str();
-            }
             AooData md { metadata_.type(), metadata_.data(), metadata_.size() };
-            if (md.size > 0) {
-                request.metadata = &md;
-            }
+
+            AooRequestConnect request {
+                AOO_REQUEST_INIT(Connect, metadata),
+                { host_.name.c_str(), (AooUInt16)host_.port },
+                (!pwd_.empty() ? pwd_.c_str() : nullptr),
+                (md.size > 0 ? &md : nullptr)
+            };
 
             callback((AooRequest&)request, result, response);
         }
@@ -568,7 +563,7 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestDisconnect request = AOO_REQUEST_DISCONNECT_INIT();
+            AooRequestDisconnect request { AOO_REQUEST_INIT(Disconnect, structSize) };
 
             callback((AooRequest&)request, result, response);
         }
@@ -595,13 +590,13 @@ public:
     struct group_join_cmd : callback_cmd
     {
         // NB: group_pwd and user_pwd my be NULL!
-        group_join_cmd(std::string_view group_name, const char *group_pwd, const AooData *group_md,
-                       std::string_view user_name, const char *user_pwd, const AooData *user_md,
-                       const AooIpEndpoint* relay, AooResponseHandler cb, void *user)
+        group_join_cmd(const AooClientJoinGroup& args, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
-              group_name_(group_name), group_pwd_(group_pwd ? group_pwd : ""), group_md_(group_md),
-              user_name_(user_name), user_pwd_(user_pwd ? user_pwd : ""), user_md_(user_md),
-              relay_(relay ? *relay : ip_host{}) {}
+              group_name_(args.groupName), group_pwd_(args.groupPassword ? args.groupPassword : ""),
+              group_md_(args.groupMetadata),
+              user_name_(args.userName), user_pwd_(args.userPassword ? args.userPassword : ""),
+              user_md_(args.userMetadata),
+              relay_(args.relayAddress ? *args.relayAddress : ip_host{}) {}
 
         void perform(Client& obj) override {
             obj.perform(*this);
@@ -612,26 +607,18 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestGroupJoin request = AOO_REQUEST_GROUP_JOIN_INIT();
-
-            request.groupName = group_name_.c_str();
-            request.groupPwd = group_pwd_.empty() ? nullptr : group_pwd_.c_str();
             AooData group_md { group_md_.type(), group_md_.data(), group_md_.size() };
-            request.groupMetadata = (group_md.size > 0) ? &group_md : nullptr;
-
-            request.userName = user_name_.c_str();
-            request.userPwd = user_pwd_.empty() ? nullptr : user_pwd_.c_str();
             AooData user_md { user_md_.type(), user_md_.data(), user_md_.size() };
-            request.userMetadata = (user_md.size > 0) ? &user_md : nullptr;
+            AooIpEndpoint relay { relay_.name.c_str(), (AooUInt16)relay_.port };
 
-            AooIpEndpoint relay;
-            if (relay_.valid()) {
-                relay.hostName = relay_.name.c_str();
-                relay.port = relay_.port;
-                request.relayAddress = &relay;
-            } else {
-                request.relayAddress = nullptr;
-            }
+            AooRequestGroupJoin request {
+                AOO_REQUEST_INIT(GroupJoin, relayAddress),
+                group_name_.c_str(), (group_pwd_.empty() ? nullptr : group_pwd_.c_str()),
+                kAooIdInvalid, ((group_md.size > 0) ? &group_md : nullptr),
+                user_name_.c_str(), (user_pwd_.empty() ? nullptr : user_pwd_.c_str()),
+                kAooIdInvalid, ((user_md.size > 0) ? &user_md : nullptr),
+                (relay_.valid() ? &relay : nullptr)
+            };
 
             callback((AooRequest&)request, result, response);
         }
@@ -658,8 +645,7 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestGroupLeave request = AOO_REQUEST_GROUP_LEAVE_INIT();
-            request.group = group_;
+            AooRequestGroupLeave request { AOO_REQUEST_INIT(GroupLeave, group), group_ };
 
             callback((AooRequest&)request, result, response);
         }
@@ -681,11 +667,10 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestGroupUpdate request = AOO_REQUEST_GROUP_UPDATE_INIT();
-            request.groupId = group_;
-            request.groupMetadata.type = md_.type();
-            request.groupMetadata.data = md_.data();
-            request.groupMetadata.size = md_.size();
+            AooRequestGroupUpdate request {
+                AOO_REQUEST_INIT(GroupUpdate, groupMetadata),
+                group_, { md_.type(), md_.data(), md_.size() }
+            };
 
             callback((AooRequest&)request, result, response);
         }
@@ -709,11 +694,10 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestUserUpdate request = AOO_REQUEST_USER_UPDATE_INIT();
-            request.groupId = group_;
-            request.userMetadata.type = md_.type();
-            request.userMetadata.data = md_.data();
-            request.userMetadata.size = md_.size();
+            AooRequestUserUpdate request {
+                AOO_REQUEST_INIT(UserUpdate, userMetadata),
+                group_, kAooIdInvalid, { md_.type(), md_.data(), md_.size() }
+            };
 
             callback((AooRequest&)request, result, response);
         }
@@ -735,7 +719,7 @@ public:
             auto token = (it++)->AsInt32(); // skip
             auto result = (it++)->AsInt32();
             if (result == kAooErrorNone) {
-                AooResponseCustom response = AOO_RESPONSE_CUSTOM_INIT();
+                AooResponseCustom response; // default constructor
                 response.flags = (AooFlag)(it++)->AsInt32();
                 auto data = osc_read_metadata(it);
                 if (data) {
@@ -753,11 +737,10 @@ public:
         }
 
         void do_reply(AooError result, const AooResponse& response) const override {
-            AooRequestCustom request = AOO_REQUEST_CUSTOM_INIT();
-            request.flags = flags_;
-            request.data.type = data_.type();
-            request.data.data = data_.data();
-            request.data.size = data_.size();
+            AooRequestCustom request {
+                AOO_REQUEST_INIT(Custom, flags),
+                { data_.type(), data_.data(), data_.size() }, flags_
+            };
 
             callback((AooRequest&)request, result, response);
         }

@@ -90,9 +90,7 @@ AOO_API AooError AOO_CALL AooClient_removeSink(
 
 /** \copydoc AooClient::connect() */
 AOO_API AooError AooClient_connect(
-        AooClient *client,
-        const AooChar *hostName, AooInt32 port,
-        const AooChar *password, const AooData *metadata,
+        AooClient *client, const AooClientConnect *args,
         AooResponseHandler cb, void *context);
 
 /** \copydoc AooClient::disconnect() */
@@ -101,12 +99,7 @@ AOO_API AooError AooClient_disconnect(
 
 /** \copydoc AooClient::joinGroup() */
 AOO_API AooError AooClient_joinGroup(
-        AooClient *client,
-        const AooChar *groupName, const AooChar *groupPwd,
-        const AooData *groupMetadata,
-        const AooChar *userName, const AooChar *userPwd,
-        const AooData *userMetadata,
-        const AooIpEndpoint *relayAddress,
+        AooClient *client, const AooClientJoinGroup *args,
         AooResponseHandler cb, void *context);
 
 /** \copydoc AooClient::leaveGroup() */

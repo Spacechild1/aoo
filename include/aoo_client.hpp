@@ -205,16 +205,11 @@ public:
      *
      * \note Threadsafe and RT-safe
      *
-     * \param hostName the AOO server host name
-     * \param port the AOO server port
-     * \param password (optional) password
-     * \param metadata (optional) metadata
+     * \param args arguments
      * \param cb callback function for server reply
      * \param context user data passed to callback function
      */
-    virtual AooError AOO_CALL connect(
-            const AooChar *hostName, AooInt32 port,
-            const AooChar *password, const AooData *metadata,
+    virtual AooError AOO_CALL connect(const AooClientConnect& args,
             AooResponseHandler cb, void *context) = 0;
 
     /** \brief disconnect from AOO server
@@ -230,27 +225,11 @@ public:
      *
      * \note Threadsafe and RT-safe
      *
-     * \param groupName the group name
-     * \param groupPwd (optional) group password
-     * \param groupMetadata (optional) group metadata
-     *        See AooResponseGroupJoin::groupMetadata.
-     * \param userName your user name
-     * \param userPwd (optional) user password
-     * \param userMetadata (optional) user metadata
-     *        See AooResponseGroupJoin::userMetadata resp.
-     *        AooEventPeer::metadata.
-     * \param relayAddress (optional) relay address
-     *        If `hostName` is `NULL`, it means that the relay
-     *        has the same IP address(es) as the AOO client.
+     * \param args the arguments
      * \param cb a function to be called with server reply
      * \param context user data passed to callback function
      */
-    virtual AooError AOO_CALL joinGroup(
-            const AooChar *groupName, const AooChar *groupPwd,
-            const AooData *groupMetadata,
-            const AooChar *userName, const AooChar *userPwd,
-            const AooData *userMetadata,
-            const AooIpEndpoint *relayAddress,
+    virtual AooError AOO_CALL joinGroup(const AooClientJoinGroup& args,
             AooResponseHandler cb, void *context) = 0;
 
     /** \brief leave a group

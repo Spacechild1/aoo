@@ -443,8 +443,10 @@ void AOO_CALL handle_connect(void *user, const AooRequest *request,
                 x->server_host, x->server_port);
         x->connected = true;
         // Now join group.
-        AooClient_joinGroup(x->client, x->group, 0, 0, x->user, 0, 0, 0,
-                            handle_join_group, x);
+        AooClientJoinGroup args = AOO_CLIENT_JOIN_GROUP_INIT();
+        args.groupName = x->group;
+        args.userName = x->user;
+        AooClient_joinGroup(x->client, &args, handle_join_group, x);
     } else {
         fprintf(stdout, "could not connect to %s on port %d: %s\n",
                 x->server_host, x->server_port, aoo_strerror(result));
@@ -459,8 +461,10 @@ void SimplePeer_start(SimplePeer *x) {
     assert(x->source);
     AooSource_startStream(x->source, 0, 0);
     // connect to server and join group
-    AooClient_connect(x->client, x->server_host, x->server_port, 0, 0,
-                      handle_connect, x);
+    AooClientConnect args = AOO_CLIENT_CONNECT_INIT();
+    args.hostName = x->server_host;
+    args.port = x->server_port;
+    AooClient_connect(x->client, &args, handle_connect, x);
 }
 
 void AOO_CALL handle_leave_group(void *user, const AooRequest *request,

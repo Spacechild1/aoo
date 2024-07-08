@@ -722,12 +722,12 @@ static void aoo_client_connect(t_aoo_client *x, t_symbol *s, int argc, t_atom *a
         return;
     }
     if (x->x_node){
-        t_symbol *host = atom_getsymbol(argv);
-        int port = atom_getfloat(argv + 1);
-        const char *pwd = argc > 2 ? atom_getsymbol(argv + 2)->s_name : nullptr;
+        AooClientConnect args;
+        args.hostName = atom_getsymbol(argv)->s_name;
+        args.port = atom_getfloat(argv + 1);
+        args.password = argc > 2 ? atom_getsymbol(argv + 2)->s_name : nullptr;
 
-        x->x_node->client()->connect(host->s_name, port, pwd, nullptr,
-                                     (AooResponseHandler)connect_cb, x);
+        x->x_node->client()->connect(args, (AooResponseHandler)connect_cb, x);
     }
 }
 
@@ -797,13 +797,13 @@ static void aoo_client_group_join(t_aoo_client *x, t_symbol *s, int argc, t_atom
             pd_error(x, "%s: too few arguments for '%s' method", classname(x), s->s_name);
             return;
         }
-        auto group = atom_getsymbol(argv)->s_name;
-        auto group_pwd = atom_getsymbol(argv + 1)->s_name;
-        auto user = atom_getsymbol(argv + 2)->s_name;
-        auto user_pwd = argc > 3 ? atom_getsymbol(argv + 3)->s_name : nullptr;
+        AooClientJoinGroup args;
+        args.groupName = atom_getsymbol(argv)->s_name;
+        args.groupPassword = atom_getsymbol(argv + 1)->s_name;
+        args.userName = atom_getsymbol(argv + 2)->s_name;
+        args.userPassword = argc > 3 ? atom_getsymbol(argv + 3)->s_name : nullptr;
 
-        x->x_node->client()->joinGroup(group, group_pwd, nullptr, user, user_pwd, nullptr, nullptr,
-                                       (AooResponseHandler)group_join_cb, x);
+        x->x_node->client()->joinGroup(args, (AooResponseHandler)group_join_cb, x);
     }
 }
 

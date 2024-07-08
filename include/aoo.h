@@ -18,14 +18,28 @@ AOO_PACK_BEGIN
 
 /** \brief settings for aoo_initialize()
  *
- * \details Example:
+ * \attention (C only) always initialize with AOO_SETTINGS_INIT()!
  *
- *      AooSettings settings = AOO_SETTINGS_INIT();
- *      settings.logFunc = myLogFunc; // set custom log function
- *      aoo_initialize(&settings);
+ * \details Example:
+ * ~~~~
+ * #ifdef __cplusplus
+ *     AooSettings settings;
+ * #else
+ *     AooSettings settings = AOO_SETTINGS_INIT();
+ * #endif
+ *     settings.logFunc = myLogFunc; // set custom log function
+ *     aoo_initialize(&settings);
+ * ~~~~
  */
 typedef struct AooSettings
 {
+#ifdef __cplusplus
+    /** default constructor */
+    AooSettings()
+        : structSize(AOO_STRUCT_SIZE(AooSettings, memPoolSize)),
+          allocFunc(NULL), logFunc(NULL), memPoolSize(0) {}
+#endif
+
     /** struct size */
     AooSize structSize;
     /** custom allocator function, or `NULL` */
@@ -36,7 +50,7 @@ typedef struct AooSettings
     AooSize memPoolSize;
 } AooSettings;
 
-/** \brief default initializer for AooSettings struct */
+/** \brief (C only) default initializer for AooSettings struct */
 #define AOO_SETTINGS_INIT() {                   \
     AOO_STRUCT_SIZE(AooSettings, memPoolSize),  \
     NULL, NULL, AOO_MEM_POOL_SIZE               \

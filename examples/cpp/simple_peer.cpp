@@ -169,7 +169,7 @@ SimplePeer::SimplePeer(const SimplePeerOptions& opt) {
             static_cast<SimplePeer*>(user)->handle_event(*event);
         }, this, kAooEventModeCallback);
 
-    AooClientSettings settings = AOO_CLIENT_SETTINGS_INIT();
+    AooClientSettings settings;
     settings.portNumber = opt.port;
     if (auto err = client_->setup(settings); err == kAooOk) {
         std::cout << "sending and receiving on port "
@@ -323,12 +323,15 @@ void SimplePeer::start() {
     source_->startStream(0, nullptr);
 
     // connect to server and join group
-    client_->connect(server_host_.c_str(), server_port_, nullptr, nullptr,
-        [](void *user, const AooRequest *request, AooError result,
-           const AooResponse *response) {
-            static_cast<SimplePeer*>(user)->handle_connect(
-                *request, result, *response);
-        }, this);
+    AooClientConnect args;
+    args.hostName = server_host_.c_str();
+    args.port = server_port_;
+    auto cb = [](void *user, const AooRequest *request, AooError result,
+                 const AooResponse *response) {
+        static_cast<SimplePeer*>(user)->handle_connect(
+            *request, result, *response);
+    };
+    client_->connect(args, cb, this);
 }
 
 void SimplePeer::stop() {
@@ -389,13 +392,15 @@ void SimplePeer::handle_connect(const AooRequest& request,
                   << " on port " << server_port_ << "\n";
         connected_.store(true);
         // Now join group.
-        client_->joinGroup(group_.c_str(), nullptr, nullptr,
-                           user_.c_str(), nullptr, nullptr, nullptr,
-            [](void *user, const AooRequest *request, AooError result,
-               const AooResponse *response) {
-                static_cast<SimplePeer*>(user)->handle_join_group(
-                    *request, result, *response);
-            }, this);
+        AooClientJoinGroup args;
+        args.groupName = group_.c_str();
+        args.userName = user_.c_str();
+        auto cb = [](void *user, const AooRequest *request, AooError result,
+                     const AooResponse *response) {
+            static_cast<SimplePeer*>(user)->handle_join_group(
+                *request, result, *response);
+        };
+        client_->joinGroup(args, cb, this);
     } else {
         std::cout << "could not connect to " << server_host_
                   << " on port " << server_port_ << ": "

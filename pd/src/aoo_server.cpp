@@ -209,7 +209,7 @@ static void aoo_server_port(t_aoo_server *x, t_floatarg f)
     outlet_float(x->x_stateout, 0);
 
     if (port > 0) {
-        AooServerSettings settings = AOO_SERVER_SETTINGS_INIT();
+        AooServerSettings settings;
         settings.portNumber = port;
         if (auto err = x->x_server->setup(settings); err != kAooOk) {
             std::string msg;

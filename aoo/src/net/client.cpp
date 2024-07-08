@@ -628,15 +628,18 @@ AooError AOO_CALL aoo::net::Client::removeSink(AooSink *sink)
 }
 
 AOO_API AooError AOO_CALL AooClient_connect(
-        AooClient *client, const AooChar *hostName, AooInt32 port, const AooChar *password,
-        const AooData *metadata, AooResponseHandler cb, void *context) {
-    return client->connect(hostName, port, password, metadata, cb, context);
+        AooClient *client, const AooClientConnect *args,
+        AooResponseHandler cb, void *context) {
+    assert(args);
+    return client->connect(*args, cb, context);
 }
 
-AooError AOO_CALL aoo::net::Client::connect(
-        const AooChar *hostName, AooInt32 port, const AooChar *password,
-        const AooData *metadata, AooResponseHandler cb, void *context) {
-    auto cmd = std::make_unique<connect_cmd>(hostName, port, password, metadata, cb, context);
+AooError AOO_CALL aoo::net::Client::connect(const AooClientConnect& args,
+                                            AooResponseHandler cb, void *context) {
+    if (!args.hostName || args.port == 0) {
+        return kAooErrorBadArgument;
+    }
+    auto cmd = std::make_unique<connect_cmd>(args, cb, context);
     push_command(std::move(cmd));
     return kAooOk;
 }
@@ -653,21 +656,18 @@ AooError AOO_CALL aoo::net::Client::disconnect(AooResponseHandler cb, void *cont
 }
 
 AOO_API AooError AOO_CALL AooClient_joinGroup(
-        AooClient *client,
-        const AooChar *groupName, const AooChar *groupPwd, const AooData *groupMetadata,
-        const AooChar *userName, const AooChar *userPwd, const AooData *userMetadata,
-        const AooIpEndpoint *relayAddress, AooResponseHandler cb, void *context) {
-    return client->joinGroup(groupName, groupPwd, groupMetadata, userName, userPwd,
-                             userMetadata, relayAddress, cb, context);
+        AooClient *client, const AooClientJoinGroup *args,
+        AooResponseHandler cb, void *context) {
+    assert(args);
+    return client->joinGroup(*args, cb, context);
 }
 
-AooError AOO_CALL aoo::net::Client::joinGroup(
-        const AooChar *groupName, const AooChar *groupPwd, const AooData *groupMetadata,
-        const AooChar *userName, const AooChar *userPwd, const AooData *userMetadata,
-        const AooIpEndpoint *relayAddress, AooResponseHandler cb, void *context) {
-    auto cmd = std::make_unique<group_join_cmd>(groupName, groupPwd, groupMetadata,
-                                                userName, userPwd, userMetadata, relayAddress,
-                                                cb, context);
+AooError AOO_CALL aoo::net::Client::joinGroup(const AooClientJoinGroup& args,
+                                              AooResponseHandler cb, void *context) {
+    if (!args.groupName || !args.userName) {
+        return kAooErrorBadArgument;
+    }
+    auto cmd = std::make_unique<group_join_cmd>(args, cb, context);
     push_command(std::move(cmd));
     return kAooOk;
 }
@@ -1321,7 +1321,7 @@ void Client::perform(const disconnect_cmd& cmd) {
 
     close();
 
-    AooResponseDisconnect response = AOO_RESPONSE_DISCONNECT_INIT();
+    AooResponseDisconnect response { AOO_RESPONSE_INIT(Disconnect, structSize) };
 
     cmd.reply((AooResponse&)response); // always succeeds
 }
@@ -1421,14 +1421,14 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
             return;
         }
 
-        AooResponseGroupJoin response = AOO_RESPONSE_GROUP_JOIN_INIT();
+        AooResponseGroupJoin response; // default constructor
         response.groupId = group_id;
         response.groupFlags = group_flags;
-        response.userId = user_id;
-        response.userFlags = user_flags;
         if (group_md) {
             response.groupMetadata = &group_md.value();
         }
+        response.userId = user_id;
+        response.userFlags = user_flags;
         if (user_md) {
             response.userMetadata = &user_md.value();
         }
@@ -1499,7 +1499,7 @@ void Client::handle_response(const group_leave_cmd& cmd, const osc::ReceivedMess
             LOG_ERROR("AooClient: group leave response: not a member of group " << cmd.group_);
         }
 
-        AooResponseGroupLeave response = AOO_RESPONSE_GROUP_LEAVE_INIT();
+        AooResponseGroupLeave response; // default constructor
 
         cmd.reply((AooResponse&)response);
         LOG_VERBOSE("AooClient: successfully left group " << cmd.group_);
@@ -1538,7 +1538,7 @@ void Client::handle_response(const group_update_cmd& cmd, const osc::ReceivedMes
     (it++)->AsInt32(); // skip token
     auto result = (it++)->AsInt32();
     if (result == kAooErrorNone) {
-        AooResponseGroupUpdate response = AOO_RESPONSE_GROUP_UPDATE_INIT();
+        AooResponseGroupUpdate response;
         response.groupMetadata.type = cmd.md_.type();
         response.groupMetadata.data = cmd.md_.data();
         response.groupMetadata.size = cmd.md_.size();
@@ -1581,7 +1581,7 @@ void Client::handle_response(const user_update_cmd& cmd, const osc::ReceivedMess
     (it++)->AsInt32(); // skip token
     auto result = (it++)->AsInt32();
     if (result == kAooErrorNone) {
-        AooResponseUserUpdate response = AOO_RESPONSE_USER_UPDATE_INIT();
+        AooResponseUserUpdate response;
         response.userMetadata.type = cmd.md_.type();
         response.userMetadata.data = cmd.md_.data();
         response.userMetadata.size = cmd.md_.size();
@@ -1861,12 +1861,11 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
             server_ping_timer_.reset();
 
             // notify
-            AooResponseConnect response = AOO_RESPONSE_CONNECT_INIT();
-            response.clientId = id;
-            response.version = version;
-            if (metadata) {
-                response.metadata = &metadata.value();
-            }
+            AooResponseConnect response {
+                AOO_REQUEST_INIT(Connect, metadata),
+                id, version,
+                metadata ? &metadata.value() : nullptr
+            };
 
             connection_->reply((AooResponse&)response);
         } else {

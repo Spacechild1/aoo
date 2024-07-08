@@ -348,7 +348,7 @@ t_node_imp::t_node_imp(t_symbol *s, int port)
         }
     }, this, kAooEventModePoll);
 
-    AooClientSettings settings = AOO_CLIENT_SETTINGS_INIT();
+    AooClientSettings settings;
     settings.portNumber = port;
     if (auto err = client->setup(settings); err != kAooOk) {
         std::string msg;

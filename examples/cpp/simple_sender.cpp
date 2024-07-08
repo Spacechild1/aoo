@@ -122,7 +122,7 @@ SimpleSender::SimpleSender(const SimpleSenderOptions& opt) {
     // create and setup AOO client
     client_ = AooClient::create();
 
-    AooClientSettings settings = AOO_CLIENT_SETTINGS_INIT();
+    AooClientSettings settings;
     settings.portNumber = opt.port;
     if (auto err = client_->setup(settings); err == kAooOk) {
         std::cout << "sending from port " << opt.port << " with ID "
