@@ -43,7 +43,7 @@ Start a new stream.
 |  `t`  | start time (NTP)                    |
 |  `i`  | reblock/resample latency (samples)  |
 |  `i`  | codec delay (samples)               |
-| (`i`) | [metadata type](#4.2-data-types)    |
+| (`i`) | [metadata type](#data-types)        |
 | (`b`) | metadata content                    |
 |  `i`  | sample offset                       |
 
@@ -163,7 +163,7 @@ Invite a source.
 | ----: | -------------------------------- |
 |  `i`  | sink ID                          |
 |  `i`  | stream ID                        |
-| (`i`) | [metadata type](#4.2-data-types) |
+| (`i`) | [metadata type](#data-types)     |
 | (`b`) | metadata content                 |
 
 ---
@@ -313,7 +313,7 @@ Send a message to a peer.
 | (`i`) | number of frames                 |
 | (`i`) | frame index                      |
 | (`t`) | timetag                          |
-|  `i`  | [message type](#4.2-data-types)  |
+|  `i`  | [message type](#data-types)      |
 |  `b`  | message content                  |
 
 Possible values for *flags*:
@@ -442,7 +442,7 @@ Login to server.
 |  `i`  | request token                    |
 |  `s`  | version string                   |
 |  `s`  | password (encrypted)             |
-| (`i`) | [metadata type](#4.2-data-types) |
+| (`i`) | [metadata type](#data-types)     |
 | (`b`) | metadata content                 |
 |  `i`  | address count                    |
 |  `s`  | IP address 1                     |
@@ -472,10 +472,10 @@ Login response.
     |  `s`  | version string                   |
     |  `i`  | client ID                        |
     |  `i`  | flags                            |
-    | (`i`) | [metadata type](#4.2-data-types) |
+    | (`i`) | [metadata type](#data-types)     |
     | (`b`) | metadata content                 |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 ---
 
@@ -494,11 +494,11 @@ Join a group on the server.
 |  `i`  | request token                          |
 |  `s`  | group name                             |
 |  `s`  | group password (encrypted)             |
-| (`i`) | group [metadata type](#4.2-data-types) |
+| (`i`) | group [metadata type](#data-types)     |
 | (`b`) | group metadata content                 |
 |  `s`  | user name                              |
 |  `s`  | user password (encrypted)              |
-| (`i`) | user [metadata type](#4.2-data-types)  |
+| (`i`) | user [metadata type](#data-types)      |
 | (`b`) | user metadata content                  |
 | (`s`) | relay hostname                         |
 | (`i`) | relay port                             |
@@ -523,18 +523,18 @@ Group join response.
     |  `i`  | 0 (= no error)                           |
     |  `i`  | group ID                                 |
     |  `i`  | group flags                              |
-    | (`i`) | group [metadata type](#4.2-data-types)   |
+    | (`i`) | group [metadata type](#data-types)       |
     | (`b`) | group metadata content                   |
     |  `i`  | user ID                                  |
     |  `i`  | user flags                               |
-    | (`i`) | user [metadata type](#4.2-data-types)    |
+    | (`i`) | user [metadata type](#data-types)        |
     | (`b`) | user metadata content                    |
-    | (`i`) | private [metadata type](#4.2-data-types) |
+    | (`i`) | private [metadata type](#data-types)     |
     | (`b`) | private metadata content                 |
     | (`s`) | group relay hostname                     |
     | (`i`) | group relay port                         |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 ---
 
@@ -572,7 +572,7 @@ Group leave response.
     |  `i` | request token  |
     |  `i` | 0 (= no error) |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 ---
 
@@ -590,7 +590,7 @@ Update group metadata.
 | ---: | -------------------------------- |
 |  `i` | request token                    |
 |  `i` | group ID                         |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | metadata content                 |
 
 ---
@@ -611,10 +611,10 @@ Group update response.
     | ---: | -------------------------------- |
     |  `i` | request token                    |
     |  `i` | 0 (= no error)                   |
-    |  `i` | [metadata type](#4.2-data-types) |
+    |  `i` | [metadata type](#data-types)     |
     |  `b` | metadata content                 |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 ---
 
@@ -632,7 +632,7 @@ Update user metadata.
 | ---: | -------------------------------- |
 |  `i` | request token                    |
 |  `i` | group ID                         |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | metadata content                 |
 
 ---
@@ -653,10 +653,10 @@ User update response.
     | ---: | -------------------------------- |
     |  `i` | request token                    |
     |  `i` | 0 (= no error)                   |
-    |  `i` | [metadata type](#4.2-data-types) |
+    |  `i` | [metadata type](#data-types)     |
     |  `b` | metadata content                 |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 ---
 
@@ -674,7 +674,7 @@ Send custom request.
 | ---: | ---------------------------- |
 |  `i` | request token                |
 |  `i` | flags                        |
-|  `i` | [data type](#4.2-data-types) |
+|  `i` | [data type](#data-types)     |
 |  `b` | data content                 |
 
 ---
@@ -696,21 +696,22 @@ Response to custom request.
     |  `i` | request token                |
     |  `i` | 0 (= no error)               |
     |  `i` | flags                        |
-    |  `i` | [data type](#4.2-data-types) |
+    |  `i` | [data type](#data-types)     |
     |  `b` | data content                 |
 
-2. failure: see [3.1.1 Error response](#2.1.1-error-response)
+2. failure: see [2.1.1 Error response](#error-response)
 
 <br>
 
-## 2.1.1 Error response
+### 2.1.1 Error response
+<a name="error-response"></a>
 
 All error responses have the same argument structure:
 
 | type | description                    |
 | ---: | ------------------------------ |
 |  `i` | request token                  |
-|  `i` | [error code](#5.1-error-codes) |
+|  `i` | [error code](#error-codes)     |
 |  `i` | system/user error code         |
 |  `s` | system/user error message      |
 
@@ -742,7 +743,7 @@ A peer has joined the group.
 |  `i`  | user ID                          |
 |  `s`  | version string                   |
 |  `i`  | flags                            |
-| (`i`) | [metadata type](#4.2-data-types) |
+| (`i`) | [metadata type](#data-types)     |
 | (`b`) | metadata content                 |
 | (`s`) | relay hostname                   |
 | (`i`) | relay port                       |
@@ -786,7 +787,7 @@ Peer metadata has changed.
 | ---: | -------------------------------- |
 |  `i` | group ID                         |
 |  `i` | peer ID                          |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | metadata content                 |
 
 ---
@@ -805,7 +806,7 @@ User metadata has changed.
 | ---: | -------------------------------- |
 |  `i` | group ID                         |
 |  `i` | user ID                          |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | metadata content                 |
 
 ---
@@ -824,7 +825,7 @@ Group metadata has changed.
 | ---: | -------------------------------- |
 |  `i` | group ID                         |
 |  `i` | user ID                          |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | metadata content                 |
 
 The user ID refers to the user that updated the group.
@@ -860,7 +861,7 @@ Generic server notification.
 
 | type | description                      |
 | ---: | -------------------------------- |
-|  `i` | [metadata type](#4.2-data-types) |
+|  `i` | [metadata type](#data-types)     |
 |  `b` | message content                  |
 
 <br>
@@ -954,6 +955,7 @@ If sent from an AOO peer to an AOO relay server, the message contains the destin
 <br>
 
 ### 4.1 Error codes
+<a name="error-codes"></a>
 
 | value | description                |
 | ----: | -------------------------- |
@@ -965,6 +967,7 @@ For a full list of error codes see `AooError` in `aoo/aoo_types.h`.
 <br>
 
 ### 4.2 Data types
+<a name="data-types"></a>
 
 | value | description              |
 | ----: | ------------------------ |

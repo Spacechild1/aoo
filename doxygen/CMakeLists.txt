@@ -17,6 +17,8 @@ ${CMAKE_CURRENT_SOURCE_DIR}/../include \
 ${CMAKE_CURRENT_SOURCE_DIR}/../include/codec"
 )
 
+set(MAIN_PAGE "${CMAKE_CURRENT_SOURCE_DIR}/../README.md")
+
 set(doxyfile "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
 
 configure_file("Doxyfile.in" ${doxyfile} @ONLY)

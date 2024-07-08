@@ -32,6 +32,7 @@ The default configuration should be fine for most projects.
 ---
 
 #### 2. CMake package
+<a name="cmake-package"></a>
 
 If the `aoo` library is installed (locally or system-wide), you can import to your CMake project with `find_package()`:
 
@@ -61,6 +62,7 @@ If you build and install `aoo` yourself, make sure that `AOO_INSTALL_CMAKE_CONFI
 ---
 
 #### 3. pkg-config
+<a name="pkg-config"></a>
 
 By default, `aoo` also provides a pkg-config file (`aoo.pc`).
 This allows `aoo` to be used with other build systems via `pkg-config`.
@@ -272,9 +274,9 @@ These are the most important project options:
 
 - `CMAKE_INSTALL_LIBRARY` (BOOL) - Install the `aoo` library. (Default = `ON`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [2. CMake package](#2-cmake-package). (Default = `ON`)
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [2. CMake package](#cmake-package). (Default = `ON`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [3. pkg-config](#3-pkg-config). (Default = `ON`)
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [3. pkg-config](#pkg-config). (Default = `ON`)
 
 
 `cmake-gui` resp. `ccmake` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.
