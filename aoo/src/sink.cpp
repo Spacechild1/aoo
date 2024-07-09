@@ -1451,7 +1451,6 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     // set jitter buffer head
     jitter_buffer_.reset_head(seq_start - 1);
 
-
     // cache reblock/resample latency and codec delay
     auto resample = (double)s.samplerate() / (double)format_->sampleRate;
     stream_tt_ = tt;
@@ -1905,6 +1904,15 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
                 return false;
             }
         }
+    }
+
+    // Capture stream time on first block after reset.
+    // This is used to calculate the local time for the AooEventStreamTime event.
+    // Note that the source stream time stamp is calculated based on sample time,
+    // so we want to do the same with the local stream time.
+    if (process_samples_ == 0) {
+        local_tt_ = tt;
+        LOG_DEBUG("AooSink: local time: " << tt);
     }
 
     // send stream state event with correct sample offset.
@@ -2395,7 +2403,8 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
         msg->tt = b.tt;
     #if AOO_DEBUG_STREAM_MESSAGE
         LOG_DEBUG("AooSink: schedule stream time message (tt: "
-                  << aoo::time_tag(b.tt) << ", time: " << (int64_t)time << ")");
+                  << aoo::time_tag(b.tt) << ", stream samples: "
+                  << (int64_t)time << ")");
     #endif
         sched_stream_message(&msg->header);
     }
@@ -2429,7 +2438,8 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
             LOG_DEBUG("AooSink: schedule stream message "
                       << "(type: " << aoo_dataTypeToString(type)
                       << ", channel: " << channel << ", size: " << size
-                      << ", offset: " << offset << ", time: " << (int64_t)time << ")");
+                      << ", offset: " << offset << ", sample time: "
+                      << (int64_t)time << ")");
         #endif
             memcpy(msg->data, msgptr, size);
 
@@ -2538,12 +2548,16 @@ void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
             if (it->type == kAooDataStreamTime) {
                 // a) stream time event
                 if (offset >= 0) {
-                    auto tt = reinterpret_cast<stream_time_message *>(it)->tt;
-                    auto e = make_event<stream_time_event>(ep, tt, offset);
+                    auto source_tt = reinterpret_cast<stream_time_message *>(it)->tt;
+                    auto elapsed = it->time / (double)s.samplerate();
+                    auto local_tt = local_tt_ + time_tag::from_seconds(elapsed);
+                    auto e = make_event<stream_time_event>(ep, source_tt, local_tt, offset);
                     queue_event(std::move(e));
                 #if AOO_DEBUG_STREAM_MESSAGE
-                    LOG_DEBUG("AooSink: dispatch stream time message (tt: " << aoo::time_tag(tt)
-                                                                            << ", offset: " << offset << ")");
+                    LOG_DEBUG("AooSink: dispatch stream time message (source tt: "
+                              << aoo::time_tag(source_tt) << ", local tt: "
+                              << aoo::time_tag(local_tt) << ", stream samples: "
+                              << (uint64_t)it->time << ", offset: " << offset << ")");
                 #endif
                 } else {
                     // this may happen with xruns
@@ -2947,6 +2961,7 @@ void source_desc::reset_stream() {
     process_samples_ = 0;
     stream_samples_ = 0;
     stream_offset_ = 0;
+    local_tt_.clear();
 }
 
 // NOTE: for kAooEventModeCallback we could theoretically

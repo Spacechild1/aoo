@@ -113,7 +113,7 @@ struct net_packet : data_packet {
 
 struct stream_message_header {
     stream_message_header *next;
-    double time;
+    double time; // in samples
     int16_t channel;
     int16_t type; // must be signed because of kAooDataStreamTime
     uint32_t size;
@@ -242,6 +242,7 @@ private:
     double xrunblocks_ = 0;
     int64_t stream_offset_ = 0;
     aoo::time_tag stream_tt_;
+    aoo::time_tag local_tt_;
     int32_t latency1_ = 0;
     int32_t latency2_ = 0;
     int32_t codec_delay1_ = 0;

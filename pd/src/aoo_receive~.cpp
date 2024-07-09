@@ -549,7 +549,9 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
         }
         case kAooEventStreamTime:
         {
-            auto tt = event->streamTime.tt;
+            AooNtpTime tt[2];
+            tt[0] = event->streamTime.sourceTime;
+            tt[1] = event->streamTime.sinkTime;
             auto offset = event->streamTime.sampleOffset;
             if (offset > 0) {
                 // HACK: schedule as fake stream message
@@ -557,11 +559,12 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                 msg.type = kAooDataStreamTime;
                 msg.sampleOffset = offset;
                 msg.size = sizeof(tt);
-                msg.data = (AooByte *)&tt;
+                msg.data = (AooByte *)tt;
                 aoo_receive_handle_stream_message(x, &msg, &ep);
             } else {
-                SETFLOAT(msg + 3, get_elapsed_ms(tt));
-                outlet_anything(x->x_msgout, gensym("time"), 4, msg);
+                SETFLOAT(msg + 3, get_elapsed_ms(tt[0]));
+                SETFLOAT(msg + 4, get_elapsed_ms(tt[1]));
+                outlet_anything(x->x_msgout, gensym("time"), 5, msg);
             }
             break;
         }
@@ -642,12 +645,13 @@ void t_aoo_receive::dispatch_stream_message(const AooStreamMessage& msg,
 
         outlet_anything(x_msgout, gensym("state"), 4, vec);
     } else if (msg.type == kAooDataStreamTime) {
-        AooNtpTime tt;
+        AooNtpTime tt[2];
         assert(msg.size == sizeof(tt)); // see aoo_receive_handle_event()
-        memcpy(&tt, msg.data, sizeof(tt));
-        SETFLOAT(vec + 3, get_elapsed_ms(tt));
+        memcpy(tt, msg.data, sizeof(tt));
+        SETFLOAT(vec + 3, get_elapsed_ms(tt[0]));
+        SETFLOAT(vec + 4, get_elapsed_ms(tt[1]));
 
-        outlet_anything(x_msgout, gensym("time"), 4, vec);
+        outlet_anything(x_msgout, gensym("time"), 5, vec);
     } else {
         // message
         stream_message_to_atoms(msg, size - 3, vec + 3);

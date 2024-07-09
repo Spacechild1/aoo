@@ -221,9 +221,11 @@ struct stream_state_event : endpoint_event<AooEventStreamState> {
 struct stream_time_event : endpoint_event<AooEventStreamTime> {
     RT_CLASS(stream_time_event)
 
-    stream_time_event(const aoo::endpoint& ep, AooNtpTime tt, int32_t offset)
+    stream_time_event(const aoo::endpoint& ep, AooNtpTime source_tt,
+                      AooNtpTime sink_tt, int32_t offset)
         : endpoint_event(BASE_EVENT(AooEventStreamTime, sampleOffset), ep) {
-        this->tt = tt;
+        this->sourceTime = source_tt;
+        this->sinkTime = sink_tt;
         this->sampleOffset = offset;
     }
 };

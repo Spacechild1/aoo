@@ -153,7 +153,23 @@ typedef struct AooEventEndpoint
     AooEndpoint endpoint; /**< source/sink endpoint */
 } AooEventEndpoint;
 
-/** \brief received ping (reply) from source */
+/** \brief received ping (reply) from source
+ *
+ * \details The effective network round trip time (RTT) can be
+ * calculated with the formula `(t4 - t1) - (t3 - t2)`.
+ *
+ * \note The clocks on both machines can diverge significantly,
+ * so the end-to-end delay can *not* be calculated with `(t2 - t1)`
+ * resp. `(t4 - t3)`! It can only be estimated, e.g. with `RTT * 0.5`.
+ *
+ * The time offset between source and sink can be estimated with
+ * `((t2 - t1) + (t3 - t4)) * 0.5`. Together with AooEventStreamTime
+ * this can  be used to synchronize multiple streams from different
+ * machines.
+ *
+ * Ideally, you would filter all these values to account for network jitter.
+ * See also https://en.wikipedia.org/wiki/Network_Time_Protocol#Clock_synchronization_algorithm
+ */
 typedef struct AooEventSourcePing
 {
     AOO_EVENT_HEADER
@@ -164,7 +180,10 @@ typedef struct AooEventSourcePing
     AooNtpTime t4; /**< sink receive time */
 } AooEventSourcePing;
 
-/** \brief received ping (reply) from sink */
+/** \brief received ping (reply) from sink
+ *
+ *  \see AooEventSourcePing
+ */
 typedef struct AooEventSinkPing
 {
     AOO_EVENT_HEADER
@@ -260,12 +279,24 @@ typedef AooEventEndpoint AooEventInviteTimeout;
 /** \brief (AooSink) uninvitation has timed out */
 typedef AooEventEndpoint AooEventUninviteTimeout;
 
-/** \brief (AooSink) stream time event */
+/** \brief (AooSink) stream time event
+ *
+ * \details Both the source and local time are measured
+ * in sample time, using the respective stream start time
+ * as the reference point.
+ *
+ * The stream time can be used to synchronize multiple
+ * streams from the same machine. If you know the actual
+ * clock time offset, you can even synchronize streams
+ * from different machines.
+ * \see AooEventSourcePing and AooEventSinkPing.
+ */
 typedef struct AooEventStreamTime
 {
     AOO_EVENT_HEADER
     AooEndpoint endpoint; /**< source endpoint */
-    AooNtpTime tt; /**< time stamp (source-side) */
+    AooNtpTime sourceTime; /**< source time stamp (remote) */
+    AooNtpTime sinkTime; /**< sink time stamp (local) */
     AooInt32 sampleOffset; /**< corresponding sample offset */
 } AooEventStreamTime;
 
