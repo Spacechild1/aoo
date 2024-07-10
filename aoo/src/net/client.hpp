@@ -18,6 +18,9 @@
 #include "event.hpp"
 #include "peer.hpp"
 #include "ping_timer.hpp"
+#if AOO_CLIENT_SIMULATE
+# include "simulate.hpp"
+#endif
 
 #include "osc/OscOutboundPacketStream.h"
 #include "osc/OscReceivedElements.h"
@@ -72,9 +75,6 @@
 
 #include <vector>
 #include <unordered_map>
-#if AOO_CLIENT_SIMULATE
-# include "common/priority_queue.hpp"
-#endif
 
 struct AooSource;
 struct AooSink;
@@ -455,21 +455,7 @@ private:
     parameter<int32_t> packet_size_{AOO_PACKET_SIZE};
     parameter<bool> binary_{AOO_BINARY_FORMAT};
 #if AOO_CLIENT_SIMULATE
-    parameter<float> sim_packet_loss_{0};
-    parameter<float> sim_packet_reorder_{0};
-    parameter<bool> sim_packet_jitter_{false};
-
-    struct netpacket {
-        std::vector<AooByte> data;
-        aoo::ip_address addr;
-        time_tag tt;
-
-        bool operator> (const netpacket& other) const {
-            return tt > other.tt;
-        }
-    };
-    using packet_queue = aoo::priority_queue<netpacket, std::greater<netpacket>>;
-    packet_queue packet_queue_;
+    network_simulator simulate_;
 #endif
 
     // methods

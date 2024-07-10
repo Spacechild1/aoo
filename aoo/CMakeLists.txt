@@ -77,6 +77,7 @@ if (AOO_NET)
         "src/net/server.cpp"
         "src/net/server.hpp"
         "src/net/server_events.hpp"
+        "src/net/simulate.hpp"
         "src/net/tcp_server.cpp"
         "src/net/tcp_server.hpp"
         "src/net/udp_server.cpp"
