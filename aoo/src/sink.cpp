@@ -2269,22 +2269,23 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
             // advance stream time! use nominal sample rate.
             stream_samples_ += (double)framesize * resample;
         #else
-            // use process blocksize!
+            // use process blocksize for more fine-grained latency!
             int32_t framesize;
             int32_t bufsize;
+            int32_t advance = s.blocksize();
             if (resampler_.bypass()) {
                 assert(buffer != nullptr && format_->blockSize == s.blocksize());
-                framesize = format_->blockSize;
+                framesize = advance;
                 bufsize = framesize * format_->numChannels;
             } else {
                 assert(buffer == nullptr);
-                framesize = (double)s.blocksize() / resample + 0.5;
+                framesize = (double)advance / resample + 0.5;
                 bufsize = framesize * format_->numChannels;
                 buffer = (AooSample *)alloca(bufsize * sizeof(AooSample));
             }
             std::fill(buffer, buffer + bufsize, 0);
             // advance stream time! (use nominal sample rate)
-            stream_samples_ += framesize;
+            stream_samples_ += advance;
         #endif
 
             if (resampler_.bypass()) {
