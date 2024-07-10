@@ -2038,14 +2038,14 @@ void source_desc::on_underrun(const Sink &s) {
 }
 
 void source_desc::handle_underrun(const Sink& s){
-    LOG_VERBOSE("AooSink: jitter buffer underrun");
+    LOG_VERBOSE("AooSink: jitter buffer underrun!");
 
     if (!jitter_buffer_.empty()) {
         LOG_ERROR("AooSink: bug: jitter buffer not empty");
-    #if 1
-        jitter_buffer_.reset();
-    #endif
     }
+    // always reset buffer! otherwise add_packet() might try to fill
+    // the difference to the last received block with empty blocks!
+    jitter_buffer_.reset();
 
 #if 1
     // TODO: maybe not necessary with BUFFER_PLC?
