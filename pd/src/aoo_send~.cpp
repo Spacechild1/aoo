@@ -533,7 +533,7 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
         case kAooEventFrameResend:
         {
             SETFLOAT(msg + 3, event->frameResend.count);
-            outlet_anything(x->x_msgout, gensym("frame_resend"), 4, msg);
+            outlet_anything(x->x_msgout, gensym("frame_resent"), 4, msg);
             break;
         }
         default:
