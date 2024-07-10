@@ -1168,10 +1168,11 @@ AooError Server::do_group_join(client_endpoint &client, AooId token,
     // find/create group
     auto grp = find_group(request.groupId);
     if (!grp) {
+        auto group_pwd = request.groupPwd ? request.groupPwd : "";
         // prefer response group metadata
         auto group_md = response.groupMetadata ? response.groupMetadata : request.groupMetadata;
 
-        grp = add_group(group(request.groupName, request.groupPwd, get_next_group_id(),
+        grp = add_group(group(request.groupName, group_pwd, get_next_group_id(),
                               group_md, response.relayAddress, 0));
         if (grp) {
             // send event
@@ -1188,12 +1189,13 @@ AooError Server::do_group_join(client_endpoint &client, AooId token,
     // find user or create it if necessary
     auto usr = grp->find_user(request.userId);
     if (!usr) {
+        auto user_pwd = request.userPwd ? request.userPwd : "";
         // prefer response user metadata
         auto user_md = response.userMetadata ? response.userMetadata : request.userMetadata;
 
         auto id = grp->get_next_user_id();
         AooFlag flags = did_create_group ? kAooUserGroupCreator : 0;
-        usr = grp->add_user(user(request.userName, request.userPwd, id, grp->id(),
+        usr = grp->add_user(user(request.userName, user_pwd, id, grp->id(),
                                  client.id(), user_md, request.relayAddress, flags));
         if (!usr) {
             // user has been added in the meantime... LATER try to deal with this
