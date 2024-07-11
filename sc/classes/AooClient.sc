@@ -216,13 +216,14 @@ AooClient {
 		token = this.class.prNextToken;
 
 		resp = OSCFunc({ arg msg;
-			var errmsg, clientID, errms, success = msg[3].asBoolean, metadata;
+			var errmsg, errcode, clientID, version, success = msg[3].asBoolean, metadata;
 			success.if {
 				clientID = msg[4];
-				metadata = AooData.fromBytes(*msg[5..6]);
+				version = msg[5];
+				metadata = AooData.fromBytes(*msg[6..7]);
 				"AooClient: connected to % % (client ID: %)".format(hostname, port, clientID).postln;
 				state = \connected;
-				action.value(true, clientID, metadata);
+				action.value(true, clientID, version, metadata);
 			} {
 				errmsg = msg[4];
 				"AooClient: couldn't connect to % %: %".format(hostname, port, errmsg).error;
