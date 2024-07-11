@@ -59,11 +59,8 @@ AooServer {
 		replyAddr = addr;
 
 		// handle events
-		eventOSCFunc = OSCFunc({ arg msg, time;
-			var event = this.prHandleEvent(msg[2..], time);
-			event !? {
-				this.eventHandler.value(*event);
-			}
+		eventOSCFunc = OSCFunc({ arg msg;
+			this.prHandleEvent(msg[2], msg[3..]);
 		}, '/aoo/server/event', addr, argTemplate: [port]);
 
 		ServerQuit.add { this.free };
@@ -84,29 +81,55 @@ AooServer {
 		users = nil;
 	}
 
-	prHandleEvent { arg type ...args;
-		// /disconnect, /error, /user/join, /user/leave,
-		// /group/join, /group/leave
-		var user, addr;
-
-		type.switch(
-			'/error', {
-				"AooServer: % (%)".format(args[1], args[0]).error;
+	prHandleEvent { arg type, args;
+		// \clientAdd, \clientRemove, \groupAdd, \groupRemove,
+		// \groupJoin, \groupLeave
+		var event = type.switch(
+			\clientAdd, {
+				var id = args[0];
+				var version = args[1];
+				var metadata = AooData.fromBytes(*args[2..3]);
+				[ id, version, metadata ];
 			},
-			'/user/join', {
-				user = ( name: args[0], id: args[1],
-					addr: AooAddr(*args[2..3]));
-				this.prAdd(user);
-				^[type, user.name, user.id, user.addr];
+			\clientRemove, {
+				var id = args[0];
+				var code = args[1];
+				var msg = args[2];
+				if (code == 0) { [ id ] } { [ id, msg, code ] };
 			},
-			'/user/leave', {
-				user = ( name: args[0], id: args[1],
-					addr: AooAddr(*args[2..3]));
-				this.prRemove(user);
-				^[type, user.name, user.id, user.addr];
-			}
+			\groupAdd, {
+				var id = args[0];
+				var name = args[1];
+				var metadata = AooData.fromBytes(*args[2..3]);
+				// [ AooServerGroup.prNew(this, name, id, metadata) ];
+				[ id, name, metadata ];
+			},
+			\groupRemove, {
+				var id = args[0];
+				var name = args[1];
+				[ id, name ];
+			},
+			\groupJoin, {
+				var groupID = args[0];
+				var userID = args[1];
+				var groupName = args[2];
+				var userName = args[3];
+				var clientID = args[4];
+				var userMetadata = AooData.fromBytes(*args[5..6]);
+				[ groupID, userID, groupName, userName, clientID, userMetadata ];
+			},
+			\groupLeave, {
+				var groupID = args[0];
+				var userID = args[1];
+				var groupName = args[2];
+				var userName = args[3];
+				[ groupID, userID, groupName, userName ];
+			},
+			{ "ignore unknown event '%'".format(type).warn; nil }
 		);
-		^[type] ++ args; // return original event
+		if (event.notNil) {
+			this.eventHandler.value(type, event);
+		}
 	}
 
 	prAdd { arg user;

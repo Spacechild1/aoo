@@ -95,6 +95,7 @@ AooServer::AooServer(int port, const char *password, bool relay)
         aoo::sync::lower_thread_priority();
         run();
     });
+
     udp_thread_ = std::thread([this]() {
         aoo::sync::lower_thread_priority();
         receive();
@@ -124,12 +125,13 @@ void AooServer::handleEvent(const AooEvent *event){
         auto& e = event->clientLogin;
 
         if (e.error == kAooOk) {
-            // TODO: socket address + metadata
+            // TODO: socket address
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/server/event") << port_
-                << "/client/add" << e.id
-                << osc::EndMessage;
+                << "clientAdd" << e.id << e.version;
+            serializeData(msg, e.metadata);
+            msg << osc::EndMessage;
 
              ::sendReply(port_, msg);
         } else {
@@ -147,7 +149,7 @@ void AooServer::handleEvent(const AooEvent *event){
         char buf[1024];
         osc::OutboundPacketStream msg(buf, sizeof(buf));
         msg << osc::BeginMessage("/aoo/server/event") << port_
-            << "/client/remove" << e.id << e.errorCode << e.errorMessage
+            << "clientRemove" << e.id << e.errorCode << e.errorMessage
             << osc::EndMessage;
 
          ::sendReply(port_, msg);
@@ -157,26 +159,29 @@ void AooServer::handleEvent(const AooEvent *event){
     case kAooEventGroupAdd:
     {
         auto& e = event->groupAdd;
-        msg << "/group/add" << e.id << e.name; // TODO metadata
+        msg << "groupAdd" << e.id << e.name;
+        serializeData(msg, e.metadata);
         break;
     }
     case kAooEventGroupRemove:
     {
         auto& e = event->groupRemove;
-        msg << "/group/remove" << e.id;
+        msg << "groupRemove" << e.id << e.name;
         break;
     }
     case kAooEventGroupJoin:
     {
         auto& e = event->groupJoin;
-        msg << "/group/join" << e.groupId << e.userId
-            << e.userName << e.clientId;
+        msg << "groupJoin" << e.groupId << e.userId
+            << e.groupName << e.userName << e.clientId;
+        serializeData(msg, e.userMetadata);
         break;
     }
     case kAooEventGroupLeave:
     {
         auto& e = event->groupLeave;
-        msg << "/group/leave" << e.groupId << e.userId;
+        msg << "groupLeave" << e.groupId << e.userId
+            << e.groupName << e.userName;
         break;
     }
     default:
