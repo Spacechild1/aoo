@@ -203,6 +203,8 @@ private:
 
     void handle_underrun(const Sink& s);
 
+    void handle_overrun(const Sink& s);
+
     bool add_packet(const Sink& s, const net_packet& d,
                     stream_stats& stats);
 

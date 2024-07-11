@@ -1280,8 +1280,6 @@ void source_desc::update(const Sink& s){
         did_update_ = true;
         buffer_latency_ = 0; // force latency event
         dropped_blocks_.store(0);
-        last_ping_time_.store(-1e007); // force ping
-        last_stop_time_ = 0;
 
         // reset decoder to avoid garbage from previous stream
         AooDecoder_reset(decoder_.get());
@@ -2066,9 +2064,6 @@ void source_desc::handle_underrun(const Sink& s){
     resampler_.reset(); // !
 #endif
 
-    last_ping_time_.store(-1e007); // force ping
-    last_stop_time_ = 0; // reset stop request timer
-
     reset_stream();
 
 #if !BUFFER_PLC
@@ -2089,6 +2084,36 @@ void source_desc::handle_underrun(const Sink& s){
     }
 
     underrun_ = false;
+}
+
+void source_desc::handle_overrun(const Sink& s){
+    LOG_VERBOSE("AooSink: jitter buffer overrun!");
+
+    jitter_buffer_.reset();
+
+#if 1
+    // TODO: maybe not necessary with BUFFER_PLC?
+    resampler_.reset(); // !
+#endif
+
+    reset_stream();
+
+#if !BUFFER_PLC
+    // reset decoder when not using PLC!
+    AooDecoder_reset(decoder_.get());
+#endif
+
+    {
+        auto e = make_event<source_event>(kAooEventBufferOverrun, ep);
+        queue_event(std::move(e));
+    }
+
+    if (stream_state_ != stream_state::buffering) {
+        stream_state_ = stream_state::buffering;
+        LOG_DEBUG("AooSink: stream buffering");
+        auto e = make_event<stream_state_event>(ep, kAooStreamStateBuffering, 0);
+        queue_event(std::move(e));
+    }
 }
 
 bool source_desc::add_packet(const Sink& s, const net_packet& d,
@@ -2136,7 +2161,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             auto numblocks = d.sequence - newest;
 
             // notify for gap
-            if (numblocks > 1){
+            if (numblocks > 1) {
                 LOG_VERBOSE("AooSink: skipped " << (numblocks - 1) << " blocks");
             }
 
@@ -2144,14 +2169,19 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             // can happen if the latency resp. buffer size is too small.
             auto space = jitter_buffer_.capacity() - jitter_buffer_.size();
             if (numblocks > space){
+            #if 1
+                handle_overrun(s);
+                // only keep most recent packet
+                newest = d.sequence - 1;
+            #else
                 LOG_VERBOSE("AooSink: jitter buffer overrun!");
                 // reset the buffer to latency_blocks_, considering both the stored blocks
-                // and the incoming block(s)
+                // and the incoming block(s).
+                // TODO: how does this affect the stream latency?
                 auto excess_blocks = numblocks + jitter_buffer_.size() - latency_blocks_;
                 assert(excess_blocks > 0);
                 // *first* discard stored blocks
-                // remove one extra block to make space for new block
-                auto discard_stored = std::min(jitter_buffer_.size(), latency_blocks_ + 1);
+                auto discard_stored = std::min(jitter_buffer_.size(), excess_blocks);
                 if (discard_stored > 0) {
                     LOG_DEBUG("AooSink: discard " << discard_stored << " of "
                               << jitter_buffer_.size() << " stored blocks");
@@ -2168,13 +2198,15 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
                     jitter_buffer_.reset_head(); // !
                 }
               #if 0
-                // TODO: should we report these as lost blocks? or only the incomplete ones?
-                stats.lost += excess_blocks;
+                // TODO: should we report these as dropped blocks? or only the incomplete ones?
+                stats.dropped += discard_stored + discard_incoming;
               #endif
-                // TODO: report latency change?
+                // finally send event
                 auto e = make_event<source_event>(kAooEventBufferOverrun, ep);
                 queue_event(std::move(e));
+            #endif
             }
+
             // fill gaps with placeholder blocks
             for (int32_t i = newest + 1; i < d.sequence; ++i) {
                 jitter_buffer_.push(i)->init(i);
@@ -2979,6 +3011,8 @@ void source_desc::reset_stream() {
     stream_samples_ = 0;
     stream_start_ = 0;
     local_tt_.clear();
+    last_ping_time_.store(-1e007); // force ping
+    last_stop_time_ = 0; // reset stop request timer
 }
 
 // NOTE: for kAooEventModeCallback we could theoretically
