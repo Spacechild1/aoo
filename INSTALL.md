@@ -1,13 +1,13 @@
-AOO (audio over OSC) v2.0-test3
-===============================
+INSTALL
+=======
 
-### Usage
+# 1 Usage
 
 There are several ways of integrating the AOO library into your own projects.
 
 ---
 
-#### 1. CMake subproject
+## 1.1 CMake subproject
   
 You can copy the source code into your project, e.g. as a git submodule or subtree,
 and then simply include it in your CMake project:
@@ -31,7 +31,7 @@ The default configuration should be fine for most projects.
 
 ---
 
-#### 2. CMake package
+## 1.2 CMake package
 <a name="cmake-package"></a>
 
 If the `aoo` library is installed (locally or system-wide), you can import to your CMake project with `find_package()`:
@@ -61,7 +61,7 @@ If you build and install `aoo` yourself, make sure that `AOO_INSTALL_CMAKE_CONFI
 
 ---
 
-#### 3. pkg-config
+## 1.3 pkg-config
 <a name="pkg-config"></a>
 
 By default, `aoo` also provides a pkg-config file (`aoo.pc`).
@@ -95,7 +95,7 @@ If you build and install `aoo` yourself, make sure that `AOO_INSTALL_PKG_CONFIG_
 
 ---
 
-### 4. Manual
+## 1.4 Manual
 
 If you cannot use any of the methods above, you have to manually link with the `aoo` library and its dependencies.
 
@@ -111,7 +111,7 @@ Windows (MSVC): `ws2_32.lib`
 
 **NOTE:** If `aoo` has been built with a non-standard configuration, you need to add the appropriate preprocessor defines to your compiler flags. This is particularly important if `aoo` has been built with a different sample size (`AOO_SAMPLE_SIZE`)!
 
-#### Opus
+### 1.4.1 Opus
 
 If `aoo` has been built with Opus support and you want to use the `codec/aoo_opus.h` header, you need to make sure that the `opus_multistream.h` header can be found by adding the appropriate include directory.
 
@@ -119,9 +119,9 @@ With the static library you also need to manually link with the `opus` library!
 
 ---
 
-### Build instructions
+# 2 Build instructions
 
-### Prerequisites
+## 2.1 Prerequisites
 
 1. Install CMake [^CMake]
 
@@ -138,7 +138,7 @@ With the static library you also need to manually link with the `opus` library!
 
 ---
 
-#### Opus
+### 2.1.2 Opus
 
 Opus[^Opus] is a high quality low latency audio codec.
 
@@ -174,7 +174,7 @@ b. Link with the system `opus` library
 
 ---
 
-#### Pure Data
+### 2.1.3 Pure Data
 
 Follow these instructions if you want to build the Pd external.
 
@@ -197,7 +197,7 @@ set `AOO_INSTALL_LIBRARY` to `OFF` to prevent the `aoo` library from being insta
 
 ---
 
-#### PortAudio
+### 2.1.4 PortAudio
 
 PortAudio is required for the example programs (`AOO_BUILD_EXAMPLES=ON`).
 
@@ -205,19 +205,19 @@ By default, the local portaudio in `deps/portaudio` will be used. If for some re
 
 ---
 
-#### Doxygen
+### 2.1.5 Doxygen
 
 Doxygen is required for building the API documentation (`AOO_BUILD_DOCUMENTATION=ON`).
 
 ---
 
-#### macOS
+### 2.1.6 macOS
 
 By default, the minimum macOS deployment target is OSX 10.13. You may choose a *higher* version by setting the `CMAKE_OSX_DEPLOYMENT_TARGET` CMake variable.
 
 ---
 
-### Build
+## 2.2 Build
 
 1. In the "aoo" folder create a subfolder named "build".
 
@@ -229,7 +229,7 @@ By default, the minimum macOS deployment target is OSX 10.13. You may choose a *
 
 ---
 
-### CMake options
+## 2.3 CMake options
 
 CMake options are set with the following syntax:
 `cmake .. -D<name1>=<value1> -D<name2>=<value2>` etc.
@@ -274,16 +274,16 @@ These are the most important project options:
 
 - `CMAKE_INSTALL_LIBRARY` (BOOL) - Install the `aoo` library. (Default = `ON`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [2. CMake package](#cmake-package). (Default = `ON`)
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install CMake config module, see [1.2 CMake package](#cmake-package). (Default = `ON`)
 
-- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [3. pkg-config](#pkg-config). (Default = `ON`)
+- `CMAKE_INSTALL_CMAKE_CONFIG_MODULE` (BOOL) - Install pkg-config module, see [1.3 pkg-config](#pkg-config). (Default = `ON`)
 
 
 `cmake-gui` resp. `ccmake` will show all available options. Alternatively, run `cmake . -LH` from the `build` folder.
 
 ---
 
-### Footnotes
+# Footnotes
 
 [^CMake]: https://cmake.org/
 

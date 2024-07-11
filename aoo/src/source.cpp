@@ -2011,7 +2011,7 @@ void Source::send_data(const sendfn& fn){
         d.channel = 0;
         d.flags = 0;
         d.msg_size = sendbuffer_.size();
-        // message size must be aligned to 4 byte boundary!
+        // message size must be a multiple of 4!
         assert((d.msg_size & 3) == 0);
 
         // copy and convert audio samples to blob data

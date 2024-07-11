@@ -31,6 +31,7 @@ file(GLOB _headers "../include/*.h" "../include/*.hpp" "../include/codec/*.h")
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
     COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}
+    COMMENT "Generate API documentation with Doxygen"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS "${doxyfile}" "../README.md" "../INSTALL.md"
             "../doc/aoo_protocol.md" ${_headers}
@@ -40,7 +41,6 @@ add_custom_command(
 # The actual build target which depends on the command output above.
 add_custom_target(doxygen ALL
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/html/index.html"
-    COMMENT "Generating API documentation with Doxygen"
 )
 
 install(DIRECTORY

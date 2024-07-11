@@ -1,7 +1,9 @@
-AOO (audio over OSC) v2.0-test3
-===============================
+AOO (audio over OSC)
+=====================
 
-AOO ("audio over OSC") is a lightweight and flexible peer-to-peer audio streaming and messaging solution, using Open Sound Control [^OSC] as the underlying transport protocol.
+# Introduction
+
+AOO is a lightweight and flexible peer-to-peer audio streaming and messaging solution, using Open Sound Control [^OSC] as the underlying transport protocol.
 
 It is fundamentally connectionless and allows to send audio in real time and on demand between arbitrary network endpoints.
 
@@ -13,7 +15,7 @@ The following article provides a high-level overview: https://www.soundingfuture
 
 ---
 
-### Selected features
+# Selected features
 
 - Peer-to-peer audio networks (IPv4 and IPv6) of any topology with arbitrary ad-hoc connections.
 
@@ -50,7 +52,7 @@ The following article provides a high-level overview: https://www.soundingfuture
 
 ---
 
-### History
+# History
 
 The vision of AOO was first presented in 2009 by Winfried Ritsch together with a proof-of-concept for embedded devices.
 In 2010 it has been implemented by Wolfgang Jäger as a library (v1.0-b2) with externals for Pure Data (Pd) [^Jaeger], but its practical use remained limited.
@@ -64,7 +66,7 @@ Since then it has been used in several art projects and software applications.
 
 ---
 
-### Content
+# Content
 
 `aoo`      - AOO C/C++ library source code
 
@@ -90,7 +92,7 @@ Since then it has been used in several art projects and software applications.
 
 ---
 
-### C/C++ library
+# C/C++ library
 
 The `aoo` library is written in C++17 and provides a pure C API as well as a C++ API. The public API headers are contained in the [`include`](include) directory.
 
@@ -113,7 +115,7 @@ The library features four object classes:
 
 ---
 
-### Pd external
+# Pd external
 
 Objects:
 
@@ -131,7 +133,7 @@ The Pd external is available on Deken (in Pd -> Help -> "Find externals" search 
 
 ---
 
-### The aooserver command line program
+# The aooserver command line program
 
 If you want to host your own (private or public) AOO server, you only have to run `aooserver`
 on the command line or as a service and make sure that clients can connect to your machine.
@@ -140,7 +142,7 @@ Run `aooserver -h` to see all available options.
 
 ---
 
-### Footnotes
+# Footnotes
 
 [^Jaeger]: https://phaidra.kug.ac.at/view/o:11413
 
