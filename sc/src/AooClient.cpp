@@ -74,14 +74,15 @@ void AooClient::connect(int token, const char* host,
         auto data = (RequestData *)x;
         auto client = data->client;
         auto token = data->token;
+        auto& r = response->connect;
 
         if (result == kAooErrorNone) {
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/client/connect")
                 << client->node_->port() << token << (int32_t)1
-                << response->connect.clientId;
-            serializeData(msg, response->connect.metadata);
+                << r.clientId << r.version;
+            serializeData(msg, r.metadata);
             msg << osc::EndMessage;
 
             client->sendReply(msg);

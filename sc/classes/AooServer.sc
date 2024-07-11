@@ -21,7 +21,7 @@ AooServer {
 		^super.new.init(port, server, action);
 	}
 
-	init { arg port, server, action;
+	init { arg port, server, action, password, relay = false;
 		var localAddr = NetAddr.localAddr;
 
 		if (servers[port].notNil) {
@@ -47,7 +47,9 @@ AooServer {
 					};
 				}, '/aoo/server/new', argTemplate: [port]).oneShot;
 
-				this.server.sendMsg('/cmd', '/aoo_server_new', port);
+				this.server.sendMsg('/cmd', '/aoo_server_new', port,
+					password ? "", relay.asBoolean;
+				);
 			}
 		});
 	}

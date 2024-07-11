@@ -9,7 +9,7 @@ namespace sc {
 
 class AooServer {
 public:
-    AooServer(int port, const char *password);
+    AooServer(int port, const char *password, bool relay);
     ~AooServer();
 private:
     int port_;
@@ -30,6 +30,7 @@ struct AooServerCmd {
 
 struct AooServerCreateCmd : AooServerCmd {
     char password[64];
+    bool relay;
 };
 
 } // sc

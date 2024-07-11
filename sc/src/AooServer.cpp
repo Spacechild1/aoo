@@ -14,7 +14,8 @@ aoo::sync::mutex gServerMutex;
 std::unordered_map<int, std::shared_ptr<sc::AooServer>> gServerMap;
 
 // called from NRT thread(s). Throws on failure!
-std::shared_ptr<sc::AooServer> createServer(int port, const char *password) {
+std::shared_ptr<sc::AooServer> createServer(int port, const char *password,
+                                            bool relay) {
     aoo::sync::scoped_lock lock(gServerMutex);
     if (gServerMap.count(port)) {
         char buf[256];
@@ -22,7 +23,7 @@ std::shared_ptr<sc::AooServer> createServer(int port, const char *password) {
                  "server on port %d already exists", port);
         throw std::runtime_error(buf);
     }
-    auto server = std::make_shared<sc::AooServer>(port, password);
+    auto server = std::make_shared<sc::AooServer>(port, password, relay);
     gServerMap[port] = server;
     return server;
 }
@@ -58,7 +59,7 @@ std::shared_ptr<sc::AooServer> findServer(int port) {
 namespace sc {
 
 // called in NRT thread
-AooServer::AooServer(int port, const char *password)
+AooServer::AooServer(int port, const char *password, bool relay)
     : port_(port)
 {
     auto server = ::AooServer::create(); // does not really fail
@@ -71,6 +72,8 @@ AooServer::AooServer(int port, const char *password)
     if (password) {
         server->setPassword(password);
     }
+
+    server->setUseInternalRelay(relay);
 
     // setup server
     AooServerSettings settings;
@@ -229,23 +232,26 @@ void aoo_server_new(World* world, void* user,
 {
     auto port = args->geti();
     auto pwd = args->gets("");
+    auto relay = (bool)args->geti();
 
     auto cmdData = CmdData::create<sc::AooServerCreateCmd>(world);
     if (cmdData) {
         cmdData->port = port;
+        cmdData->relay = relay;
         snprintf(cmdData->password, sizeof(cmdData->password), "%s", pwd);
 
         auto fn = [](World* world, void* x) {
             auto data = (sc::AooServerCreateCmd *)x;
             auto port = data->port;
             auto pwd = data->password;
+            auto relay = data->relay;
 
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/server/new") << port;
 
             try {
-                auto server = createServer(port, pwd);
+                auto server = createServer(port, pwd, relay);
 
                 msg << (int32_t)1 << osc::EndMessage;
 

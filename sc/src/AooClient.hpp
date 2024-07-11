@@ -75,8 +75,8 @@ struct ConnectCmd : AooClientCmd {
 struct GroupJoinCmd : AooClientCmd {
     ~GroupJoinCmd();
 
-    char groupName[256];
-    char userName[256];
+    char groupName[64];
+    char userName[64];
     char groupPwd[64];
     char userPwd[64];
     AooData groupMetadata;
