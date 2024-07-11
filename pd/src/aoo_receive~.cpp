@@ -414,6 +414,7 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
     case kAooEventStreamStart:
     case kAooEventStreamStop:
     case kAooEventStreamState:
+    case kAooEventStreamLatency:
     case kAooEventStreamTime:
     case kAooEventBlockDrop:
     case kAooEventBlockResend:
@@ -545,6 +546,14 @@ static void aoo_receive_handle_event(t_aoo_receive *x, const AooEvent *event, in
                 SETFLOAT(msg + 3, state);
                 outlet_anything(x->x_msgout, gensym("state"), 4, msg);
             }
+            break;
+        }
+        case kAooEventStreamLatency:
+        {
+            SETFLOAT(msg + 3, event->streamLatency.sourceLatency * 1000);
+            SETFLOAT(msg + 4, event->streamLatency.sinkLatency * 1000);
+            SETFLOAT(msg + 5, event->streamLatency.bufferLatency * 1000);
+            outlet_anything(x->x_msgout, gensym("latency"), 6, msg);
             break;
         }
         case kAooEventStreamTime:

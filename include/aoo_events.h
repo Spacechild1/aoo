@@ -48,6 +48,8 @@ AOO_ENUM(AooEventType)
     kAooEventStreamState,
     /** AooSink: stream time stamp */
     kAooEventStreamTime,
+    /** AooSink: stream latency changed */
+    kAooEventStreamLatency,
     /** AooSink: source format changed */
     kAooEventFormatChange,
     /** AooSink: invitation has been declined */
@@ -240,7 +242,7 @@ AOO_ENUM(AooStreamState)
 typedef struct AooEventStreamState
 {
     AOO_EVENT_HEADER
-        AooEndpoint endpoint; /**< source endpoint */
+    AooEndpoint endpoint; /**< source endpoint */
     AooStreamState state; /**< new stream state */
     AooInt32 sampleOffset; /**< corresponding sample offset */
 } AooEventStreamState;
@@ -249,9 +251,25 @@ typedef struct AooEventStreamState
 typedef struct AooEventFormatChange
 {
     AOO_EVENT_HEADER
-        AooEndpoint endpoint; /**< source endpoint */
+    AooEndpoint endpoint; /**< source endpoint */
     const AooFormat *format; /**< new stream format */
 } AooEventFormatChange;
+
+/** \brief (AooSink) the stream latency has changed */
+typedef struct AooEventStreamLatency {
+    AOO_EVENT_HEADER
+    /** source endpoint */
+    AooEndpoint endpoint;
+    /** source reblock/resample latency + codec delay;
+     *  typically constant for the duration of the stream */
+    AooSeconds sourceLatency;
+    /** sink reblock/resample latency + codec delay;
+     *  typically constant for the duration of the stream */
+    AooSeconds sinkLatency;
+    /** jitter buffer latency;
+     *  can change on overflow/underflow) */
+    AooSeconds bufferLatency;
+} AooEventStreamLatency;
 
 /** \brief (AooSource) received invitation by sink */
 typedef struct AooEventInvite
@@ -562,6 +580,7 @@ union AooEvent
     AooEventStreamStop streamStop; /**< \brief stream stopped */
     AooEventStreamState streamState; /**< \brief stream state changed */
     AooEventStreamTime streamTime; /**< \brief stream time */
+    AooEventStreamLatency streamLatency; /**< \brief stream latency */
     AooEventFormatChange formatChange; /**< \brief format changed */
     AooEventInviteDecline inviteDecline; /**< \brief invitation declined */
     AooEventInviteTimeout inviteTimeout; /**< \brief invitation timed out */

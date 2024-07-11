@@ -1278,7 +1278,7 @@ void source_desc::update(const Sink& s){
         underrun_ = false;
         stopped_ = false;
         did_update_ = true;
-
+        buffer_latency_ = 0; // force latency event
         dropped_blocks_.store(0);
         last_ping_time_.store(-1e007); // force ping
         last_stop_time_ = 0;
@@ -1454,20 +1454,20 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     // cache reblock/resample latency and codec delay
     auto resample = (double)s.samplerate() / (double)format_->sampleRate;
     stream_tt_ = tt;
-    latency1_ = latency * resample;
-    codec_delay1_ = codec_delay * resample;
-    latency2_ = std::max<int32_t>(0, s.blocksize() - format_->blockSize * resample)
-                + resampler_.latency() * resample;
+    source_latency_ = latency * resample;
+    source_codec_delay_ = codec_delay * resample;
+    sink_latency_ = std::max<int32_t>(0, s.blocksize() - format_->blockSize * resample)
+                    + resampler_.latency() * resample;
     AooInt32 arg = 0;
     AooDecoder_control(decoder_.get(), kAooCodecCtlGetLatency, AOO_ARG(arg));
-    codec_delay2_ = arg * resample;
+    sink_codec_delay_ = arg * resample;
 
     // save stream sample offset
     sample_offset_ = offset * resample;
 
     LOG_DEBUG("AooSink: stream start time: " << stream_tt_ << ", latency: "
-              << latency1_ << ", codec delay: " << codec_delay1_ << ", sample offset: "
-              << sample_offset_);
+              << source_latency_ << ", codec delay: " << source_codec_delay_
+              << ", sample offset: " << sample_offset_);
 
     lock.unlock();
 
@@ -1822,7 +1822,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
     stream_stats stats;
 
-    if (!packet_queue_.empty()){
+    if (!packet_queue_.empty()) {
         // check for buffer underrun (only if packets arrive!)
         if (underrun_){
             handle_underrun(s);
@@ -1917,8 +1917,8 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
 
     // send stream state event with correct sample offset.
     // we make sure that the offset lies within [0, nsamples-1]
-    if (stream_offset_ > 0) {
-        auto offset = stream_offset_ - process_samples_;
+    if (stream_start_ > 0) {
+        auto offset = stream_start_ - process_samples_;
         if (offset < nsamples) {
             if (offset < 0) {
                 LOG_ERROR("AooSink: negative stream offset: " << offset);
@@ -1929,24 +1929,7 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
             auto e = make_event<stream_state_event>(ep, kAooStreamStateActive, offset);
             queue_event(std::move(e));
 
-            // calculate and report latencies
-            auto samples_to_ms = 1000. / (double)s.samplerate();
-            // the latencies and codec delays are already resampled, see handle_start()
-            auto source_latency = latency1_ + codec_delay1_;
-            auto sink_latency = latency2_ + codec_delay2_;
-            // the stream offset already includes the codec delays, see try_decode_block()
-            auto buffer_latency = stream_offset_ - codec_delay1_ - codec_delay2_;
-
-        #if 1
-            LOG_DEBUG("\tsource latency: " << (source_latency * samples_to_ms) << " ms, "
-                      << source_latency << " samples");
-            LOG_DEBUG("\tsink latency: " << (sink_latency * samples_to_ms) << " ms, "
-                      << sink_latency << " samples");
-            LOG_DEBUG("\tbuffer latency: " << (buffer_latency * samples_to_ms) << " ms, "
-                      << buffer_latency << " samples");
-        #endif
-
-            stream_offset_ = 0;
+            stream_start_ = 0;
         }
     }
 
@@ -1992,6 +1975,37 @@ bool source_desc::process(const Sink& s, AooSample **buffer, int32_t nsamples,
     }
 
     return true;
+}
+
+void source_desc::check_latency(const Sink& s) {
+    auto buffer_latency = stream_samples_;
+    if (buffer_latency != buffer_latency_) {
+        buffer_latency_ = buffer_latency;
+
+        // calculate and report latencies
+        auto to_seconds = 1. / (double)s.samplerate();
+        // the latencies and codec delays are already resampled, see handle_start()
+        auto source_latency = source_latency_ + source_codec_delay_;
+        auto source_latency_sec = source_latency * to_seconds;
+        auto sink_latency = sink_latency_ + sink_codec_delay_;
+        auto sink_latency_sec = sink_latency * to_seconds;
+        // the stream samples are already resampled, see try_decode_block()
+        auto buffer_latency_sec = buffer_latency * to_seconds;
+
+    #if 1
+        LOG_DEBUG("\tsource latency: " << (source_latency_sec * 1000)
+                  << " ms, " << source_latency << " samples");
+        LOG_DEBUG("\tsink latency: " << (sink_latency_sec * 1000)
+                  << " ms, " << sink_latency << " samples");
+        LOG_DEBUG("\tbuffer latency: " << (buffer_latency_sec * 1000)
+                  << " ms, " << buffer_latency<< " samples");
+    #endif
+
+        auto e = make_event<stream_latency_event>(ep, source_latency_sec,
+                                                  sink_latency_sec,
+                                                  buffer_latency_sec);
+        queue_event(std::move(e));
+    }
 }
 
 void source_desc::on_underrun(const Sink &s) {
@@ -2304,7 +2318,9 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
                       << " blocks, " << elapsed << " / " << latency_samples_ << " samples elapsed)");
             // buffering -> active
             stream_state_ = stream_state::active;
-            stream_offset_ = stream_samples_ + codec_delay1_ + codec_delay2_ + sample_offset_;
+            stream_start_ = stream_samples_ + source_codec_delay_ + sink_codec_delay_ + sample_offset_;
+
+            check_latency(s);
         }
     }
 
@@ -2393,7 +2409,7 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
     // schedule stream time message  (if present)
     if (b.tt > 0) {
         // NB: offset time by codec delay(s)!
-        auto time = stream_samples_ + codec_delay1_ + codec_delay2_;
+        auto time = stream_samples_ + source_codec_delay_ + sink_codec_delay_;
         auto alloc_size = sizeof(stream_message_header) + sizeof(AooNtpTime);
         auto msg = (stream_time_message *)aoo::rt_allocate(alloc_size);
         msg->header.next = nullptr;
@@ -2961,7 +2977,7 @@ void source_desc::reset_stream() {
     stream_messages_ = nullptr;
     process_samples_ = 0;
     stream_samples_ = 0;
-    stream_offset_ = 0;
+    stream_start_ = 0;
     local_tt_.clear();
 }
 

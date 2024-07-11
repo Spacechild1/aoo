@@ -230,6 +230,18 @@ struct stream_time_event : endpoint_event<AooEventStreamTime> {
     }
 };
 
+struct stream_latency_event : endpoint_event<AooEventStreamLatency> {
+    RT_CLASS(stream_latency_event)
+
+    stream_latency_event(const aoo::endpoint& ep, AooSeconds source_latency,
+                         AooSeconds sink_latency, AooSeconds buffer_latency)
+        : endpoint_event(BASE_EVENT(AooEventStreamLatency, bufferLatency), ep) {
+        this->sourceLatency = source_latency;
+        this->sinkLatency = sink_latency;
+        this->bufferLatency = buffer_latency;
+    }
+};
+
 struct block_event : endpoint_event<AooEventBlock> {
     RT_CLASS(block_event)
 
