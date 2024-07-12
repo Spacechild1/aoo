@@ -9,6 +9,7 @@
 
 // debugging
 
+// define this to 1 to force server relay (for testing purposes)
 #define FORCE_RELAY 0
 
 namespace aoo {
@@ -83,7 +84,8 @@ void peer::send(Client& client, const sendfn& fn, time_tag now,
 
         if (handshake_deadline_.is_empty()) {
             // initialize timer
-            handshake_deadline_ = now + aoo::time_tag::from_seconds(client.query_timeout());
+            auto timeout = settings.probeInterval * settings.probeCount;
+            handshake_deadline_ = now + aoo::time_tag::from_seconds(timeout);
             next_handshake_ = now;
         }
 
@@ -102,9 +104,10 @@ void peer::send(Client& client, const sendfn& fn, time_tag now,
 
             // couldn't establish connection!
             const char *what = need_relay() ? "relay" : "peer-to-peer";
+            auto timeout = settings.probeInterval * settings.probeCount;
             LOG_ERROR("AooClient: couldn't establish UDP " << what
                       << " connection to " << *this << "; timed out after "
-                      << client.query_timeout() << " seconds");
+                      << timeout << " seconds");
 
             auto e = std::make_unique<peer_event>(kAooEventPeerTimeout, *this);
             client.send_event(std::move(e));
@@ -117,7 +120,7 @@ void peer::send(Client& client, const sendfn& fn, time_tag now,
         // send handshake pings to all addresses until we get a reply
         // from one of them; see handle_message().
         if (now >= next_handshake_) {
-            next_handshake_ += aoo::time_tag::from_seconds(client.query_interval());
+            next_handshake_ += aoo::time_tag::from_seconds(settings.probeInterval);
 
             char buf[64];
             osc::OutboundPacketStream msg(buf, sizeof(buf));

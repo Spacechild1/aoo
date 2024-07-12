@@ -25,6 +25,8 @@
 #include "osc/OscOutboundPacketStream.h"
 #include "osc/OscReceivedElements.h"
 
+// these settings are used to maintain th TCP connection
+// to the AOO server.
 #ifndef AOO_CLIENT_SERVER_PING_INTERVAL
 # define AOO_CLIENT_SERVER_PING_INTERVAL 5.0
 #endif
@@ -41,6 +43,8 @@
 # define AOO_CLIENT_SERVER_PROBE_COUNT 5
 #endif
 
+// these settings are used to establish and maintain
+// the UDP connection between peers.
 #ifndef AOO_CLIENT_PEER_PING_INTERVAL
 # define AOO_CLIENT_PEER_PING_INTERVAL 5.0
 #endif
@@ -50,23 +54,26 @@
 #endif
 
 #ifndef AOO_CLIENT_PEER_PROBE_INTERVAL
-# define AOO_CLIENT_PEER_PROBE_INTERVAL 1.0
+# define AOO_CLIENT_PEER_PROBE_INTERVAL 0.25
 #endif
 
 #ifndef AOO_CLIENT_PEER_PROBE_COUNT
-# define AOO_CLIENT_PEER_PROBE_COUNT 5
+# define AOO_CLIENT_PEER_PROBE_COUNT 20
 #endif
 
+// UDP server ping interval (for maintaining the NAT mapping)
 #ifndef AOO_CLIENT_PING_INTERVAL
-#define AOO_CLIENT_PING_INTERVAL 5.0
+# define AOO_CLIENT_PING_INTERVAL 5.0
 #endif
 
+// UDP server query interval (for obtaining the public IP address)
 #ifndef AOO_CLIENT_QUERY_INTERVAL
- #define AOO_CLIENT_QUERY_INTERVAL 0.1
+ #define AOO_CLIENT_QUERY_INTERVAL 0.25
 #endif
 
+// Default UDP server query timeout.
 #ifndef AOO_CLIENT_QUERY_TIMEOUT
- #define AOO_CLIENT_QUERY_TIMEOUT 5.0
+# define AOO_CLIENT_QUERY_TIMEOUT 5.0
 #endif
 
 #ifndef AOO_CLIENT_SIMULATE
