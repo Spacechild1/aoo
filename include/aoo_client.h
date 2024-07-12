@@ -190,18 +190,18 @@ AOO_INLINE AooError AooClient_getBinaryFormat(AooClient *client, AooBool *b)
     return AooClient_control(client, kAooCtlGetBinaryFormat, 0, AOO_ARG(*b));
 }
 
-/** \copydoc AooClient::setPeerPingInterval() */
-AOO_INLINE AooError AooClient_setPeerPingInterval(
-    AooClient *client, AooSeconds interval)
+/** \copydoc AooClient::setPeerPingSettings() */
+AOO_INLINE AooError AooClient_setPeerPingSettings(
+    AooClient *client, const AooPingSettings *settings)
 {
-    return AooClient_control(client, kAooCtlSetPingInterval, 0, AOO_ARG(interval));
+    return AooClient_control(client, kAooCtlSetPingSettings, 0, AOO_ARG(*settings));
 }
 
-/** \copydoc AooClient::getPeerPingInterval() */
-AOO_INLINE AooError AooClient_getPeerPingInterval(
-    AooClient *client, AooSeconds *interval)
+/** \copydoc AooClient::getPeerPingSettings() */
+AOO_INLINE AooError AooClient_getPeerPingSettings(
+    AooClient *client, AooPingSettings *settings)
 {
-    return AooClient_control(client, kAooCtlGetPingInterval, 0, AOO_ARG(*interval));
+    return AooClient_control(client, kAooCtlGetPingSettings, 0, AOO_ARG(*settings));
 }
 
 /** \copydoc AooClient::setServerPingSettings() */

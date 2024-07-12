@@ -422,14 +422,14 @@ public:
         return control(kAooCtlGetBinaryFormat, 0, AOO_ARG(b));
     }
 
-    /** \brief Set peer ping interval in seconds */
-    AooError setPeerPingInterval(AooSeconds interval) {
-        return control(kAooCtlSetPingInterval, 0, AOO_ARG(interval));
+    /** \brief Set peer ping settings */
+    AooError setPeerPingSettings(const AooPingSettings& settings) {
+        return control(kAooCtlSetPingSettings, 0, AOO_ARG(settings));
     }
 
-    /** \brief Get peer ping interval in seconds */
-    AooError getPeerPingInterval(AooSeconds& interval) {
-        return control(kAooCtlGetPingInterval, 0, AOO_ARG(interval));
+    /** \brief Get peer ping settings */
+    AooError getPeerPingSettings(AooPingSettings& settings) {
+        return control(kAooCtlGetPingSettings, 0, AOO_ARG(settings));
     }
 
     /** \brief Set server ping settings */
