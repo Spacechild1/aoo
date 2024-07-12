@@ -72,6 +72,7 @@
 #endif
 
 // Default UDP server query timeout.
+// Can be overridden by the 'timeout' member in AooClientConnect.
 #ifndef AOO_CLIENT_QUERY_TIMEOUT
 # define AOO_CLIENT_QUERY_TIMEOUT 5.0
 #endif
@@ -133,7 +134,7 @@ public:
 
     void update(Client& client, const sendfn& fn, time_tag now);
 
-    void start_handshake(const ip_address& remote);
+    void start_handshake(const ip_address& remote, AooSeconds timeout);
 
     void queue_message(message&& msg);
 
@@ -162,6 +163,8 @@ private:
     using scoped_lock = sync::scoped_lock<sync::shared_spinlock>;
     using scoped_shared_lock = sync::scoped_shared_lock<sync::shared_spinlock>;
 
+    constexpr static float max_query_timeout = 30.0;
+
     udp_server udp_server_;
     int port_ = 0;
 #if 0
@@ -176,6 +179,7 @@ private:
 
     aoo::time_tag next_ping_time_;
     aoo::time_tag query_deadline_;
+    std::atomic<float> query_timeout_{max_query_timeout};
 
     using message_queue = aoo::unbounded_mpsc_queue<message>;
     message_queue messages_;
@@ -327,7 +331,7 @@ public:
     struct connect_cmd;
     void perform(const connect_cmd& cmd);
 
-    std::pair<bool, int> try_connect(const ip_host& server);
+    void do_connect(const ip_host& server, AooSeconds timeout);
 
     struct login_cmd;
     void perform(const login_cmd& cmd);
@@ -364,12 +368,12 @@ public:
     void handle_response(const custom_request_cmd& cmd, const osc::ReceivedMessage& msg);
 
     void perform(const message& msg, const sendfn& fn);
-
-    double ping_interval() const { return ping_interval_.load(); }
-
-    double query_interval() const { return query_interval_.load(); }
-
-    double query_timeout() const { return query_timeout_.load(); }
+    // interval between UDP server pings to maintain the NAT mapping.
+    // TODO: make a control?
+    double ping_interval() const { return AOO_CLIENT_PEER_PING_INTERVAL; }
+    // interval between UDP server queries to obtain public IP address.
+    // TODO: make a control?
+    double query_interval() const { return AOO_CLIENT_QUERY_INTERVAL; }
 
     int32_t packet_size() const { return packet_size_.load(); }
 
@@ -456,9 +460,6 @@ private:
         AOO_CLIENT_PEER_PROBE_COUNT
     };
     sync::spinlock peer_settings_lock_; // LATER use seqlock?
-    parameter<AooSeconds> ping_interval_{AOO_CLIENT_PING_INTERVAL};
-    parameter<AooSeconds> query_interval_{AOO_CLIENT_QUERY_INTERVAL};
-    parameter<AooSeconds> query_timeout_{AOO_CLIENT_QUERY_TIMEOUT};
     parameter<int32_t> packet_size_{AOO_PACKET_SIZE};
     parameter<bool> binary_{AOO_BINARY_FORMAT};
 #if AOO_CLIENT_SIMULATE
@@ -515,7 +516,10 @@ public:
         connect_cmd(const AooClientConnect& args, AooResponseHandler cb, void *user)
             : callback_cmd(cb, user),
               host_(args.hostName, args.port), pwd_(args.password ? args.password : ""),
-              metadata_(args.metadata) {}
+              metadata_(args.metadata) {
+            // 0: use default
+            timeout_ = args.timeout != 0.0 ? args.timeout : AOO_CLIENT_QUERY_TIMEOUT;
+        }
 
         void perform(Client& obj) override {
             obj.perform(*this);
@@ -540,6 +544,7 @@ public:
         ip_host host_;
         std::string pwd_;
         aoo::metadata metadata_;
+        AooSeconds timeout_;
     };
 
     struct disconnect_cmd : callback_cmd

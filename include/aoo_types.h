@@ -636,7 +636,8 @@ typedef struct AooClientConnect {
 #ifdef __cplusplus
     AooClientConnect()
         : structSize(AOO_STRUCT_SIZE(AooClientConnect, metadata)),
-          hostName(NULL), port(0), password(NULL), metadata(NULL) {}
+          hostName(NULL), port(0), password(NULL), metadata(NULL),
+          timeout(0) {}
 #endif
 
     /** struct size */
@@ -649,12 +650,16 @@ typedef struct AooClientConnect {
     const AooChar *password;
     /** (optional) metadata */
     const AooData *metadata;
+    /** (optional) connection timeout; possible values:
+     *  kAooInfinite (= no timeout), 0 (= default timeout),
+     *  0< (= timeout in seconds */
+    AooSeconds timeout;
 } AooClientConnect;
 
 /** \brief (C only) default initializer for AooClientConnect struct */
 #define AOO_CLIENT_CONNECT_INIT() \
     { AOO_STRUCT_SIZE(AooClientConnect, metadata), \
-        NULL, 0, NULL, NULL }
+        NULL, 0, NULL, NULL, 0 }
 
 /*------------------------------------------------------------------*/
 

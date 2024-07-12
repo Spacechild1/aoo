@@ -22,6 +22,8 @@
 #include <unordered_map>
 #include <vector>
 
+// these settings are used to maintain the TCP connection
+// to the clients.
 #ifndef AOO_SERVER_PING_INTERVAL
 # define AOO_SERVER_PING_INTERVAL 5.0
 #endif

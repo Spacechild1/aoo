@@ -1103,17 +1103,17 @@ void Client::perform(const connect_cmd& cmd)
         return ((a.type() == ip_address::IPv4) || (a.is_ipv4_mapped()))
                && b.type() == ip_address::IPv6;
     });
-    udp_client_.start_handshake(addrlist.front());
+    udp_client_.start_handshake(addrlist.front(), cmd.timeout_);
     // after start_handshake()! see udp_client::update()
     state_.store(client_state::handshake);
 }
 
-std::pair<bool, int> Client::try_connect(const ip_host& server) {
+void Client::do_connect(const ip_host& server, AooSeconds timeout) {
     try {
         tcp_socket_ = tcp_socket(port_tag{}, 0);
     } catch (const socket_error& e) {
         LOG_ERROR("AooClient: couldn't create socket: " << e.what());
-        return { false, e.code() };
+        throw;
     }
 
     auto type = tcp_socket_.family();
@@ -1122,7 +1122,7 @@ std::pair<bool, int> Client::try_connect(const ip_host& server) {
         addrlist = ip_address::resolve(server.name, server.port, type, true);
     } catch (const resolve_error& e) {
         LOG_ERROR("AooClient: couldn't resolve host name: " << e.what());
-        return { false, e.code() };
+        throw;
     }
     // sort IPv4(-mapped) first because it is more likely for an AOO server to be IP4-only than
     // to be IPv6-only
@@ -1137,18 +1137,17 @@ std::pair<bool, int> Client::try_connect(const ip_host& server) {
     socket_error err;
     for (auto& addr : addrlist) {
         LOG_DEBUG("AooClient: try to connect to " << addr);
-        // try to connect (LATER make timeout configurable)
         try {
-            tcp_socket_.connect(addr, 5.0);
+            tcp_socket_.connect(addr, timeout);
             LOG_VERBOSE("AooClient: successfully connected to " << addr);
-            return { true, 0 };
+            return; // success
         } catch (const socket_error& e) {
             err = e;
         }
     }
     LOG_ERROR("AooClient: couldn't connect to " << server.name << " on port "
               << server.port << ": " << err.what());
-    return { false, err.code() };
+    throw err;
 }
 
 void Client::perform(const login_cmd& cmd) {
@@ -1157,11 +1156,11 @@ void Client::perform(const login_cmd& cmd) {
 
     state_.store(client_state::connecting);
 
-    auto [success, err] = try_connect(connection_->host_);
-    if (!success) {
+    try {
+        do_connect(connection_->host_, connection_->timeout_);
+    } catch (const socket_error& e) {
         // send error response and close connection
-        auto msg = socket::strerror(err);
-        connection_->reply_error(kAooErrorSocket, err, msg.c_str());
+        connection_->reply_error(kAooErrorSocket, e.code(), e.what());
         close();
         return;
     }
@@ -2301,7 +2300,7 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
     if (state == client_state::handshake) {
         // initialize timer; see start_handshake()
         if (start_handshake_.exchange(false)) {
-            query_deadline_ = now + aoo::time_tag::from_seconds(client.query_timeout());
+            query_deadline_ = now + aoo::time_tag::from_seconds(query_timeout_.load());
             next_ping_time_ = now;
         }
         // check for time out
@@ -2347,11 +2346,16 @@ void udp_client::update(Client& client, const sendfn& fn, time_tag now){
     });
 }
 
-void udp_client::start_handshake(const ip_address& remote) {
+void udp_client::start_handshake(const ip_address& remote,
+                                 AooSeconds timeout) {
     LOG_DEBUG("AooClient: start UDP handshake with " << remote);
+    if (timeout < 0) {
+        timeout = max_query_timeout;
+    }
     scoped_lock lock(addr_lock_);
     remote_addr_ = remote;
     got_address_ = false;
+    query_timeout_.store(timeout); // before start_handshake_!
     start_handshake_.store(true);
 }
 
