@@ -123,37 +123,20 @@ void AooServer::handleEvent(const AooEvent *event){
     case kAooEventClientLogin:
     {
         auto& e = event->clientLogin;
-
         if (e.error == kAooOk) {
             // TODO: socket address
-            char buf[1024];
-            osc::OutboundPacketStream msg(buf, sizeof(buf));
-            msg << osc::BeginMessage("/aoo/server/event") << port_
-                << "clientAdd" << e.id << e.version;
+            msg << "clientAdd" << e.id << e.version;
             serializeData(msg, e.metadata);
-            msg << osc::EndMessage;
-
-             ::sendReply(port_, msg);
         } else {
             LOG_WARNING("AooServer: client " << e.id << " failed to login: "
                         << aoo_strerror(e.error));
         }
-
         break;
     }
     case kAooEventClientLogout:
     {
         auto& e = event->clientLogout;
-
-        // TODO: socket address
-        char buf[1024];
-        osc::OutboundPacketStream msg(buf, sizeof(buf));
-        msg << osc::BeginMessage("/aoo/server/event") << port_
-            << "clientRemove" << e.id << e.errorCode << e.errorMessage
-            << osc::EndMessage;
-
-         ::sendReply(port_, msg);
-
+        msg << "clientRemove" << e.id << e.errorCode << e.errorMessage;
         break;
     }
     case kAooEventGroupAdd:
