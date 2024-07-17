@@ -169,8 +169,12 @@ void AooSend::removeAll(){
 /*////////////////// AooSendUnit ////////////////*/
 
 AooSendUnit::AooSendUnit() {
-    int32_t port = in0(0);
-    AooId id = in0(1);
+    int32_t port = in0(portIndex);
+    AooId id = in0(idIndex);
+    lastGate_ = in0(gateIndex);
+    numChannels_ = in0(channelIndex);
+    assert(numChannels_ >= 0 &&
+           numChannels_ <= (numInputs() - bufferIndex));
     auto delegate = rt::make_shared<AooSend>(mWorld, *this);
     if (delegate) {
         delegate->init(port, id);
@@ -186,20 +190,39 @@ AooSendUnit::AooSendUnit() {
 void AooSendUnit::next(int numSamples){
     auto source = delegate().source();
     if (source) {
-        // check if play state has changed
-        // TODO: stream metadata?
-        int playing = in0(2);
-        if (playing >= 0 && playing != playing_) {
-            if (playing != 0) {
-                source->startStream(0, nullptr);
-            } else {
-                source->stopStream(0);
+        // check if gate has changed
+        auto rate = mInput[gateIndex]->mCalcRate;
+        if (rate == calc_FullRate) {
+            // audio rate -> sample accurate
+            auto prev = lastGate_;
+            auto buf = in(gateIndex);
+            for (int i = 0; i < numSamples; ++i) {
+                auto gate = buf[i];
+                if (gate != prev) {
+                    if (gate != 0.0) {
+                        delegate().source()->startStream(i, nullptr);
+                    } else {
+                        delegate().source()->stopStream(i);
+                    }
+                    prev = gate;
+                }
             }
-            playing_ = playing;
+            lastGate_ = prev;
+        } else if (rate == calc_BufRate) {
+            // control rate -> quantized to block boundaries
+            auto gate = in0(gateIndex);
+            if (gate != lastGate_) {
+                if (gate != 0.0) {
+                    delegate().source()->startStream(0, nullptr);
+                } else {
+                    delegate().source()->stopStream(0);
+                }
+                lastGate_ = gate;
+            }
         }
 
-        auto vec = mInBuf + channelOnset_;
         uint64_t t = getOSCTime(mWorld);
+        auto vec = mInBuf + bufferIndex;
 
         if (source->process(vec, numSamples, t) == kAooOk){
             delegate().node()->notify();
@@ -339,24 +362,13 @@ void aoo_send_format(AooSendUnit *unit, sc_msg_iter* args) {
 }
 
 void aoo_send_start(AooSendUnit *unit, sc_msg_iter* args) {
-#if 0
-    int32_t offset = unit->mWorld->mSampleOffset;
-#else
-    int32_t offset = 0;
-#endif
-    if (auto md = parseData(args)) {
-        unit->delegate().source()->startStream(offset, &md.value());
-    } else {
-        unit->delegate().source()->startStream(offset, nullptr);
-    }
+    auto offset = unit->mWorld->mSampleOffset;
+    auto md = parseData(args);
+    unit->delegate().source()->startStream(offset, md ? &md.value() : nullptr);
 }
 
 void aoo_send_stop(AooSendUnit *unit, sc_msg_iter* args) {
-#if 0
-    int32_t offset = unit->mWorld->mSampleOffset;
-#else
-    int32_t offset = 0;
-#endif
+    auto offset = unit->mWorld->mSampleOffset;
     unit->delegate().source()->stopStream(offset);
 }
 

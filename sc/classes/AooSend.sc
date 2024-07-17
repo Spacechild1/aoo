@@ -4,12 +4,12 @@ AooSend : UGen {
 	var <>port;
 	var <>id;
 
-	*ar { arg port, id=0, channels, state= -1, tag;
-		^this.multiNewList([\audio, tag, port, id, state] ++ channels);
+	*ar { arg port, id=0, channels, gate=0, tag;
+		^this.multiNewList([\audio, tag, port, id, gate] ++ channels);
 	}
 	*kr { ^this.shouldNotImplement(thisMethod) }
 
-	init { arg tag, port, id ... inputs;
+	init { arg tag, port, id, gate ... inputs;
 		if (tag.isKindOf(UGen)) {
 			MethodError("'tag' must not be a UGen!", this).throw;
 		};
@@ -19,7 +19,7 @@ AooSend : UGen {
 		this.tag = tag !? { tag.asSymbol }; // !
 		this.port = port;
 		this.id = id;
-		this.inputs = [port, id] ++ inputs;
+		this.inputs = [port, id, gate, inputs.size] ++ inputs;
 		^0; // doesn't have any output
 	}
 
@@ -46,6 +46,11 @@ AooSendCtl : AooCtl {
 
 	init {
 		sinks = [];
+	}
+
+	free {
+		super.free;
+		sinks = nil;
 	}
 
 	prParseEvent { arg type, args;
@@ -84,7 +89,7 @@ AooSendCtl : AooCtl {
 				sink = AooEndpoint(newAddr, id);
 				this.prAdd(sink);
 				action.value(sink);
-			} { action.value }
+			} { action.value(nil) }
 		}, '/aoo/add', replyID).oneShot;
 
 		this.prSendMsg('/add', replyID, addr.ip, addr.port, id, active);

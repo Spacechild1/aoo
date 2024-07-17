@@ -11,7 +11,7 @@ void AooReceive::init(int32_t port, AooId id, AooSeconds latency) {
         data->id = id;
         data->sampleRate = unit().sampleRate();
         data->blockSize = unit().bufferSize();
-        data->numChannels = unit().numOutputs();
+        data->numChannels = static_cast<AooReceiveUnit&>(unit()).numChannels();
         data->latency = latency;
 
         doCmd(data,
@@ -157,6 +157,14 @@ void AooReceive::handleEvent(const AooEvent *event){
         // TODO - is this even useful?
         break;
     }
+    case kAooEventStreamLatency:
+    {
+        auto& e = event->streamLatency;
+        beginEvent(msg, "latency", e.endpoint)
+            << e.sourceLatency << e.sinkLatency << e.bufferLatency;
+        sendMsgRT(msg);
+        break;
+    }
     case kAooEventBlockDrop:
     {
         beginEvent(msg, "blockDrop", event->blockDrop.endpoint)
@@ -199,9 +207,12 @@ void AooReceive::handleEvent(const AooEvent *event){
 /*////////////////// AooReceiveUnit ////////////////*/
 
 AooReceiveUnit::AooReceiveUnit() {
-    int32_t port = in0(0);
-    AooId id = in0(1);
-    AooSeconds latency = in0(2);
+    int port = in0(portIndex);
+    AooId id = in0(idIndex);
+    AooSeconds latency = in0(latencyIndex);
+    numChannels_ = in0(channelIndex);
+    assert(numChannels_ >= 0 && numChannels_ <= numOutputs());
+
     auto delegate = rt::make_shared<AooReceive>(mWorld, *this);
     if (delegate) {
         delegate->init(port, id, latency);

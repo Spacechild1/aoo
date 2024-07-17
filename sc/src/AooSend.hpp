@@ -24,7 +24,9 @@ public:
     AooSource * source() { return source_.get(); }
 
     bool addSink(const aoo::ip_address& addr, AooId id, bool active);
+
     bool removeSink(const aoo::ip_address& addr, AooId id);
+
     void removeAll();
 
     void setAutoInvite(bool b){
@@ -47,12 +49,15 @@ public:
         return static_cast<AooSend&>(*delegate_);
     }
 
-    int numChannels() const {
-        return numInputs() - channelOnset_;
-    }
+    int numChannels() const { return numChannels_; }
 private:
-    static const int channelOnset_ = 3;
+    static const int portIndex = 0;
+    static const int idIndex = 1;
+    static const int gateIndex = 2;
+    static const int channelIndex = 3;
+    static const int bufferIndex = 4;
 
-    int playing_ = -1;
+    int numChannels_ = 0;
+    float lastGate_ = 0;
 };
 

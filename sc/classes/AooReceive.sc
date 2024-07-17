@@ -19,8 +19,12 @@ AooReceive : MultiOutUGen {
 		this.tag = tag !? { tag.asSymbol }; // !
 		this.port = port;
 		this.id = id;
-		this.inputs = [port, id, latency ?? 0];
-		^this.initOutputs(numChannels, rate)
+		this.inputs = [port, id, latency ? 0, numChannels];
+		if (numChannels == 0) {
+			^0; // no outputs
+		} {
+			^this.initOutputs(numChannels, rate);
+		}
 	}
 
 	optimizeGraph {
@@ -48,6 +52,11 @@ AooReceiveCtl : AooCtl {
 		sources = [];
 	}
 
+	free {
+		super.free;
+		sources = nil;
+	}
+
 	prParseEvent { arg type, args;
 		// \ping, \format, \add, \remove, \decline, \inviteTimeout,
 		// \start, \stop, \state, \block/*
@@ -56,6 +65,7 @@ AooReceiveCtl : AooCtl {
 		var id = args[2];
 		var source = AooEndpoint(addr, id);
 		var event = [source];
+		var codec, fmt, states;
 		// If source doesn't exist, fake an \add event.
 		// This happens if the source has been added
 		// before we could create the controller.
@@ -71,8 +81,8 @@ AooReceiveCtl : AooCtl {
 			\inviteTimeout, { ^event },
 			\format, {
 				// make AooFormat object from OSC args
-				var codec = args[3].asSymbol;
-				var fmt = codec.switch(
+				codec = args[3].asSymbol;
+				fmt = codec.switch(
 					\pcm, { AooFormatPCM(*args[4..]) },
 					\opus, { AooFormatOpus(*args[4..]) },
 					{ "%: unknown format '%'".format(this.class.name, codec).error; nil }
@@ -82,15 +92,16 @@ AooReceiveCtl : AooCtl {
 			\start, { args.postln; ^event ++ AooData.fromBytes(*args[3..]) },
 			\stop, { ^event },
 			\state, {
-				var states = #[ \inactive, \active, \buffering ];
+				states = #[ \inactive, \active, \buffering ];
 				^event ++ states[args[3]];
 			},
+			\latency, { ^event ++ args[3..] },
 			\blockDrop, { ^event ++ args[3] },
 			\blockResend, { ^event ++ args[3] },
 			\blockXRun, { ^event ++ args[3] },
-			\overrund, { ^event },
+			\overrun, { ^event },
 			\underrun, { ^event },
-			{ "%s: ignore unknown event '%'".format(this.class, type).warn; ^nil }
+			{ "%: ignore unknown event '%'".format(this.class, type).warn; ^nil }
 		)
 	}
 
