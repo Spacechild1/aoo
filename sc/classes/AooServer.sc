@@ -1,5 +1,6 @@
 AooServer {
 	classvar <>servers;
+	classvar <>defaultPort = 7078;
 
 	var <>server;
 	var <>port;
@@ -22,6 +23,7 @@ AooServer {
 
 	init { arg port, server, action, password, relay = false;
 		var localAddr = NetAddr.localAddr;
+		port = port ?? this.class.defaultPort;
 
 		if (servers[port].notNil) {
 			^Error("AooServer on port % already exists!".format(port)).throw;

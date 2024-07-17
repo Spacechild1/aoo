@@ -218,7 +218,7 @@ AooClient {
 		^nil;
 	}
 
-	connect { arg hostname, port=7078, password, metadata, action, timeout=10;
+	connect { arg hostname, port, password, metadata, action, timeout=10;
 		var resp, token;
 		this.port ?? { MethodError("AooClient: not initialized", this).throw };
 
@@ -228,7 +228,8 @@ AooClient {
 		);
 		state = \connecting;
 
-		password = password ?? { "" };
+		port = port ?? AooServer.defaultPort;
+		password = password ?? "";
 		token = this.class.prNextToken;
 
 		resp = OSCFunc({ arg msg;
