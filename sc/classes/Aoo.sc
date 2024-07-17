@@ -28,21 +28,29 @@ Aoo {
 			^this;
 		};
 
-		// get reply address from Server
-		OSCFunc({ arg msg;
-			var success = msg[2].asBoolean;
-			success.if {
-				replyAddr = NetAddr(server.addr.ip, msg[3].asInteger);
-				nodeMap[port] = replyAddr;
-				action.value(replyAddr);
-			} {
-				"Could not get reply address".error;
-				action.value(nil);
-			};
-		}, '/aoo/register', argTemplate: [port]).oneShot;
+		// block until we get the reply address from the Server
+		forkIfNeeded {
+			var cond = CondVar(), done = false;
 
-		server.sendMsg('/cmd', '/aoo_register',
-			port, localAddr.ip, localAddr.port);
+			OSCFunc({ arg msg;
+				var success = msg[2].asBoolean;
+				success.if {
+					replyAddr = NetAddr(server.addr.ip, msg[3].asInteger);
+					nodeMap[port] = replyAddr;
+				} {
+					"Could not get reply address".error;
+				};
+				done = true;
+				cond.signalOne;
+			}, '/aoo/register', argTemplate: [port]).oneShot;
+
+			server.sendMsg('/cmd', '/aoo_register',
+				port, localAddr.ip, localAddr.port);
+
+			cond.wait { done };
+
+			action.value(replyAddr);
+		}
 	}
 
 	*prMakeMetadata { arg ugen;
@@ -531,19 +539,15 @@ AooCtl {
 
 	*new { arg synth, tag, synthDef, action;
 		var md = Aoo.prFindMetadata(this.ugenClass, synth, tag, synthDef);
-		var done = false, cond = CondVar();
-		var result, obj = super.new.init.prInit(synth, md.index, md.port, md.id,
-			{ |x| result = x; done = true; cond.signalOne; }
-		);
-		action !? {
-			forkIfNeeded {
-				synth.server.sync;
-				// also wait until init() has finished
-				cond.wait { done };
-				action.value(result);
-			};
-		};
-		^obj;
+		^super.new.init.prInit(synth, md.index, md.port, md.id, { |x|
+			if (action.notNil) {
+				forkIfNeeded {
+					// make sure that Unit is fully initialized
+					synth.server.sync;
+					action.value(this);
+				}
+			}
+		});
 	}
 
 	*collect { arg synth, tags, synthDef, action;
@@ -566,8 +570,9 @@ AooCtl {
 				} { "ignoring % without tag".format(this.ugenClass.name).warn; }
 			}
 		};
-		action !? {
+		if (action.notNil) {
 			forkIfNeeded {
+				// make sure that all Units are fully initialized
 				synth.server.sync;
 				action.value(result);
 			};
@@ -583,9 +588,7 @@ AooCtl {
 
 		// get server reply address and setup event handler
 		Aoo.prGetReplyAddr(port, synth.server, { |addr|
-			if (addr.isNil) {
-				action.value(nil);
-			} {
+			if (addr.notNil) {
 				replyAddr = addr;
 
 				// add event listener
@@ -598,7 +601,7 @@ AooCtl {
 				}, '/aoo/event', addr, argTemplate: [synth.nodeID, synthIndex]);
 
 				action.value(this);
-			}
+			} { action.value(nil); }
 		});
 
 		synth.onFree {
