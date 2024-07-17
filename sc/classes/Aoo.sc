@@ -247,6 +247,7 @@ AooData {
 		col.next; // skip ','
 		// iterate over typetags
 		readString.(col).do { |tag|
+			var size, blob, rem;
 			var a = switch(tag,
 				$i, { col.getInt32 },
 				$f, { col.getFloat },
@@ -254,9 +255,9 @@ AooData {
 				$s, { readString.(col).asSymbol },
 				$S, { readString.(col).asSymbol },
 				$b, {
-					var size = col.getInt32;
-					var blob = col.nextN(size);
-					var rem = size % 4;
+					size = col.getInt32;
+					blob = col.nextN(size);
+					rem = size % 4;
 					if (rem != 0) { col.skip(4 - rem) };
 					blob.as(Int8Array);
 				},
@@ -358,60 +359,14 @@ AooAddr {
 	}
 }
 
-AooPeer : AooAddr {
-	var <>group;
-	var <>user;
-	var <>groupID;
-	var <>userID;
-	var <>metadata;
-
-	// only group and user name
-	*new { arg group, user;
-		^super.newCopyArgs(nil, nil, group.asString, user.asString);
-	}
-
-	*prNew { arg groupID, userID, group, user, ip, port, metadata;
-		^super.newCopyArgs(ip !? _.asString, port !? _.asInteger,
-			group !? _.asString, user !? _.asString,
-			groupID !? _.asInteger, userID !? _.asInteger, metadata);
-	}
-
-	== { arg that;
-		if (that.isKindOf(AooPeer)) {
-			if ((that.group == group) and: { that.user == user }) { ^true };
-			^((that.groupID == groupID) and: { that.userID == userID });
-		};
-		if (that.isKindOf(AooAddr)) {
-			^((that.ip == ip) and: { that.port == port });
-		}
-		^false;
-	}
-
-	hash {
-		^this.instVarHash(#[\ip, \port, \groupID, \userID])
-	}
-
-	printOn { arg stream;
-		if (group.notNil && user.notNil) {
-			stream << this.class.name << "(" <<* [group, user] << ")";
-		} { super.printOn(stream) }
-	}
-}
-
 AooGroup {
 	var <>name;
 	var <>id;
-	var <>userName;
-	var <>userID;
 	var <>metadata;
+	// var <>flags;
 
-	*new { arg name;
-		^super.newCopyArgs(name.asString)
-	}
-
-	*prNew { arg name, id, userName, userID, metadata;
-		^super.newCopyArgs(name !? _.asString, id !? _.asInteger,
-			userName !? _.asString, userID !? _.asInteger, metadata)
+	*new { arg name, id, metadata;
+		^super.newCopyArgs(name !? _.asString, id !? _.asInteger, metadata);
 	}
 
 	== { arg that;
@@ -427,6 +382,75 @@ AooGroup {
 
 	printOn { arg stream;
 		stream << this.class.name << "(" <<* [name] << ")";
+	}
+}
+
+AooUser {
+	var <>name;
+	var <>id;
+	var <>metadata;
+	// var <>flags;
+
+	*new { arg name, id, metadata;
+		^super.newCopyArgs(name !? _.asString, id !? _.asInteger, metadata);
+	}
+
+	== { arg that;
+		if (that.isKindOf(AooUser)) {
+			^((that.name == name) or: { that.id == id });
+		};
+		^false;
+	}
+
+	hash {
+		^this.instVarHash(#[\name, \id])
+	}
+
+	printOn { arg stream;
+		stream << this.class.name << "(" <<* [name] << ")";
+	}
+}
+
+AooPeer : AooAddr {
+	var <>group;
+	var <>user;
+
+	// group/user can be AooGroup/AooUser or group/user names;
+	// addr and port are optional
+	*new { arg group, user, addr, port;
+		if (group.isKindOf(AooGroup).not) {
+			group = AooGroup(group);
+		};
+		if (user.isKindOf(AooUser).not) {
+			user = AooUser(user);
+		};
+		addr = addr !? _.asString;
+		port = port !? _.asInteger;
+		^super.newCopyArgs(addr, port, group, user);
+	}
+
+	*prFromEvent { arg groupID, userID, groupName, userName, addr, port;
+		^AooPeer(AooGroup(groupName, groupID), AooUser(userName, userID), addr, port);
+	}
+
+	== { arg that;
+		if (that.isKindOf(AooPeer)) {
+			^((that.group == group) and: { that.user == user });
+		};
+		if (that.isKindOf(AooAddr)) {
+			^((that.ip == ip) and: { that.port == port });
+		}
+		^false;
+	}
+
+	hash {
+		^this.instVarHash(#[\ip, \port, \group, \user])
+	}
+
+	printOn { arg stream;
+		if (group.notNil && user.notNil) {
+			stream << this.class.name << "(" <<* [group.name, user.name] << ")";
+		} { super.printOn(stream) }
 	}
 }
 
@@ -455,7 +479,7 @@ AooEndpoint {
 
 	printOn { arg stream;
 		if (addr.isKindOf(AooPeer)) {
-			stream << this.class.name << "(" <<* [addr.group, addr.user, id] << ")";
+			stream << this.class.name << "(" <<* [addr.group.name, addr.user.name, id] << ")";
 		} {
 			stream << this.class.name << "("<<* [addr.ip, addr.port, id] << ")";
 		}
@@ -503,12 +527,12 @@ AooDispatcher : OSCMessageDispatcher {
 	}
 
 	value { arg msg, time, addr, recvPort;
-		var client, peer;
+		var client, peer, port;
 		// 2 -> OSC
 		if (msg[0] == '/aoo/client/msg' and: { msg[4] == 2 }) {
 			client = this.client ?? {
 				// global dispatcher: get client from port argument
-				var port = msg[1];
+				port = msg[1];
 				AooClient.find(port) ?? {
 					"could not find AooClient on port %".format(port).error;
 					^this;

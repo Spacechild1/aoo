@@ -57,7 +57,7 @@ AooClient {
 					var success = msg[2].asBoolean;
 					success.if {
 						this.prInit(port, addr);
-						action.value(addr);
+						action.value(this);
 					} {
 						"Couldn't create AooClient on port %: %".format(port, msg[3]).error;
 						action.value(nil);
@@ -108,33 +108,35 @@ AooClient {
 
 	prHandleEvent { arg type, args;
 		// \disconnect, \peerJoin, \peerLeave, \peerHandshake, \peerTimeout, \peerPing
+		var md, peer;
 		var event = type.switch(
 			\disconnect, {
 				"disconnected from server".error;
 				args[1]
 			},
 			\peerJoin, {
-				var md = AooData.fromBytes(*args[6..7]);
-				var peer = AooPeer.prNew(*(args[0..5] ++ md));
+				md = AooData.fromBytes(*args[6..7]);
+				peer = AooPeer.prFromEvent(*(args[0..5] ++ md));
 				this.prAddPeer(peer);
 				peer
 			},
 			\peerLeave, {
-				var peer = AooPeer.prNew(*args[0..5]);
+				peer = AooPeer.prFromEvent(*args[0..5]);
 				this.prRemovePeer(peer);
 				peer
 			},
 			\peerHandshake, {
-				AooPeer.prNew(*args[0..5])
+				AooPeer.prFromEvent(*args[0..5])
 			},
 			\peerTimeout, {
-				AooPeer.prNew(*args[0..5])
+				AooPeer.prFromEvent(*args[0..5])
 			},
 			\peerPing, {
-				var peer = this.prFindPeer(AooPeer.prNew(*args[0..1]), true);
+				peer = AooPeer.prFromEvent(*args[0..1]);
+				peer = this.prFindPeer(peer, true);
 				if (peer.notNil) { [peer] ++ args[2..] } { nil }
 			},
-			{ "ignore unknown event '%'".format(type).warn; nil }
+			{ "%: ignore unknown event '%'".format(this.class.name, type).warn; nil }
 		);
 		if (event.notNil) {
 			this.eventHandler.value(type, event);
@@ -144,7 +146,8 @@ AooClient {
 	prHandleMsg { arg time, group, user, type, data;
 		var msg, peer;
 		if (msgHandler.notNil) {
-			peer = this.prFindPeer(AooPeer.prNew(group, user), true);
+			peer = AooPeer.prFromEvent(group, user);
+			peer = this.prFindPeer(peer, true);
 			if (peer.notNil) {
 				msg = AooData.fromBytes(type, data);
 				if (msg.notNil) {
@@ -187,7 +190,7 @@ AooClient {
 	prRemoveGroup { arg group;
 		var index;
 		// remove all peers that belong to this group!
-		this.peers = this.peers.select { |p| p.groupID != group.id };
+		this.peers = this.peers.select { |p| p.group != group };
 		// remove the group itself
 	    index = this.groups.indexOfEqual(group);
 		if (index.notNil) { this.groups.removeAt(index) }
@@ -301,9 +304,10 @@ AooClient {
 				userMetadata = AooData.fromBytes(*msg[8..9]);
 				privateMetadata = AooData.fromBytes(*msg[10..11]);
 				"AooClient: joined group '%' as user '%' (group ID: %, user ID: %)".format(groupName, userName, groupID, userID).postln;
-				group = AooGroup.prNew(groupName, groupID, userName, userID, groupMetadata);
+				user = AooUser(userName, userID, userMetadata);
+				group = AooGroup(groupName, groupID, groupMetadata);
 				this.prAddGroup(group);
-				action.value(true, group, userMetadata, privateMetadata);
+				action.value(true, group, user, privateMetadata);
 			} {
 				errmsg = msg[4];
 				"AooClient: couldn't join group '%': %".format(groupName, errmsg).error;
@@ -341,6 +345,9 @@ AooClient {
 			};
 			group = this.groups[0];
 		} {
+			if (group.isKindOf(AooGroup).not) {
+				group = AooGroup(group);
+			};
 			group = this.prFindGroup(group);
 			if (group.isNil) { ^MethodError("not a group member", this).throw };
 		};
@@ -360,29 +367,32 @@ AooClient {
 		server.sendMsg('/cmd', '/aoo_client_group_leave', this.port, token, group.id);
 	}
 
-	sendMsg { arg target, time, msg, type = \osc;
+	sendMsg { arg target, time, msg, type = \osc, reliable = false;
 		var oscMsg, data = AooData(type, msg);
 		var groupID = -1, userID = -1, group, peer;
-		if (target.isKindOf(AooPeer)) {
-			// peer
-			peer = this.prFindPeer(target);
-			if (peer.isNil) {
-				^MethodError("could not find peer %".format(target), this).throw
-			};
-			groupID = peer.groupID;
-			userID = peer.userID;
-		} {
-			// group
-			if (target.isKindOf(AooGroup)) {
-				group = this.prFindGroup(target);
-				if (group.isNil) {
-					^MethodError("could not find group %".format(target), this).throw
+		if (target.notNil) {
+			if (target.isKindOf(AooPeer)) {
+				// peer
+				peer = this.prFindPeer(target);
+				if (peer.isNil) {
+					^MethodError("could not find peer %".format(target), this).throw
 				};
-				groupID = group.id;
+				groupID = peer.group.id;
+				userID = peer.user.id;
+			} {
+				// group
+				if (target.isKindOf(AooGroup)) {
+					group = this.prFindGroup(target);
+					if (group.isNil) {
+						^MethodError("could not find group %".format(target), this).throw
+					};
+					groupID = group.id;
+				} {
+					^MethodError("bad 'target' argument", this).throw;
+				}
 			}
 		}; // else: broadcast
-
-		oscMsg = ['/sc/msg', groupID, userID, time !? { time.asFloat }] ++ data.asOSCArgArray;
+		oscMsg = ['/sc/msg', groupID, userID, time !? { time.asFloat }, reliable.asBoolean.asInteger ] ++ data.asOSCArgArray;
 		oscMsg.postln;
 		time.notNil.if {
 			// schedule on the current (logical) system time.
