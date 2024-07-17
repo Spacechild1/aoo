@@ -6,14 +6,13 @@ AooClient {
 	var <>port;
 	var <>id;
 	var <>state;
-	var <>eventHandler;
-	var <>msgHandler;
 	var <>dispatcher;
 	var <>peers;
 	var <>groups;
 
 	var eventOSCFunc;
 	var msgOSCFunc;
+	var eventFuncs;
 	var replyAddr;
 	var nodeAddr;
 
@@ -46,6 +45,7 @@ AooClient {
 		this.peers = [];
 		this.state = \disconnected;
 		this.dispatcher = AooDispatcher(this);
+		eventFuncs = IdentityDictionary();
 		replyAddr = NetAddr(this.server.addr.ip, port);
 
 		Aoo.prGetReplyAddr(port, this.server, { |addr|
@@ -106,6 +106,18 @@ AooClient {
 		groups = nil;
 	}
 
+	addListener { arg type, func;
+		eventFuncs[type] = eventFuncs[type].addFunc(func);
+	}
+
+	removeListener { arg type, func;
+		if (func.notNil) {
+			eventFuncs[type] = eventFuncs[type].removeFunc(func);
+		} {
+			eventFuncs.removeAt(type);
+		}
+	}
+
 	prHandleEvent { arg type, args;
 		// \disconnect, \peerJoin, \peerLeave, \peerHandshake, \peerTimeout, \peerPing
 		var md, peer;
@@ -139,19 +151,20 @@ AooClient {
 			{ "%: ignore unknown event '%'".format(this.class.name, type).warn; nil }
 		);
 		if (event.notNil) {
-			this.eventHandler.value(type, event);
+			eventFuncs[type].value(*event);
 		}
 	}
 
 	prHandleMsg { arg time, group, user, type, data;
 		var msg, peer;
-		if (msgHandler.notNil) {
+		var handler = eventFuncs[\msg];
+		if (handler.notNil) {
 			peer = AooPeer.prFromEvent(group, user);
 			peer = this.prFindPeer(peer, true);
 			if (peer.notNil) {
 				msg = AooData.fromBytes(type, data);
 				if (msg.notNil) {
-					msgHandler.value(msg, time, peer);
+					handler.value(msg, time, peer);
 				}
 			}
 		}

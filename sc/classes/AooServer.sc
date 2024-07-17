@@ -4,13 +4,12 @@ AooServer {
 	var <>server;
 	var <>port;
 	var <>replyAddr;
-	var <>eventHandler;
-	var <>users;
 
 	var eventOSCFunc;
+	var eventFuncs;
 
 	*initClass {
-		servers = IdentityDictionary.new;
+		servers = IdentityDictionary();
 	}
 
 	*find { arg port;
@@ -29,7 +28,7 @@ AooServer {
 		};
 
 		this.server = server ?? Server.default;
-		this.users = [];
+		eventFuncs = IdentityDictionary();
 
 		Aoo.prGetReplyAddr(port, server, { |addr|
 			if (addr.isNil) {
@@ -78,57 +77,70 @@ AooServer {
 		};
 		server = nil;
 		port = nil;
-		users = nil;
+	}
+
+	addListener { arg type, func;
+		eventFuncs[type] = eventFuncs[type].addFunc(func);
+	}
+
+	removeListener { arg type, func;
+		if (func.notNil) {
+			eventFuncs[type] = eventFuncs[type].removeFunc(func);
+		} {
+			eventFuncs.removeAt(type);
+		}
 	}
 
 	prHandleEvent { arg type, args;
 		// \clientAdd, \clientRemove, \groupAdd, \groupRemove,
 		// \groupJoin, \groupLeave
+		var id, name, version, metadata, code, msg;
+		var groupID, userID, groupName, userName, clientID, userMetadata;
 		var event = type.switch(
 			\clientAdd, {
-				var id = args[0];
-				var version = args[1];
-				var metadata = AooData.fromBytes(*args[2..3]);
+				id = args[0];
+				version = args[1];
+				metadata = AooData.fromBytes(*args[2..3]);
 				[ id, version, metadata ];
 			},
 			\clientRemove, {
-				var id = args[0];
-				var code = args[1];
-				var msg = args[2];
+				id = args[0];
+				code = args[1];
+				msg = args[2];
 				if (code == 0) { [ id ] } { [ id, msg, code ] };
 			},
 			\groupAdd, {
-				var id = args[0];
-				var name = args[1];
-				var metadata = AooData.fromBytes(*args[2..3]);
+				id = args[0];
+				name = args[1];
+				metadata = AooData.fromBytes(*args[2..3]);
 				// [ AooServerGroup.prNew(this, name, id, metadata) ];
 				[ id, name, metadata ];
 			},
 			\groupRemove, {
-				var id = args[0];
-				var name = args[1];
+				id = args[0];
+				name = args[1];
 				[ id, name ];
 			},
 			\groupJoin, {
-				var groupID = args[0];
-				var userID = args[1];
-				var groupName = args[2];
-				var userName = args[3];
-				var clientID = args[4];
-				var userMetadata = AooData.fromBytes(*args[5..6]);
+				groupID = args[0];
+				userID = args[1];
+				groupName = args[2];
+				userName = args[3];
+				clientID = args[4];
+				userMetadata = AooData.fromBytes(*args[5..6]);
 				[ groupID, userID, groupName, userName, clientID, userMetadata ];
 			},
 			\groupLeave, {
-				var groupID = args[0];
-				var userID = args[1];
-				var groupName = args[2];
-				var userName = args[3];
+				groupID = args[0];
+				userID = args[1];
+				groupName = args[2];
+				userName = args[3];
 				[ groupID, userID, groupName, userName ];
 			},
-			{ "ignore unknown event '%'".format(type).warn; nil }
+			{ "AooServer: ignore unknown event '%'".format(type).warn; nil }
 		);
 		if (event.notNil) {
-			this.eventHandler.value(type, event);
+			eventFuncs[type].value(*event);
 		}
 	}
 

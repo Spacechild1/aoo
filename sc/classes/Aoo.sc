@@ -556,9 +556,9 @@ AooCtl {
 	var <>synthIndex;
 	var <>port;
 	var <>id;
-	var <>eventHandler;
 
 	var eventOSCFunc;
+	var eventFuncs;
 	var replyAddr;
 
 	*new { arg synth, tag, synthDef, action;
@@ -604,11 +604,24 @@ AooCtl {
 		^result;
 	}
 
+	addListener { arg type, func;
+		eventFuncs[type] = eventFuncs[type].addFunc(func);
+	}
+
+	removeListener { arg type, func;
+		if (func.notNil) {
+			eventFuncs[type] = eventFuncs[type].removeFunc(func);
+		} {
+			eventFuncs.removeAt(type);
+		}
+	}
+
 	prInit { arg synth, synthIndex, port, id, action;
 		this.synth = synth;
 		this.synthIndex = synthIndex;
 		this.port = port;
 		this.id = id;
+		eventFuncs = IdentityDictionary();
 
 		// get server reply address and setup event handler
 		Aoo.prGetReplyAddr(port, synth.server, { |addr|
@@ -620,7 +633,7 @@ AooCtl {
 					var type = msg[3];
 					var args = this.prParseEvent(type, msg[4..]);
 					if (args.notNil) {
-						this.eventHandler.value(type, args);
+						eventFuncs[type].value(*args);
 					}
 				}, '/aoo/event', addr, argTemplate: [synth.nodeID, synthIndex]);
 
