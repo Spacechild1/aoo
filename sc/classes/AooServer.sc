@@ -32,7 +32,7 @@ AooServer {
 		this.server = server ?? Server.default;
 		eventFuncs = IdentityDictionary();
 
-		Aoo.prGetReplyAddr(port, server, { |addr|
+		Aoo.prGetReplyAddr(port, this.server, { |addr|
 			if (addr.isNil) {
 				action.value(nil);
 			} {
@@ -65,6 +65,7 @@ AooServer {
 		}, '/aoo/server/event', addr, argTemplate: [port]);
 
 		ServerQuit.add { this.free };
+		CmdPeriod.add { this.free };
 
 		servers[port] = this;
 	}
@@ -146,12 +147,4 @@ AooServer {
 		}
 	}
 
-	prAdd { arg user;
-		this.users = this.users.add(user);
-	}
-
-	prRemove { arg user;
-		var index = this.users.indexOfEqual(user);
-		index !? { this.users.removeAt(index) };
-	}
 }
