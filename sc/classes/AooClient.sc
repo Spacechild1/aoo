@@ -216,8 +216,9 @@ AooClient {
 		token = this.class.prNextToken;
 
 		resp = OSCFunc({ arg msg;
-			var errmsg, errcode, clientID, version, success = msg[3].asBoolean, metadata;
-			success.if {
+			var errmsg, errcode, clientID, version, metadata;
+			var success = (msg[3] == 0);
+			if (success) {
 				clientID = msg[4];
 				version = msg[5];
 				metadata = AooData.fromBytes(*msg[6..7]);
@@ -264,10 +265,12 @@ AooClient {
 		token = this.class.prNextToken;
 
 		OSCFunc({ arg msg;
-			var success = msg[3].asBoolean;
+			var success = (msg[3] == 0);
 			var errmsg = msg[4];
 			success.if {
-				this.peers = []; // remove all peers
+				// remove all groups and peers
+				this.peers = [];
+				this.groups = [];
 				this.id = nil;
 				"AooClient: disconnected".postln;
 			} {
@@ -288,9 +291,9 @@ AooClient {
 		userPwd = userPwd ?? { "" };
 
 		OSCFunc({ arg msg;
-			var errmsg, groupID, userID, success = msg[3].asBoolean;
-			var group, groupMetadata, userMetadata, privateMetadata, relayAddr;
-			msg.postln;
+			var errmsg, errcode, groupID, userID, user, group;
+			var groupMetadata, userMetadata, privateMetadata, relayAddr;
+			var success = (msg[3] == 0);
 			if (success) {
 				groupID = msg[4];
 				userID = msg[5];
@@ -343,9 +346,9 @@ AooClient {
 		};
 
 		OSCFunc({ arg msg;
-			var success = msg[3].asBoolean;
+			var success = (msg[3] == 0);
 			var errmsg = msg[4];
-			success.if {
+			if (success) {
 				"AooClient: left group '%'".format(group.name).postln;
 				this.prRemoveGroup(group);
 			} {

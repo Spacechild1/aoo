@@ -80,7 +80,7 @@ void AooClient::connect(int token, const char* host,
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/client/connect")
-                << client->node_->port() << token << (int32_t)1
+                << client->node_->port() << token << (int32_t)0
                 << r.clientId << r.version;
             serializeData(msg, r.metadata);
             msg << osc::EndMessage;
@@ -113,7 +113,7 @@ void AooClient::disconnect(int token) {
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/client/disconnect")
-                << client->node_->port() << token << (int32_t)1
+                << client->node_->port() << token << (int32_t)0
                 << osc::EndMessage;
 
             client->sendReply(msg);
@@ -143,7 +143,7 @@ void AooClient::joinGroup(int token, const char* groupName, const char *groupPwd
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/client/group/join")
-                << client->node_->port() << token << (int32_t)1
+                << client->node_->port() << token << (int32_t)0
                 << r.groupId << r.userId;
             serializeData(msg, r.groupMetadata);
             serializeData(msg, r.userMetadata);
@@ -186,7 +186,7 @@ void AooClient::leaveGroup(int token, AooId group) {
             char buf[1024];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             msg << osc::BeginMessage("/aoo/client/group/leave")
-                << client->node_->port() << token << (int32_t)1
+                << client->node_->port() << token << (int32_t)0
                 << osc::EndMessage;
 
             client->sendReply(msg);
@@ -296,7 +296,7 @@ void AooClient::sendError(const char *cmd, AooId token, AooError error,
     char buf[1024];
     osc::OutboundPacketStream msg(buf, sizeof(buf));
     msg << osc::BeginMessage(cmd) << node_->port() << token
-        << (int32_t)0 << aoo_strerror(error) << errcode << errmsg
+        << (int32_t)error << aoo_strerror(error) << errcode << errmsg
         << osc::EndMessage;
 
     node_->sendReply(msg);
