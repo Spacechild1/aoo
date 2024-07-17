@@ -183,28 +183,30 @@ void AooNode::handleMessage(const AooByte *data, int32_t size) {
 }
 
 void AooNode::handleMessage(AooNtpTime time, const osc::ReceivedMessage &msg) {
-    auto it = msg.ArgumentsBegin();
-    AooId group = (it++)->AsInt32();
-    AooId user = (it++)->AsInt32();
-    if (time > 1 && it->IsFloat()) {
-        auto timeOffset = (it++)->AsFloat();
-        time += aoo::time_tag::from_seconds(timeOffset);
-    } else {
-        time = 0;
-        it++;
+    if (!strcmp(msg.AddressPattern(), "/sc/msg")) {
+        auto it = msg.ArgumentsBegin();
+        AooId group = (it++)->AsInt32();
+        AooId user = (it++)->AsInt32();
+        if (time > 1 && it->IsFloat()) {
+            auto timeOffset = (it++)->AsFloat();
+            time += aoo::time_tag::from_seconds(timeOffset);
+        } else {
+            time = 0;
+            it++;
+        }
+        auto flags = (it++)->AsInt32();
+        auto type = (it++)->AsInt32();
+        const void *blobData;
+        osc::osc_bundle_element_size_t blobSize;
+        (it++)->AsBlob(blobData, blobSize);
+
+        AooData data;
+        data.type = type;
+        data.data = (const AooByte *)blobData;
+        data.size = blobSize;
+
+        client_->sendMessage(group, user, data, time, flags);
     }
-
-    auto type = (it++)->AsInt32();
-    const void *blobData;
-    osc::osc_bundle_element_size_t blobSize;
-    (it++)->AsBlob(blobData, blobSize);
-
-    AooData data;
-    data.type = type;
-    data.data = (const AooByte *)blobData;
-    data.size = blobSize;
-
-    client_->sendMessage(group, user, data, time, 0);
 }
 
 // TODO: make RT-safe! Only allow numeric IPs, so we don't need to call
