@@ -25,7 +25,7 @@ SynthDef(\aoo_recv, { |out|
 }).add;
 )
 
-~s = AooSendCtl(Synth(\aoo_send), action: { "AooSend done".warn });
+~s = AooSendCtl(Synth(\aoo_send));
 ~s.add(AooAddr.resolve("localhost", 9999), 1);
 ~s.add(AooPeer("test", "bar"), 1);
 ~s.removeAll;
@@ -42,60 +42,133 @@ SynthDef(\aoo_recv, { |out|
 ~s.start(AooData(\float32, [ 1.0, 1.5, 2.0 ]));
 ~s.stop;
 ~s.sinks;
-~s.eventHandler = { |event, args| "AooSend: %: %".format(event, args).warn };
+~s.addListener(\ping, { |...args| "AooSend: ping: %".format(args).warn });
+~s.removeListener(\ping);
 
-~r = AooReceiveCtl(Synth(\aoo_recv), action: { "AooReceive done".warn });
-~r.eventHandler = { |event, args| "AooReceive: %: %".format(event, args).warn; };
-~r.sources[0].addr
+~r = AooReceiveCtl(Synth(\aoo_recv));
+~r.addListener(\ping, { |...args| "AooReceive: ping: %".format(args).warn });
+~r.sources[0]
 
 (
-~c = AooClient(9998, action: { "AooClient done".warn });
-~c.eventHandler = { |event, args| "C event: % %".format(event, args).warn };
-~c.msgHandler = { |msg, time, peer| "C msg: % % %".format(msg, time, peer).warn; msg.data.postln; };
+fork {
+	~server = AooServer();
+
+	~c = AooClient(9998);
+	~c.addListener(\msg, { |msg, time, peer| "C msg: % % %".format(msg, time, peer).warn });
+	~c.addListener(\event, { |type, args| "C event: % %".format(type, args).warn });
+
+	~d = AooClient(9999);
+	~d.addListener(\msg, { |msg, time, peer| "D msg: % % %".format(msg, time, peer).warn });
+	~d.addListener(\event, { |type, args| "D event: % %".format(type, args).warn });
+
+	s.sync;
+
+	~c.connect("localhost", action: {
+		~c.joinGroup("test", nil, "foo", nil)
+	});
+
+	~d.connect("localhost", action: {
+		~d.joinGroup("test", nil, "bar", nil)
+	});
+}
 )
-~c.connect("localhost", 7078, action: { |success| "success: %".format(success).warn });
+
+~c.removeListener(\event);
+~d.removeListener(\event);
+
+(
+~server = AooServer();
+)
+
+(
+~c = AooClient(9998);
+~c.addListener(\ping, { |event| "C ping: %".format(event).warn });
+~c.addListener(\peerJoin, { |event| "C peer join: %".format(event).warn });
+~c.addListener(\peerLeave, { |event| "C peer leave: %".format(event).warn });
+~c.addListener(\msg, { |msg, time, peer| "C msg: % % %".format(msg, time, peer).warn });
+)
+~c.removeListener(\ping);
+~c.removeListener(\msg);
+
+~c.connect("localhost", action: { |success| "success: %".format(success).warn });
 ~c.joinGroup("test", nil, "foo", nil, action: { |success| "success: %".format(success).warn; });
 ~c.leaveGroup;
 ~c.disconnect;
 ~c.peers;
+~c.groups;
 ~c.sendMsg(nil, nil, [ "/foo", 1, 2, 3]);
 ~c.sendMsg(nil, 10, [ "/foo", 1, 2, 3]);
 ~c.sendMsg(nil, 10, [ "/foo", 4, 5, 6]);
-~c.peers[0] == AooPeer("test", "bar")
 
 ~s.prResolveAddr(AooPeer("test", "bar"))
 ~c.prFindPeer(AooPeer("test", "bar"))
 
 (
-~d = AooClient(9999, action: { "AooClient done".warn });
-~d.eventHandler = { |event, args| "D event: % %".format(event, args).warn };
-~d.msgHandler = { |msg, time, peer| "D msg: % % %".format(msg, time, peer).warn };
+~d = AooClient(9999);
+~d.addListener(\ping, { |event| "D ping: %".format(event).warn });
+~d.addListener(\peerJoin, { |event| "D peer join: %".format(event).warn });
+~d.addListener(\peerLeave, { |event| "D peer leave: %".format(event).warn });
+~d.addListener(\msg, { |msg, time, peer| "D msg: % % %".format(msg, time, peer).warn });
 )
-~d.connect("localhost", 7078, action: { |success| "success: %".format(success).warn });
+~d.removeListener(\ping);
+~d.removeListener(\msg);
+
+~d.connect("localhost", action: { |success| "success: %".format(success).warn });
 ~d.joinGroup("test", nil, "bar", nil, action: { |success| "success: %".format(success).warn; });
 ~d.leaveGroup;
 ~d.disconnect;
 ~d.peers;
+~d.groups;
 ~d.sendMsg(nil, nil, [ "/foo", 1, 2, 3]);
 ~d.sendMsg(nil, 10, [ "/foo", 1, 2, 3]);
 ~d.sendMsg(AooPeer("test", "foo"), nil, [ "/foo", 1, 2, 3]);
 ~d.sendMsg(AooGroup("test"), nil, [ "/foo", 1, 2, 3]);
 
+~c.sendMsg(nil, 10, [ "/foo", 1, 2, 3]);
+~c.sendMsg(nil, 10, [ "/foo", 4, 5, 6]);
+
 (
 f = OSCFunc({ |msg|
 	"received message %".format(msg).postln;
-}, '/foo', AooPeer("test", "foo"), 9999, [ 1, 2 ], ~d.dispatcher);
+}, '/foo', nil, nil, nil, ~d.dispatcher);
+)
+f = OSCFunc({ |msg|
+	"received message %".format(msg).postln;
+}, '/foo', AooPeer("test", "foo"), nil, nil, ~d.dispatcher);
 )
 (
 f = OSCFunc({ |msg|
 	"received message %".format(msg).postln;
-}, '/foo', AooPeer("test", "foo"), 9999, nil, ~d.dispatcher);
+}, '/foo', AooPeer("test", "foo"), nil, [ 1, 2 ], ~d.dispatcher);
 )
 f.free;
+
+(
+fork {
+	SynthDef(\aoo_send, {
+		AooSend.ar(9998, 1, SinOsc.ar(220) * 0.1, tag: \a);
+		AooSend.ar(9998, 2, SinOsc.ar(440) * 0.1, tag: \b);
+	}).add;
+
+	s.sync;
+
+	e = AooSendCtl.collect(Synth(\aoo_send));
+
+	s.sync; // make sure that the AooSend UGesn have been fully initialized!
+
+	e[\a].add(AooAddr("127.0.0.1", 9999), 1);
+	e[\b].add(AooAddr("127.0.0.1", 9997), 1);
+}
+)
+
 
 AooAddr("localhost", 9999)
 AooAddr("::1", 9999)
 AooAddr("192.168.0.1", 9999)
+
+AooPeer("test", "foo", "127.0.0.1", 9999) == AooAddr("127.0.0.1", 9999);
+AooAddr("127.0.0.1", 9999) == AooPeer("test", "foo", "127.0.0.1", 9999);
+
 
 AooAddr.resolve("localhost", 9999)
 
@@ -103,8 +176,9 @@ AooAddr.resolve("localhost", 9999)
 
 [ 5, [ \foo, 1, 2, 3] ].asRawOSC;
 
+
 Main.elapsedTime;
-Main.monotonicClockTime
+Main.monotonicClockTime;
 
 (
 var offset = 2208988800.0;
