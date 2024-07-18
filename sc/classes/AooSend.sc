@@ -92,7 +92,7 @@ AooSendCtl : AooCtl {
 			} { action.value(nil) }
 		}, '/aoo/add', replyID).oneShot;
 
-		this.prSendMsg('/add', replyID, addr.ip, addr.port, id, active);
+		this.prSendMsg('/add', replyID, addr.ip, addr.port, id, active.asInteger);
 	}
 
 	remove { arg addr, id, action;
@@ -155,6 +155,11 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/stop');
 	}
 
+	activate { arg addr, id, active;
+		addr = this.prResolveAddr(addr);
+		this.prSendMsg('/activate', addr.ip, addr.port, id, active.asInteger)
+	}
+
 	format { arg fmt, action;
 		var replyID = AooCtl.prNextReplyID;
 		fmt.isKindOf(AooFormat).not.if {
@@ -189,9 +194,9 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/codec_get', replyID);
 	}
 
-	sinkChannelOffset { arg addr, id, onset;
+	sinkChannelOffset { arg addr, id, offset;
 		addr = this.prResolveAddr(addr);
-		this.prSendMsg('/sink_channel', addr.ip, addr.port, id, onset);
+		this.prSendMsg('/sink_channel', addr.ip, addr.port, id, offset);
 	}
 
 	packetSize { arg size;
