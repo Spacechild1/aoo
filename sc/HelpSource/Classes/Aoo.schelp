@@ -1,0 +1,83 @@
+TITLE:: Aoo
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+
+DESCRIPTION::
+(put long description here)
+
+
+CLASSMETHODS::
+
+METHOD:: initClass
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prGetReplyAddr
+(describe method here)
+
+ARGUMENT:: port
+(describe argument here)
+
+ARGUMENT:: server
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prFindUGens
+(describe method here)
+
+ARGUMENT:: class
+(describe argument here)
+
+ARGUMENT:: synth
+(describe argument here)
+
+ARGUMENT:: synthDef
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prFindMetadata
+(describe method here)
+
+ARGUMENT:: class
+(describe argument here)
+
+ARGUMENT:: synth
+(describe argument here)
+
+ARGUMENT:: tag
+(describe argument here)
+
+ARGUMENT:: synthDef
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prMakeMetadata
+(describe method here)
+
+ARGUMENT:: ugen
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: dispatcher
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+
+INSTANCEMETHODS::
+
+
+EXAMPLES::
+
+code::
+(some example code)
+::

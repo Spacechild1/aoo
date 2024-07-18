@@ -1,7 +1,7 @@
-TITLE:: AooSend
-summary:: Send an AOO stream
-categories:: UGens>Streaming
-related:: Classes/AooSendCtl, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient
+TITLE:: AooGroup
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
 
 DESCRIPTION::
 (put long description here)
@@ -9,27 +9,16 @@ DESCRIPTION::
 
 CLASSMETHODS::
 
-METHOD:: kr
+METHOD:: new
 (describe method here)
 
-returns:: (describe returnvalue here)
-
-METHOD:: ar
-(describe method here)
-
-ARGUMENT:: port
+ARGUMENT:: name
 (describe argument here)
 
 ARGUMENT:: id
 (describe argument here)
 
-ARGUMENT:: state
-(describe argument here)
-
-ARGUMENT:: channels
-(describe argument here)
-
-ARGUMENT:: tag
+ARGUMENT:: metadata
 (describe argument here)
 
 returns:: (describe returnvalue here)
@@ -37,11 +26,21 @@ returns:: (describe returnvalue here)
 
 INSTANCEMETHODS::
 
-METHOD:: synthIndex
+METHOD:: name
 (describe method here)
 
-ARGUMENT:: index
+returns:: (describe returnvalue here)
+
+METHOD:: printOn
+(describe method here)
+
+ARGUMENT:: stream
 (describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: metadata
+(describe method here)
 
 returns:: (describe returnvalue here)
 
@@ -50,33 +49,15 @@ METHOD:: id
 
 returns:: (describe returnvalue here)
 
-METHOD:: port
+METHOD:: hash
 (describe method here)
 
 returns:: (describe returnvalue here)
 
-METHOD:: optimizeGraph
+METHOD:: ==
 (describe method here)
 
-returns:: (describe returnvalue here)
-
-METHOD:: tag
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: desc
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: init
-(describe method here)
-
-ARGUMENT:: tag
-(describe argument here)
-
-ARGUMENT::  ... args
+ARGUMENT:: that
 (describe argument here)
 
 returns:: (describe returnvalue here)

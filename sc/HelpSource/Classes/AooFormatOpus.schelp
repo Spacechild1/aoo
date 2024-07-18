@@ -31,25 +31,17 @@ METHOD:: sampleRate
 sample rate in Herz (default: 48000 Hz). Possible values: 48000, 24000, 16000, 12000, 8000.
 
 
-SUBSECTION:: Advanced settings
 
-METHOD:: bitRate
-the emphasis::total:: bit rate in bit/s (default: unspecified, but OK for most cases).
+INSTANCEMETHODS::
 
-note::For a stereo stream, a bit rate of 64000 bit/s effectively means 32000 bit/s per channel.::
+METHOD:: applicationType
+(describe method here)
 
-64000 bit/s per channel is considered transparent. Pass the Symbol code::\max:: to use the maximum bit rate.
+returns:: (describe returnvalue here)
 
-METHOD:: complexity
-the computational complexity, given as an Integer between 0 and 10 (default: 9).
 
-Higher values give better audio quality, but take more CPU time.
+EXAMPLES::
 
-METHOD:: signalType
-the signal type (default: code::\auto::).
-
-table::
-## code::\voice:: || optimized for speech
-## code::\music:: || optimized for music
-## code::\auto:: || automatic
+code::
+(some example code)
 ::

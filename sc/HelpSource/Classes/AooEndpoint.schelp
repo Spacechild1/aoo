@@ -1,28 +1,21 @@
-TITLE:: AooAddr
-summary:: Represents an AOO network endpoint
-categories:: External Control>OSC
-related:: Classes/AooPeer, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooClient
+TITLE:: AooEndpoint
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
 
 DESCRIPTION::
-AooAddr describes a network endpoint as a pair of IP address + port.
+(put long description here)
 
 
 CLASSMETHODS::
 
 METHOD:: new
-
-ARGUMENT:: ip
-the IP address/hostname as a String or Symbol.
-
-ARGUMENT:: port
-the port number as an Integer.
-METHOD:: resolve
 (describe method here)
 
-ARGUMENT:: hostname
+ARGUMENT:: addr
 (describe argument here)
 
-ARGUMENT:: port
+ARGUMENT:: id
 (describe argument here)
 
 returns:: (describe returnvalue here)
@@ -38,13 +31,6 @@ ARGUMENT:: that
 
 returns:: (describe returnvalue here)
 
-METHOD:: ip
-the IP address/hostname (Symbol), e.g. code::'192.168.1.10':: or code::'vrr.iem.at'::.
-
-Currently, AOO only supports the IPv4 protocol, but it will add IPv6 support in the future.
-
-METHOD:: port
-the port number (Integer).
 METHOD:: printOn
 (describe method here)
 
@@ -63,6 +49,16 @@ METHOD:: matchItem
 
 ARGUMENT:: item
 (describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: id
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: addr
+(describe method here)
 
 returns:: (describe returnvalue here)
 

@@ -10,32 +10,82 @@ Describes a peer in an AOO network (see link::Classes/AooClient::). It is define
 CLASSMETHODS::
 
 METHOD:: new
+(describe method here)
 
 ARGUMENT:: group
-the group name as a Symbol.
+(describe argument here)
 
 ARGUMENT:: user
-the user name as a Symbol.
+(describe argument here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: port
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prFromEvent
+(describe method here)
+
+ARGUMENT:: groupID
+(describe argument here)
+
+ARGUMENT:: userID
+(describe argument here)
+
+ARGUMENT:: groupName
+(describe argument here)
+
+ARGUMENT:: userName
+(describe argument here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: port
+(describe argument here)
+
+returns:: (describe returnvalue here)
 
 
 INSTANCEMETHODS::
 
+METHOD:: hash
+(describe method here)
+
+returns:: (describe returnvalue here)
+
 METHOD:: user
-the user name (Symbol).
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: ==
+(describe method here)
+
+ARGUMENT:: that
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: printOn
+(describe method here)
+
+ARGUMENT:: stream
+(describe argument here)
+
+returns:: (describe returnvalue here)
 
 METHOD:: group
-the group name (Symbol).
+(describe method here)
 
-METHOD:: id
-the user ID (Integer), which uniquely identifies the user on the AOO server.
-
-METHOD:: ip
-the IP address.
-
-METHOD:: port
-the port number.
+returns:: (describe returnvalue here)
 
 
-DISCUSSION::
-code::id::, code::ip:: and code::port:: are only set if the code::AooPeer:: instance has been returned by code::AooClient::. If the code::AooPeer:: instance has been created by the user, those members are code::nil::.
+EXAMPLES::
 
+code::
+(some example code)
+::

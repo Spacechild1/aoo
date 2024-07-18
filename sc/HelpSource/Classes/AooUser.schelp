@@ -1,7 +1,7 @@
-TITLE:: AooAddr
-summary:: Represents an AOO network endpoint
-categories:: External Control>OSC
-related:: Classes/AooSend, Classes/AooSendCtl, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooClient
+TITLE:: AooUser
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
 
 DESCRIPTION::
 (put long description here)
@@ -12,27 +12,42 @@ CLASSMETHODS::
 METHOD:: new
 (describe method here)
 
-ARGUMENT:: ip
+ARGUMENT:: name
 (describe argument here)
 
-ARGUMENT:: port
+ARGUMENT:: id
 (describe argument here)
 
-returns:: (describe returnvalue here)
-
-METHOD:: peer
-(describe method here)
-
-ARGUMENT:: group
-(describe argument here)
-
-ARGUMENT:: user
+ARGUMENT:: metadata
 (describe argument here)
 
 returns:: (describe returnvalue here)
 
 
 INSTANCEMETHODS::
+
+METHOD:: name
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: printOn
+(describe method here)
+
+ARGUMENT:: stream
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: metadata
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: id
+(describe method here)
+
+returns:: (describe returnvalue here)
 
 METHOD:: hash
 (describe method here)
@@ -44,26 +59,6 @@ METHOD:: ==
 
 ARGUMENT:: that
 (describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: ip
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: group
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: user
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: port
-(describe method here)
 
 returns:: (describe returnvalue here)
 

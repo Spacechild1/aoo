@@ -1,7 +1,7 @@
 TITLE:: AooSendCtl
-summary:: Client-side representation of an AooSend UGen
-categories:: Server>Abstractions
-related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
 
 DESCRIPTION::
 (put long description here)
@@ -22,10 +22,141 @@ returns:: (describe returnvalue here)
 
 INSTANCEMETHODS::
 
+METHOD:: removeAll
+(describe method here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: autoInvite
+(describe method here)
+
+ARGUMENT:: enable
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
 METHOD:: prFind
 (describe method here)
 
 ARGUMENT:: sink
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: setCodecParam
+(describe method here)
+
+ARGUMENT:: codec
+(describe argument here)
+
+ARGUMENT:: param
+(describe argument here)
+
+ARGUMENT:: value
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prAdd
+(describe method here)
+
+ARGUMENT:: sink
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: handleUninvite
+(describe method here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: id
+(describe argument here)
+
+ARGUMENT:: token
+(describe argument here)
+
+ARGUMENT:: accept
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prRemove
+(describe method here)
+
+ARGUMENT:: sink
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: resendBufferSize
+(describe method here)
+
+ARGUMENT:: sec
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: dynamicResampling
+(describe method here)
+
+ARGUMENT:: b
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: dllBandwidth
+(describe method here)
+
+ARGUMENT:: bw
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: sinks
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: handleInvite
+(describe method here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: id
+(describe argument here)
+
+ARGUMENT:: token
+(describe argument here)
+
+ARGUMENT:: accept
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: redundancy
+(describe method here)
+
+ARGUMENT:: n
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: remove
+(describe method here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: id
+(describe argument here)
+
+ARGUMENT:: action
 (describe argument here)
 
 returns:: (describe returnvalue here)
@@ -39,7 +170,7 @@ ARGUMENT:: addr
 ARGUMENT:: id
 (describe argument here)
 
-ARGUMENT:: channelOnset
+ARGUMENT:: active
 (describe argument here)
 
 ARGUMENT:: action
@@ -47,23 +178,26 @@ ARGUMENT:: action
 
 returns:: (describe returnvalue here)
 
-METHOD:: prAdd
+METHOD:: format
 (describe method here)
 
-ARGUMENT:: sink
+ARGUMENT:: fmt
 (describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: removeAll
-(describe method here)
 
 ARGUMENT:: action
 (describe argument here)
 
 returns:: (describe returnvalue here)
 
-METHOD:: channelOnset
+METHOD:: pingInterval
+(describe method here)
+
+ARGUMENT:: sec
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: sinkChannelOffset
 (describe method here)
 
 ARGUMENT:: addr
@@ -85,109 +219,51 @@ ARGUMENT:: size
 
 returns:: (describe returnvalue here)
 
-METHOD:: pingInterval
+METHOD:: init
 (describe method here)
-
-ARGUMENT:: sec
-(describe argument here)
 
 returns:: (describe returnvalue here)
 
-METHOD:: resendBufsize
+METHOD:: free
 (describe method here)
-
-ARGUMENT:: sec
-(describe argument here)
 
 returns:: (describe returnvalue here)
 
-METHOD:: timeFilterBW
-(describe method here)
-
-ARGUMENT:: bw
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prHandleEvent
+METHOD:: prParseEvent
 (describe method here)
 
 ARGUMENT:: type
 (describe argument here)
 
-ARGUMENT::  ... args
+ARGUMENT:: args
 (describe argument here)
 
 returns:: (describe returnvalue here)
 
-METHOD:: remove
+METHOD:: start
 (describe method here)
 
-ARGUMENT:: addr
+ARGUMENT:: metadata
 (describe argument here)
 
-ARGUMENT:: id
+returns:: (describe returnvalue here)
+
+METHOD:: stop
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: getCodecParam
+(describe method here)
+
+ARGUMENT:: codec
+(describe argument here)
+
+ARGUMENT:: param
 (describe argument here)
 
 ARGUMENT:: action
 (describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: redundancy
-(describe method here)
-
-ARGUMENT:: n
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: accept
-(describe method here)
-
-ARGUMENT:: enable
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: init
-(describe method here)
-
-ARGUMENT:: synth
-(describe argument here)
-
-ARGUMENT:: synthIndex
-(describe argument here)
-
-ARGUMENT:: port
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: format
-(describe method here)
-
-ARGUMENT:: fmt
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prRemove
-(describe method here)
-
-ARGUMENT:: sink
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: sinks
-(describe method here)
 
 returns:: (describe returnvalue here)
 

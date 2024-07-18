@@ -1,0 +1,58 @@
+TITLE:: AooDispatcher
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+
+DESCRIPTION::
+(put long description here)
+
+
+CLASSMETHODS::
+
+METHOD:: new
+(describe method here)
+
+ARGUMENT:: client
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+
+INSTANCEMETHODS::
+
+METHOD:: value
+(describe method here)
+
+ARGUMENT:: msg
+(describe argument here)
+
+ARGUMENT:: time
+(describe argument here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+ARGUMENT:: recvPort
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: wrapFunc
+(describe method here)
+
+ARGUMENT:: funcProxy
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: client
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+
+EXAMPLES::
+
+code::
+(some example code)
+::

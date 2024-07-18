@@ -1,0 +1,344 @@
+TITLE:: AooClient
+summary:: (put short description here)
+categories:: Undocumented classes
+related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+
+DESCRIPTION::
+(put long description here)
+
+
+CLASSMETHODS::
+
+METHOD:: initClass
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: clients
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: find
+(describe method here)
+
+ARGUMENT:: port
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: new
+(describe method here)
+
+ARGUMENT:: port
+(describe argument here)
+
+ARGUMENT:: server
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prNextToken
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+
+INSTANCEMETHODS::
+
+METHOD:: server
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prInit
+(describe method here)
+
+ARGUMENT:: port
+(describe argument here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prRemoveGroup
+(describe method here)
+
+ARGUMENT:: group
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prAddPeer
+(describe method here)
+
+ARGUMENT:: peer
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prFindPeer
+(describe method here)
+
+ARGUMENT:: peer
+(describe argument here)
+
+ARGUMENT:: loud
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prResolveAddr
+(describe method here)
+
+ARGUMENT:: addr
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prHandleMsg
+(describe method here)
+
+ARGUMENT:: time
+(describe argument here)
+
+ARGUMENT:: group
+(describe argument here)
+
+ARGUMENT:: user
+(describe argument here)
+
+ARGUMENT:: type
+(describe argument here)
+
+ARGUMENT:: data
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: packetSize
+(describe method here)
+
+ARGUMENT:: size
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: joinGroup
+(describe method here)
+
+ARGUMENT:: groupName
+(describe argument here)
+
+ARGUMENT:: groupPwd
+(describe argument here)
+
+ARGUMENT:: userName
+(describe argument here)
+
+ARGUMENT:: userPwd
+(describe argument here)
+
+ARGUMENT:: groupMetadata
+(describe argument here)
+
+ARGUMENT:: userMetadata
+(describe argument here)
+
+ARGUMENT:: relayAddr
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: state
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: peers
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: connect
+(describe method here)
+
+ARGUMENT:: hostname
+(describe argument here)
+
+ARGUMENT:: port
+(describe argument here)
+
+ARGUMENT:: password
+(describe argument here)
+
+ARGUMENT:: metadata
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+ARGUMENT:: timeout
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: free
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prRemovePeer
+(describe method here)
+
+ARGUMENT:: peer
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: leaveGroup
+(describe method here)
+
+ARGUMENT:: group
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prAddGroup
+(describe method here)
+
+ARGUMENT:: group
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: sendMsg
+(describe method here)
+
+ARGUMENT:: target
+(describe argument here)
+
+ARGUMENT:: time
+(describe argument here)
+
+ARGUMENT:: msg
+(describe argument here)
+
+ARGUMENT:: type
+(describe argument here)
+
+ARGUMENT:: reliable
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: init
+(describe method here)
+
+ARGUMENT:: port
+(describe argument here)
+
+ARGUMENT:: server
+(describe argument here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prHandleEvent
+(describe method here)
+
+ARGUMENT:: type
+(describe argument here)
+
+ARGUMENT:: args
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: removeListener
+(describe method here)
+
+ARGUMENT:: type
+(describe argument here)
+
+ARGUMENT:: func
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: groups
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: addListener
+(describe method here)
+
+ARGUMENT:: type
+(describe argument here)
+
+ARGUMENT:: func
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: prFindGroup
+(describe method here)
+
+ARGUMENT:: group
+(describe argument here)
+
+ARGUMENT:: loud
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: disconnect
+(describe method here)
+
+ARGUMENT:: action
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: port
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: pingInterval
+(describe method here)
+
+ARGUMENT:: sec
+(describe argument here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: dispatcher
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+METHOD:: id
+(describe method here)
+
+returns:: (describe returnvalue here)
+
+
+EXAMPLES::
+
+code::
+(some example code)
+::
