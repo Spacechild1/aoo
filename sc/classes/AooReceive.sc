@@ -4,7 +4,7 @@ AooReceive : MultiOutUGen {
 	var <>port;
 	var <>id;
 
-	*ar { arg port, id=0, numChannels=1, latency, tag;
+	*ar { arg port, id=0, numChannels=1, latency=0.025, tag;
 		^this.multiNewList([\audio, tag, port, id, numChannels, latency]);
 	}
 	*kr { ^this.shouldNotImplement(thisMethod) }

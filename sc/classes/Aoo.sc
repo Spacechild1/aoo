@@ -561,20 +561,12 @@ AooCtl {
 	var eventFuncs;
 	var replyAddr;
 
-	*new { arg synth, tag, synthDef, action;
+	*new { arg synth, tag, synthDef;
 		var md = Aoo.prFindMetadata(this.ugenClass, synth, tag, synthDef);
-		^super.new.init.prInit(synth, md.index, md.port, md.id, { |x|
-			if (action.notNil) {
-				forkIfNeeded {
-					// make sure that Unit is fully initialized
-					synth.server.sync;
-					action.value(this);
-				}
-			}
-		});
+		^super.new.init.prInit(synth, md.index, md.port, md.id);
 	}
 
-	*collect { arg synth, tags, synthDef, action;
+	*collect { arg synth, tags, synthDef;
 		var result = ();
 		var ugens = Aoo.prFindUGens(this.ugenClass, synth, synthDef);
 		tags.notNil.if {
@@ -583,26 +575,21 @@ AooCtl {
 				key = key.asSymbol; // !
 				value = ugens.at(key);
 				value.notNil.if {
-					result.put(key, this.new(synth, value.index));
+					result.put(key, super.new.init.prInit(synth, value.index, value.port, value.id));
 				} { "can't find % with tag %".format(this.name, key).warn; }
 			}
 		} {
 			// get all plugins, except those without tag (shouldn't happen)
 			ugens.pairsDo { arg key, value;
 				(key.class == Symbol).if {
-					result.put(key, this.new(synth, value.index, value.port, value.id));
+					result.put(key, super.new.init.prInit(synth, value.index, value.port, value.id));
 				} { "ignoring % without tag".format(this.ugenClass.name).warn; }
 			}
 		};
-		if (action.notNil) {
-			forkIfNeeded {
-				// make sure that all Units are fully initialized
-				synth.server.sync;
-				action.value(result);
-			};
-		};
 		^result;
 	}
+
+	isOpen { ^this.port.notNil }
 
 	addListener { arg type, func;
 		eventFuncs[type] = eventFuncs[type].addFunc(func);
@@ -616,7 +603,7 @@ AooCtl {
 		}
 	}
 
-	prInit { arg synth, synthIndex, port, id, action;
+	prInit { arg synth, synthIndex, port, id;
 		this.synth = synth;
 		this.synthIndex = synthIndex;
 		this.port = port;
@@ -636,9 +623,7 @@ AooCtl {
 						eventFuncs[type].value(*args);
 					}
 				}, '/aoo/event', addr, argTemplate: [synth.nodeID, synthIndex]);
-
-				action.value(this);
-			} { action.value(nil); }
+			}
 		});
 
 		synth.onFree {

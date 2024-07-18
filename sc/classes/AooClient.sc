@@ -30,11 +30,11 @@ AooClient {
 		^clients[port];
 	}
 
-	*new { arg port, server, action;
-		^super.new.init(port, server, action);
+	*new { arg port, server;
+		^super.new.init(port, server);
 	}
 
-	init { arg port, server, action;
+	init { arg port, server;
 		var localAddr = NetAddr.localAddr;
 
 		if (clients[port].notNil) {
@@ -49,18 +49,14 @@ AooClient {
 		replyAddr = NetAddr(this.server.addr.ip, port);
 
 		Aoo.prGetReplyAddr(port, this.server, { |addr|
-			if (addr.isNil) {
-				action.value(nil);
-			} {
+			if (addr.notNil) {
 				// create AooClient on the server
 				OSCFunc({ arg msg;
 					var success = msg[2].asBoolean;
 					success.if {
 						this.prInit(port, addr);
-						action.value(this);
 					} {
 						"Couldn't create AooClient on port %: %".format(port, msg[3]).error;
-						action.value(nil);
 					};
 				}, '/aoo/client/new', argTemplate: [port]).oneShot;
 
@@ -68,6 +64,8 @@ AooClient {
 			}
 		});
 	}
+
+	isOpen { ^this.port.notNil }
 
 	prInit { arg port, addr;
 		this.port = port;
@@ -407,7 +405,6 @@ AooClient {
 			}
 		}; // else: broadcast
 		oscMsg = ['/sc/msg', groupID, userID, time !? { time.asFloat }, reliable.asBoolean.asInteger ] ++ data.asOSCArgArray;
-		oscMsg.postln;
 		time.notNil.if {
 			// schedule on the current (logical) system time.
 			// on the Server, we add the relative timestamp contained in the OSC message

@@ -21,7 +21,7 @@ AooServer {
 		^super.new.init(port, server, action);
 	}
 
-	init { arg port, server, action, password, relay = false;
+	init { arg port, server, password, relay = false;
 		var localAddr = NetAddr.localAddr;
 		port = port ?? this.class.defaultPort;
 
@@ -33,18 +33,14 @@ AooServer {
 		eventFuncs = IdentityDictionary();
 
 		Aoo.prGetReplyAddr(port, this.server, { |addr|
-			if (addr.isNil) {
-				action.value(nil);
-			} {
+			if (addr.notNil) {
 				// create AooServer on the server
 				OSCFunc({ arg msg;
 					var success = msg[2].asBoolean;
 					success.if {
 						this.prInit(port, addr);
-						action.value(addr);
 					} {
 						"Couldn't create AooServer on port %: %".format(port, msg[3]).error;
-						action.value(nil);
 					};
 				}, '/aoo/server/new', argTemplate: [port]).oneShot;
 
