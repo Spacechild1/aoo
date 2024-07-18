@@ -150,20 +150,19 @@ AooClient {
 		);
 		if (event.notNil) {
 			eventFuncs[type].value(*event);
+			eventFuncs[\event].value(type, event);
 		}
 	}
 
 	prHandleMsg { arg time, group, user, type, data;
 		var msg, peer;
-		var handler = eventFuncs[\msg];
-		if (handler.notNil) {
-			peer = AooPeer.prFromEvent(group, user);
-			peer = this.prFindPeer(peer, true);
-			if (peer.notNil) {
-				msg = AooData.fromBytes(type, data);
-				if (msg.notNil) {
-					handler.value(msg, time, peer);
-				}
+		peer = AooPeer.prFromEvent(group, user);
+		peer = this.prFindPeer(peer, true);
+		if (peer.notNil) {
+			msg = AooData.fromBytes(type, data);
+			if (msg.notNil) {
+				eventFuncs[\msg].value(msg, time, peer);
+				eventFuncs[\event] !? _.value(\msg, [msg, time, peer]);
 			}
 		}
 	}

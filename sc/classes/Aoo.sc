@@ -621,6 +621,7 @@ AooCtl {
 					var args = this.prParseEvent(type, msg[4..]);
 					if (args.notNil) {
 						eventFuncs[type].value(*args);
+						eventFuncs[\event].value(type, *args);
 					}
 				}, '/aoo/event', addr, argTemplate: [synth.nodeID, synthIndex]);
 			}
