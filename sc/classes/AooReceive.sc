@@ -69,14 +69,14 @@ AooReceiveCtl : AooCtl {
 		// If source doesn't exist, fake an \add event.
 		// This happens if the source has been added
 		// before we could create the controller.
-		if (this.prFind(source).isNil and: { type != \add }) {
-			this.prAdd(source);
+		if (this.prFindSource(source).isNil and: { type != \add }) {
+			this.prAddSource(source);
 			this.eventHandler.value(\add, event);
 		};
 		type.switch(
 			\ping, { ^event ++ args[3..] },
-			\add, { this.prAdd(source); ^event },
-			\remove, { this.prRemove(source); ^event },
+			\add, { this.prAddSource(source); ^event },
+			\remove, { this.prRemoveSource(source); ^event },
 			\decline, { ^event },
 			\inviteTimeout, { ^event },
 			\format, {
@@ -105,16 +105,16 @@ AooReceiveCtl : AooCtl {
 		)
 	}
 
-	prAdd { arg source;
+	prAddSource { arg source;
 		this.sources = this.sources.add(source);
 	}
 
-	prRemove { arg source;
+	prRemoveSource { arg source;
 		var index = this.sources.indexOfEqual(source);
 		index !? { this.sources.removeAt(index) };
 	}
 
-	prFind { arg source;
+	prFindSource { arg source;
 		var index = this.sources.indexOfEqual(source);
 		^index !? { this.sources[index] };
 	}
@@ -128,7 +128,7 @@ AooReceiveCtl : AooCtl {
 			success.if {
 				newAddr = this.prResolveAddr(AooAddr(ip, port));
 				source = AooEndpoint(newAddr, id);
-				this.prAdd(source);
+				this.prAddSource(source);
 				action.value(source);
 			} { action.value }
 		}, '/aoo/invite', replyID).oneShot;

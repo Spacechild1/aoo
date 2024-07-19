@@ -26,10 +26,16 @@ SynthDef(\aoo_recv, { |out|
 )
 
 ~s = AooSendCtl(Synth(\aoo_send));
-~s.add(AooAddr.resolve("localhost", 9999), 1);
-~s.add(AooPeer("test", "bar"), 1);
+~s.addSink(AooAddr.resolve("localhost", 9999), 1);
+~s.addSink(AooPeer("test", "bar"), 1);
 ~s.removeAll;
-~s.format(AooFormatPCM(2, 256, 48000, 2));
+~s.setFormat(AooFormatPCM(2, 256, 48000, 2));
+~s.setFormat(AooFormatOpus(2, 480));
+~s.format;
+~s.setCodecParam(\bitrate, 100000);
+~s.setCodecParam(\complexity, 12);
+~s.getCodecParam(\bitrate, { |value| value.postln });
+~s.getCodecParam(\complexity, { |value| value.postln });
 ~s.start;
 ~s.stop;
 ~s.start(AooData(\osc, [ "/foo", 1, 2, 3 ]));
@@ -153,13 +159,16 @@ fork {
 	s.sync;
 
 	e = AooSendCtl.collect(Synth(\aoo_send));
+	// e = AooSendCtl.collect(Synth(\aoo_send), [ \a, \b ]);
 
 	s.sync; // make sure that the AooSend UGesn have been fully initialized!
 
-	e[\a].add(AooAddr("127.0.0.1", 9999), 1);
-	e[\b].add(AooAddr("127.0.0.1", 9997), 1);
+	e[\a].addSink(AooAddr("127.0.0.1", 9999), 1);
+	e[\b].addSink(AooAddr("127.0.0.1", 9997), 1);
 }
 )
+e[\a].sinks;
+e[\b].sinks;
 
 
 AooAddr("localhost", 9999)

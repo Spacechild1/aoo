@@ -64,13 +64,13 @@ AooSendCtl : AooCtl {
 		// If sink doesn't exist, fake an \add event.
 		// This happens if the sink has been added
 		// automatically before we could create the controller.
-		if (this.prFind(sink).isNil and: { type != \add }) {
-			this.prAdd(sink);
+		if (this.prFindSink(sink).isNil and: { type != \add }) {
+			this.prAddSink(sink);
 			this.eventHandler.value(\add, event);
 		};
 		type.switch(
-			\add, { this.prAdd(sink); ^event },
-			\remove, { this.prRemove(sink); ^event },
+			\add, { this.prAddSink(sink); ^event },
+			\remove, { this.prRemoveSink(sink); ^event },
 			\invite, { ^event ++ args[3] ++ AooData.fromBytes(*args[4..]) },
 			\uninvite, { ^event ++ args[3] },
 			\ping, { ^event ++ args[3..] },
@@ -79,7 +79,7 @@ AooSendCtl : AooCtl {
 		)
 	}
 
-	add { arg addr, id, active=true, action;
+	addSink { arg addr, id, active=true, action;
 		var replyID = AooCtl.prNextReplyID;
 		addr = this.prResolveAddr(addr);
 
@@ -88,7 +88,7 @@ AooSendCtl : AooCtl {
 			success.if {
 				newAddr = this.prResolveAddr(AooAddr(ip, port));
 				sink = AooEndpoint(newAddr, id);
-				this.prAdd(sink);
+				this.prAddSink(sink);
 				action.value(sink);
 			} { action.value(nil) }
 		}, '/aoo/add', replyID).oneShot;
@@ -96,7 +96,7 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/add', replyID, addr.ip, addr.port, id, active.asInteger);
 	}
 
-	remove { arg addr, id, action;
+	removeSink { arg addr, id, action;
 		var replyID = AooCtl.prNextReplyID;
 		addr = this.prResolveAddr(addr);
 
@@ -107,16 +107,16 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/remove', replyID, addr.ip, addr.port, id);
 	}
 
-	prAdd { arg sink;
+	prAddSink { arg sink;
 		this.sinks = this.sinks.add(sink);
 	}
 
-	prRemove { arg sink;
+	prRemoveSink { arg sink;
 		var index = this.sinks.indexOfEqual(sink);
 		index !? { this.sinks.removeAt(index) };
 	}
 
-	prFind { arg sink;
+	prFindSink { arg sink;
 		var index = this.sinks.indexOfEqual(sink);
 		^index !? { this.sinks[index] };
 	}
@@ -160,7 +160,7 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/stop');
 	}
 
-	activate { arg addr, id, active;
+	activateSink { arg addr, id, active;
 		addr = this.prResolveAddr(addr);
 		this.prSendMsg('/activate', addr.ip, addr.port, id, active.asBoolean.asInteger)
 	}
