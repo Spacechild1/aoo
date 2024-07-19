@@ -285,12 +285,14 @@ AooFormat {
 	var <>blockSize;
 	var <>sampleRate;
 
+	codec { ^this.class.codec }
+
 	asOSCArgArray {
 		// replace 'nil' with 'auto' Symbol
 		arg array = this.instVarSize.collect { arg i;
 			this.instVarAt(i) ? \auto;
 		};
-		^[ this.class.codec ] ++ array;
+		^[ this.codec ] ++ array;
 	}
 
 	printOn { arg stream;
