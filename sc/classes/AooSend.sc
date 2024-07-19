@@ -73,7 +73,7 @@ AooSendCtl : AooCtl {
 			\invite, { ^event ++ args[3] ++ AooData.fromBytes(*args[4..]) },
 			\uninvite, { ^event ++ args[3] },
 			\ping, { ^event ++ args[3..] },
-			\frameResend, { ^event ++ args[3] },
+			\frameResent, { ^event ++ args[3] },
 			{ "%: ignore unknown event '%'".format(this.class, type).warn; ^nil }
 		)
 	}

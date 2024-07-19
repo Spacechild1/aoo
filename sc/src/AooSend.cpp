@@ -141,7 +141,7 @@ void AooSend::handleEvent(const AooEvent *event){
     }
     case kAooEventFrameResend:
     {
-        beginEvent(msg, "frameResend", event->frameResend.endpoint)
+        beginEvent(msg, "frameResent", event->frameResend.endpoint)
             << event->frameResend.count;
         sendMsgRT(msg);
         break;
