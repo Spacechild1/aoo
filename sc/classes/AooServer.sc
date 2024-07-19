@@ -38,7 +38,7 @@ AooServer {
 				OSCFunc({ arg msg;
 					var success = msg[2].asBoolean;
 					success.if {
-						this.prInit(port, addr);
+						this.prPostInit(port, addr);
 					} {
 						"Couldn't create AooServer on port %: %".format(port, msg[3]).error;
 					};
@@ -51,7 +51,7 @@ AooServer {
 		});
 	}
 
-	prInit { arg port, addr;
+	prPostInit { arg port, addr;
 		this.port = port;
 		replyAddr = addr;
 

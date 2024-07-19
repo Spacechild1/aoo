@@ -54,7 +54,7 @@ AooClient {
 				OSCFunc({ arg msg;
 					var success = msg[2].asBoolean;
 					success.if {
-						this.prInit(port, addr);
+						this.prPostInit(port, addr);
 					} {
 						"Couldn't create AooClient on port %: %".format(port, msg[3]).error;
 					};
@@ -67,7 +67,7 @@ AooClient {
 
 	isOpen { ^this.port.notNil }
 
-	prInit { arg port, addr;
+	prPostInit { arg port, addr;
 		this.port = port;
 		replyAddr = addr;
 		nodeAddr = NetAddr(addr.ip, port);
