@@ -38,6 +38,7 @@ AooSendCtl : AooCtl {
 	classvar <>ugenClass;
 
 	var <>sinks;
+	var <>format;
 
 	*initClass {
 		Class.initClassTree(AooSend);
@@ -161,26 +162,27 @@ AooSendCtl : AooCtl {
 
 	activate { arg addr, id, active;
 		addr = this.prResolveAddr(addr);
-		this.prSendMsg('/activate', addr.ip, addr.port, id, active.asInteger)
+		this.prSendMsg('/activate', addr.ip, addr.port, id, active.asBoolean.asInteger)
 	}
 
-	format { arg fmt, action;
+	setFormat { arg format, action;
 		var replyID = AooCtl.prNextReplyID;
-		fmt.isKindOf(AooFormat).not.if {
-			MethodError("aoo: bad type for 'fmt' parameter", this).throw;
+		format.isKindOf(AooFormat).not.if {
+			MethodError("%: bad type for 'format' argument", this.class.name).throw;
 		};
 		this.prMakeOSCFunc({ arg success, codec ...args;
 			var f;
-			success.if {
+			if (success) {
 				f = codec.switch(
 					\pcm, { AooFormatPCM(*args) },
 					\opus, { AooFormatOpus(*args) },
 					{ "%: unknown format '%'".format(this.class.name, codec).error; nil }
-				)
+				);
 			};
+			this.format = f;
 			action.value(f);
 		}, '/aoo/format', replyID).oneShot;
-		this.prSendMsg('/format', replyID, *fmt.asOSCArgArray);
+		this.prSendMsg('/format', replyID, *format.asOSCArgArray);
 	}
 
 	setCodecParam { arg param, value;
