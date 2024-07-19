@@ -538,8 +538,9 @@ AooDispatcher : OSCMessageDispatcher {
 					^this;
 				}
 			};
-			peer = client.prFindPeer(AooPeer.prNew(msg[2], msg[3])) ?? {
-				"AooClient: received message from unknown peer (%)".format(addr).warn;
+			peer = AooPeer.prFromEvent(msg[2], msg[3]);
+			peer = client.prFindPeer(peer) ?? {
+				"AooClient: received message from unknown peer (group ID: %, user ID: %)".format(addr, msg[2], msg[3]).warn;
 				^this;
 			};
 			AooData.prParseOSCMsg(msg[5]) !? { |oscMsg|
