@@ -341,7 +341,7 @@ void aoo_send_format(AooSendUnit *unit, sc_msg_iter* args) {
                     f.header.numChannels = nchannels;
                 }
                 auto err = owner.source()->setFormat(f.header);
-                if (err == kAooOk){
+                if (err == kAooOk) {
                     // only send format on success
                     msg << (int32_t)1;
                     serializeFormat(msg, f.header);
@@ -544,7 +544,7 @@ void aoo_send_codec_get(AooSendUnit *unit, sc_msg_iter* args){
             char buf[256];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             owner.beginReply(msg, "/aoo/codec/get", replyID);
-            msg << codec << param;
+            msg << (int32_t)1 << codec << param;
 
             // TODO: what to send on failure?
         #if AOO_USE_OPUS
@@ -570,6 +570,10 @@ void aoo_send_codec_get(AooSendUnit *unit, sc_msg_iter* args){
                 }
             }
         #endif
+            // failure
+            msg.Clear();
+            owner.beginReply(msg, "/aoo/codec/get", replyID);
+            msg << (int32_t)0 << codec << param;
 codec_sendit:
             owner.sendMsgNRT(msg);
 

@@ -179,19 +179,26 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/format', replyID, *fmt.asOSCArgArray);
 	}
 
-	setCodecParam { arg codec, param, value;
-		this.prSendMsg('/codec_set', codec, param, value);
+	setCodecParam { arg param, value;
+		if (this.format.isNil) {
+			MethodError("%: cannot set codec parameter without format", this.class.name).throw;
+		};
+		this.prSendMsg('/codec_set', this.format.codec, param, value);
 	}
 
-	getCodecParam { arg codec, param, action;
+	getCodecParam { arg param, action;
 		var replyID = AooCtl.prNextReplyID;
 
+		if (this.format.isNil) {
+			MethodError("%: cannot get codec parameter without format", this.class.name).throw;
+		};
+
 		this.prMakeOSCFunc({ arg success, codec, param, value;
-			success.if { action.value(value) }
-			{ action.value };
+			if (success) { action.value(value) }
+			{ action.value(nil) }
 		}, '/aoo/codec/get', replyID).oneShot;
 
-		this.prSendMsg('/codec_get', replyID);
+		this.prSendMsg('/codec_get', replyID, this.format.codec, param);
 	}
 
 	channelOffset { arg addr, id, offset;
