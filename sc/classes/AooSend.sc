@@ -203,23 +203,23 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/packet_size', size);
 	}
 
-	pingInterval { arg sec;
-		this.prSendMsg('/ping', sec);
+	pingInterval { arg seconds;
+		this.prSendMsg('/ping', seconds);
 	}
 
-	resendBufferSize { arg sec;
-		this.prSendMsg('/resend', sec);
+	resendBufferSize { arg seconds;
+		this.prSendMsg('/resend', seconds);
 	}
 
-	redundancy { arg n;
-		this.prSendMsg('/redundancy', n);
+	redundancy { arg count;
+		this.prSendMsg('/redundancy', count);
 	}
 
-	dynamicResampling { arg b;
-		this.prSendMsg('/dynamic_resampling', b);
+	dynamicResampling { arg enable;
+		this.prSendMsg('/dynamic_resampling', enable);
 	}
 
-	dllBandwidth { arg bw;
-		this.prSendMsg('/dll_bw', bw);
+	dllBandwidth { arg bandwidth;
+		this.prSendMsg('/dll_bw', bandwidth);
 	}
 }
