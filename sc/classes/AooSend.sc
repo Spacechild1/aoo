@@ -10,8 +10,8 @@ AooSend : UGen {
 	*kr { ^this.shouldNotImplement(thisMethod) }
 
 	init { arg tag, port, id, gate ... inputs;
-		if (tag.isKindOf(UGen)) {
-			MethodError("'tag' must not be a UGen!", this).throw;
+		if (tag.notNil and: { tag.isKindOf(Symbol).not }) {
+			MethodError("'tag' must be a Symbol!", this).throw;
 		};
 		if (port.isInteger.not) {
 			MethodError("'port' must be an Integer!", this).throw;

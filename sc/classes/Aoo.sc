@@ -563,27 +563,34 @@ AooCtl {
 	var replyAddr;
 
 	*new { arg synth, tag, synthDef;
-		var md = Aoo.prFindMetadata(this.ugenClass, synth, tag, synthDef);
-		^super.new.init.prInit(synth, md.index, md.port, md.id);
+		var md;
+		if (tag.notNil and: { tag.isKindOf(Symbol).not }) {
+			MethodError("'tag' must be a Symbol!", this).throw;
+		};
+		md = Aoo.prFindMetadata(this.ugenClass, synth, tag, synthDef);
+		^super.new.prInit(synth, md.index, md.port, md.id).init;
 	}
 
 	*collect { arg synth, tags, synthDef;
-		var result = ();
+		var value, obj, result = ();
 		var ugens = Aoo.prFindUGens(this.ugenClass, synth, synthDef);
 		tags.notNil.if {
-			tags.do { arg key;
-				var value;
-				key = key.asSymbol; // !
-				value = ugens.at(key);
+			tags.do { arg tag;
+				if (tag.isKindOf(Symbol).not) {
+					MethodError("'tag' must be a Symbol!", this).throw;
+				};
+				value = ugens.at(tag);
 				value.notNil.if {
-					result.put(key, super.new.init.prInit(synth, value.index, value.port, value.id));
-				} { "can't find % with tag %".format(this.name, key).warn; }
+					obj = super.new.prInit(synth, value.index, value.port, value.id).init;
+					result.put(tag, obj);
+				} { "can't find % with tag %".format(this.name, tag).warn; }
 			}
 		} {
 			// get all plugins, except those without tag (shouldn't happen)
 			ugens.pairsDo { arg key, value;
-				(key.class == Symbol).if {
-					result.put(key, super.new.init.prInit(synth, value.index, value.port, value.id));
+				(key.isKindOf(Symbol)).if {
+					obj = super.new.init.prInit(synth, value.index, value.port, value.id);
+					result.put(key, obj);
 				} { "ignoring % without tag".format(this.ugenClass.name).warn; }
 			}
 		};
