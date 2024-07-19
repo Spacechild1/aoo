@@ -167,14 +167,14 @@ void AooReceive::handleEvent(const AooEvent *event){
     }
     case kAooEventBlockDrop:
     {
-        beginEvent(msg, "blockDrop", event->blockDrop.endpoint)
+        beginEvent(msg, "blockDropped", event->blockDrop.endpoint)
             << event->blockDrop.count;
         sendMsgRT(msg);
         break;
     }
     case kAooEventBlockResend:
     {
-        beginEvent(msg, "blockResend", event->blockResend.endpoint)
+        beginEvent(msg, "blockResent", event->blockResend.endpoint)
             << event->blockResend.count;
         sendMsgRT(msg);
         break;

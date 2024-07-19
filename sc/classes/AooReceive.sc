@@ -96,8 +96,8 @@ AooReceiveCtl : AooCtl {
 				^event ++ states[args[3]];
 			},
 			\latency, { ^event ++ args[3..] },
-			\blockDrop, { ^event ++ args[3] },
-			\blockResend, { ^event ++ args[3] },
+			\blockDropped, { ^event ++ args[3] },
+			\blockResent, { ^event ++ args[3] },
 			\blockXRun, { ^event ++ args[3] },
 			\overrun, { ^event },
 			\underrun, { ^event },
