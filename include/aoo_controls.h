@@ -63,6 +63,8 @@ enum
     kAooCtlGetRedundancy,
     kAooCtlSetSourceTimeout,
     kAooCtlGetSourceTimeout,
+    kAooCtlSetSinkTimeout,
+    kAooCtlGetSinkTimeout,
     kAooCtlSetInviteTimeout,
     kAooCtlGetInviteTimeout,
     kAooCtlGetBufferFillRatio,
