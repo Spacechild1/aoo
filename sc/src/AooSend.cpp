@@ -577,7 +577,7 @@ codec_sendit:
         });
 }
 
-void aoo_send_sink_channel(AooSendUnit *unit, sc_msg_iter* args) {
+void aoo_send_channel_offset(AooSendUnit *unit, sc_msg_iter* args) {
     aoo::ip_address addr;
     AooId id;
     if (unit->delegate().node()->getSinkArg(args, addr, id)) {
@@ -664,7 +664,7 @@ void AooSendLoad(InterfaceTable *inTable){
     AooUnitCmd(codec_set);
     AooUnitCmd(codec_get);
     AooUnitCmd(activate);
-    AooUnitCmd(sink_channel);
+    AooUnitCmd(channel_offset);
     AooUnitCmd(packet_size);
     AooUnitCmd(ping);
     AooUnitCmd(resend);

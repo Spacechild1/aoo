@@ -194,9 +194,9 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/codec_get', replyID);
 	}
 
-	sinkChannelOffset { arg addr, id, offset;
+	channelOffset { arg addr, id, offset;
 		addr = this.prResolveAddr(addr);
-		this.prSendMsg('/sink_channel', addr.ip, addr.port, id, offset);
+		this.prSendMsg('/channel_offset', addr.ip, addr.port, id, offset);
 	}
 
 	packetSize { arg size;
