@@ -131,12 +131,16 @@ AooSendCtl : AooCtl {
 		this.prSendMsg('/remove', replyID);
 	}
 
-	handleInvite { arg addr, id, token, accept;
-		// TODO
+	handleInvite { arg sink, token, accept=true;
+		// var addr = this.prResolveAddr(sink.addr);
+		var addr = sink.addr;
+		this.prSendMsg('/invite', addr.ip, addr.port, id, token, accept.asInteger);
 	}
 
-	handleUninvite { arg addr, id, token, accept;
-		// TODO
+	handleUninvite { arg sink, token, accept=true;
+		// var addr = this.prResolveAddr(sink.addr);
+		var addr = sink.addr;
+		this.prSendMsg('/uninvite', addr.ip, addr.port, id, token, accept.asInteger);
 	}
 
 	autoInvite { arg enable;

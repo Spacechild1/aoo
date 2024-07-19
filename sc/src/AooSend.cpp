@@ -312,6 +312,36 @@ void aoo_send_remove(AooSendUnit *unit, sc_msg_iter* args){
         });
 }
 
+void aoo_send_invite(AooSendUnit *unit, sc_msg_iter* args){
+    aoo::ip_address addr;
+    AooId id;
+    if (unit->delegate().node()->getSinkArg(args, addr, id)) {
+        AooId token = args->geti();
+        AooBool accept = args->geti();
+        AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
+        auto err = unit->delegate().source()->handleInvite(ep, token, accept);
+        if (err != kAooOk) {
+            LOG_ERROR("AooSend: could not handle invitation from " << addr
+                      << "|" << id << ": " << aoo_strerror(err));
+        }
+    }
+}
+
+void aoo_send_uninvite(AooSendUnit *unit, sc_msg_iter* args){
+    aoo::ip_address addr;
+    AooId id;
+    if (unit->delegate().node()->getSinkArg(args, addr, id)) {
+        AooId token = args->geti();
+        AooBool accept = args->geti();
+        AooEndpoint ep { addr.address(), (AooAddrSize)addr.length(), id };
+        auto err = unit->delegate().source()->handleUninvite(ep, token, accept);
+        if (err != kAooOk) {
+            LOG_ERROR("AooSend: could not handle uninvitation from " << addr
+                      << "|" << id << ": " << aoo_strerror(err));
+        }
+    }
+}
+
 void aoo_send_auto_invite(AooSendUnit *unit, sc_msg_iter* args){
     unit->delegate().setAutoInvite(args->geti());
 }
@@ -664,6 +694,8 @@ void AooSendLoad(InterfaceTable *inTable){
     AooUnitCmd(format);
     AooUnitCmd(start);
     AooUnitCmd(stop);
+    AooUnitCmd(invite);
+    AooUnitCmd(uninvite);
     AooUnitCmd(auto_invite);
     AooUnitCmd(codec_set);
     AooUnitCmd(codec_get);
