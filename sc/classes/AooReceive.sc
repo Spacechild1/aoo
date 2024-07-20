@@ -130,7 +130,7 @@ AooReceiveCtl : AooCtl {
 				source = AooEndpoint(newAddr, id);
 				this.prAddSource(source);
 				action.value(source);
-			} { action.value }
+			} { action.value(nil) }
 		}, '/aoo/invite', replyID).oneShot;
 
 		if (metadata.notNil) {
@@ -163,8 +163,8 @@ AooReceiveCtl : AooCtl {
 		this.prSendMsg('/packet_size',size);
 	}
 
-	latency { arg sec;
-		this.prSendMsg('/latency', sec);
+	latency { arg seconds;
+		this.prSendMsg('/latency', seconds);
 	}
 
 	reset { arg addr, id;
@@ -184,19 +184,19 @@ AooReceiveCtl : AooCtl {
 		this.prSendMsg('/resend_limit', nil, limit);
 	}
 
-	resendInterval { arg sec;
-		this.prSendMsg('/resend_interval', nil, sec);
+	resendInterval { arg seconds;
+		this.prSendMsg('/resend_interval', nil, seconds);
 	}
 
-	bufferSize { arg sec;
-		this.prSendMsg('/buffer_size', sec);
+	bufferSize { arg seconds;
+		this.prSendMsg('/buffer_size', seconds);
 	}
 
-	dynamicResampling { arg b;
-		this.prSendMsg('/dynamic_resampling', b);
+	dynamicResampling { arg enable;
+		this.prSendMsg('/dynamic_resampling', enable);
 	}
 
-	dllBandwidth { arg bw;
-		this.prSendMsg('/dll_bw', bw);
+	dllBandwidth { arg bandwidth;
+		this.prSendMsg('/dll_bw', bandwidth);
 	}
 }
