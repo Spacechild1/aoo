@@ -358,6 +358,10 @@ void aoo_recv_packet_size(AooReceiveUnit *unit, sc_msg_iter *args){
     unit->delegate().sink()->setPacketSize(args->geti());
 }
 
+void aoo_recv_ping(AooReceiveUnit *unit, sc_msg_iter* args){
+    unit->delegate().sink()->setPingInterval(args->getf());
+}
+
 void aoo_recv_resend(AooReceiveUnit *unit, sc_msg_iter *args){
     unit->delegate().sink()->setResendData(args->geti());
 }
@@ -432,6 +436,7 @@ void AooReceiveLoad(InterfaceTable* inTable) {
     AooUnitCmd(invite);
     AooUnitCmd(uninvite);
     AooUnitCmd(latency);
+    AooUnitCmd(ping);
     AooUnitCmd(packet_size);
     AooUnitCmd(buffer_size);
     AooUnitCmd(resend);

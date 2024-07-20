@@ -155,6 +155,10 @@ AooReceiveCtl : AooCtl {
 		this.prSendMsg('/uninvite');
 	}
 
+	pingInterval { arg seconds;
+		this.prSendMsg('/ping', seconds);
+	}
+
 	packetSize { arg size;
 		this.prSendMsg('/packet_size',size);
 	}
