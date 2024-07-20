@@ -123,6 +123,12 @@ void AooReceive::handleEvent(const AooEvent *event){
         sendMsgRT(msg);
         break;
     }
+    case kAooEventUninviteTimeout:
+    {
+        beginEvent(msg, "uninviteTimeout", event->uninviteTimeout.endpoint);
+        sendMsgRT(msg);
+        break;
+    }
     case kAooEventFormatChange:
     {
         auto& e = event->formatChange;

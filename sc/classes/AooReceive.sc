@@ -79,6 +79,7 @@ AooReceiveCtl : AooCtl {
 			\remove, { this.prRemoveSource(source); ^event },
 			\decline, { ^event },
 			\inviteTimeout, { ^event },
+			\uninviteTimeout, { ^event },
 			\format, {
 				// make AooFormat object from OSC args
 				codec = args[3].asSymbol;
@@ -89,7 +90,7 @@ AooReceiveCtl : AooCtl {
 				);
 				^event ++ fmt;
 			},
-			\start, { args.postln; ^event ++ AooData.fromBytes(*args[3..]) },
+			\start, { ^event ++ AooData.fromBytes(*args[3..]) },
 			\stop, { ^event },
 			\state, {
 				states = #[ \inactive, \active, \buffering ];
