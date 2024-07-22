@@ -66,6 +66,7 @@ struct t_aoo_send
     t_outlet *x_msgout = nullptr;
     // (un)invite
     AooId x_invite_token = kAooIdInvalid;
+    bool x_running = false;
     bool x_auto_invite = true; // on by default
     bool x_multi = false;
 
@@ -457,10 +458,16 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
 
             x->x_invite_token = e.token;
             if (x->x_auto_invite) {
-                // accept by default
-                x->x_source->handleInvite(ep, e.token, true);
+                // accept by default if streaming; decline otherwise
+                x->x_source->handleInvite(ep, e.token, x->x_running);
+                if (!x->x_running) {
+                    return; // don't send "invite" event!
+                }
             }
-
+            // Send "invite" event.
+            // In manual mode, the user is supposed to handle the invitation;
+            // in auto mode, we want to tell the user that the sink has been
+            // activated (together with the metadata).
             if (e.metadata) {
                 // <ip> <port> <id> <type> <data...>
                 auto count = 4 + (e.metadata->size / datatype_element_size(e.metadata->type));
@@ -483,7 +490,10 @@ static void aoo_send_handle_event(t_aoo_send *x, const AooEvent *event, int32_t)
                 // accept by default
                 x->x_source->handleUninvite(ep, event->uninvite.token, true);
             }
-
+            // Send "uninvite" event.
+            // In manual mode, the user is supposed to handle the uninvitation;
+            // in auto mode, we want to tell the user that the sink has been
+            // deactivated.
             outlet_anything(x->x_msgout, gensym("uninvite"), 3, msg);
 
             break;
@@ -816,6 +826,7 @@ static void aoo_send_start(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
     } else {
         x->x_source->startStream(offset, nullptr);
     }
+    x->x_running = true;
 }
 
 static void aoo_send_stop(t_aoo_send *x)
@@ -826,6 +837,7 @@ static void aoo_send_stop(t_aoo_send *x)
         offset = 0;
     }
     x->x_source->stopStream(offset);
+    x->x_running = false;
 }
 
 static void aoo_send_reset(t_aoo_send *x)
