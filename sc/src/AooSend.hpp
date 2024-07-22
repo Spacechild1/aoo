@@ -29,11 +29,22 @@ public:
 
     void removeAll();
 
+    void startStream(int32_t offset, const AooData* metadata) {
+        source_->startStream(offset, metadata);
+        running_ = true;
+    }
+
+    void stopStream(int32_t offset) {
+        source_->stopStream(offset);
+        running_ = false;
+    }
+
     void setAutoInvite(bool b){
         autoInvite_ = b;
     }
 private:
     AooSource::Ptr source_;
+    bool running_ = false;
     bool autoInvite_ = true;
 };
 

@@ -118,13 +118,19 @@ void AooSend::handleEvent(const AooEvent *event){
     {
         auto& e = event->invite;
         if (autoInvite_) {
-            // accept by default
-            source_->handleInvite(e.endpoint, e.token, true);
-        } else {
-            beginEvent(msg, "invite", e.endpoint) << e.token;
-            serializeData(msg, e.metadata);
-            sendMsgRT(msg);
+            // accept by default if streaming; decline otherwise
+            source_->handleInvite(e.endpoint, e.token, running_);
+            if (!running_) {
+                return; // don't send "invite" event!
+            }
         }
+        // Send "invite" event.
+        // In manual mode, the client is supposed to handle the invitation;
+        // in auto mode, we want to tell the client that the sink has been
+        // activated (together with the metadata).
+        beginEvent(msg, "invite", e.endpoint) << e.token;
+        serializeData(msg, e.metadata);
+        sendMsgRT(msg);
         break;
     }
     case kAooEventUninvite:
@@ -133,10 +139,13 @@ void AooSend::handleEvent(const AooEvent *event){
         if (autoInvite_) {
             // accept by default
             source_->handleUninvite(e.endpoint, e.token, true);
-        } else {
-            beginEvent(msg, "uninvite", e.endpoint) << e.token;
-            sendMsgRT(msg);
         }
+        // Send "uninvite" event.
+        // In manual mode, the client is supposed to handle the uninvitation;
+        // in auto mode, we want to tell the client that the sink has been
+        // deactivated.
+        beginEvent(msg, "uninvite", e.endpoint) << e.token;
+        sendMsgRT(msg);
         break;
     }
     case kAooEventFrameResend:
@@ -200,9 +209,9 @@ void AooSendUnit::next(int numSamples){
                 auto gate = buf[i];
                 if (gate != prev) {
                     if (gate != 0.0) {
-                        delegate().source()->startStream(i, nullptr);
+                        delegate().startStream(i, nullptr);
                     } else {
-                        delegate().source()->stopStream(i);
+                        delegate().stopStream(i);
                     }
                     prev = gate;
                 }
@@ -213,9 +222,9 @@ void AooSendUnit::next(int numSamples){
             auto gate = in0(gateIndex);
             if (gate != lastGate_) {
                 if (gate != 0.0) {
-                    delegate().source()->startStream(0, nullptr);
+                    delegate().startStream(0, nullptr);
                 } else {
-                    delegate().source()->stopStream(0);
+                    delegate().stopStream(0);
                 }
                 lastGate_ = gate;
             }
@@ -394,12 +403,13 @@ void aoo_send_format(AooSendUnit *unit, sc_msg_iter* args) {
 void aoo_send_start(AooSendUnit *unit, sc_msg_iter* args) {
     auto offset = unit->mWorld->mSampleOffset;
     auto md = parseData(args);
-    unit->delegate().source()->startStream(offset, md ? &md.value() : nullptr);
+    unit->delegate().startStream(offset, md ? &md.value() : nullptr);
+
 }
 
 void aoo_send_stop(AooSendUnit *unit, sc_msg_iter* args) {
     auto offset = unit->mWorld->mSampleOffset;
-    unit->delegate().source()->stopStream(offset);
+    unit->delegate().stopStream(offset);
 }
 
 #if AOO_USE_OPUS
