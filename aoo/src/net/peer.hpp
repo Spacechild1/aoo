@@ -108,7 +108,7 @@ public:
 
     void send_message(const message& msg, const sendfn& fn, int32_t packet_size, bool binary);
 
-    void handle_osc_message(Client& client, const char *pattern,
+    void handle_osc_message(Client& client, std::string_view pattern,
                             osc::ReceivedMessageArgumentIterator it,
                             int remaining, const ip_address& addr);
 

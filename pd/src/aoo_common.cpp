@@ -117,16 +117,16 @@ bool format_parse(t_pd *x, AooFormatStorage &f, int argc, t_atom *argv, int maxn
         // application type ("auto", "audio", "voip", "lowdelay"
         opus_int32 applicationType;
         if (argc > 4){
-            t_symbol *type = atom_getsymbol(argv + 4);
-            if (type == gensym("_") || type == gensym("audio")){
+            std::string_view type = atom_getsymbol(argv + 4)->s_name;
+            if (type == "_" || type == "audio") {
                 applicationType = OPUS_APPLICATION_AUDIO;
-            } else if (type == gensym("voip")){
+            } else if (type == "voip"){
                 applicationType = OPUS_APPLICATION_VOIP;
-            } else if (type == gensym("lowdelay")){
+            } else if (type == "lowdelay") {
                 applicationType = OPUS_APPLICATION_RESTRICTED_LOWDELAY;
             } else {
                 pd_error(x,"%s: unsupported application type '%s'",
-                         classname(x), type->s_name);
+                         classname(x), type.data());
                 return false;
             }
         } else {

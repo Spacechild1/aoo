@@ -544,20 +544,20 @@ AooError AOO_CALL aoo::Source::handleMessage(
             osc::ReceivedPacket packet((const char *)data, size);
             osc::ReceivedMessage msg(packet);
 
-            auto pattern = msg.AddressPattern() + onset;
-            if (!strcmp(pattern, kAooMsgStart)){
+            std::string_view pattern = msg.AddressPattern() + onset;
+            if (pattern == kAooMsgStart) {
                 handle_start_request(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgStop)){
+            } else if (pattern == kAooMsgStop) {
                 handle_stop_request(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgData)){
+            } else if (pattern == kAooMsgData) {
                 handle_data_request(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgInvite)){
+            } else if (pattern == kAooMsgInvite) {
                 handle_invite(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgUninvite)){
+            } else if (pattern == kAooMsgUninvite) {
                 handle_uninvite(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgPing)){
+            } else if (pattern == kAooMsgPing) {
                 handle_ping(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgPong)){
+            } else if (pattern == kAooMsgPong) {
                 handle_pong(msg, addr);
             } else {
                 LOG_WARNING("AooSource: unknown message " << pattern);

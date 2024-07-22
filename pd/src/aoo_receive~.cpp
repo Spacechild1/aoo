@@ -277,20 +277,21 @@ static void aoo_receive_codec_get(t_aoo_receive *x, t_symbol *s, int argc, t_ato
 static void aoo_receive_resample_method(t_aoo_receive *x, t_symbol *s)
 {
     AooResampleMethod method;
-    if (!strcmp(s->s_name, "hold")) {
+    std::string_view name = s->s_name;
+    if (name == "hold") {
         method = kAooResampleHold;
-    } else if (!strcmp(s->s_name, "linear")) {
+    } else if (name == "linear") {
         method = kAooResampleLinear;
-    } else if (!strcmp(s->s_name, "cubic")) {
+    } else if (name == "cubic") {
         method = kAooResampleCubic;
     } else {
         pd_error(x, "%s: bad resample method '%s'",
-                 classname(x), s->s_name);
+                 classname(x), name.data());
         return;
     }
     if (x->x_sink->setResampleMethod(method) != kAooOk) {
         pd_error(x, "%s: resample method '%s' not supported",
-                 classname(x), s->s_name);
+                 classname(x), name.data());
     }
 }
 

@@ -1699,34 +1699,34 @@ void Client::handle_server_message(const osc::ReceivedMessage& msg, int32_t n){
     try {
         if (type == kAooMsgTypeClient){
             // now compare subpattern
-            auto pattern = msg.AddressPattern() + onset;
+            std::string_view pattern = msg.AddressPattern() + onset;
             LOG_DEBUG("AooClient: got message " << pattern << " from server");
 
-            if (!strcmp(pattern, kAooMsgPing)) {
+            if (pattern == kAooMsgPing) {
                 handle_ping(msg);
-            } else if (!strcmp(pattern, kAooMsgPong)) {
+            } else if (pattern == kAooMsgPong) {
                 handle_pong(msg);
-            } else if (!strcmp(pattern, kAooMsgPeerJoin)) {
+            } else if (pattern == kAooMsgPeerJoin) {
                 handle_peer_join(msg);
-            } else if (!strcmp(pattern, kAooMsgPeerLeave)) {
+            } else if (pattern == kAooMsgPeerLeave) {
                 handle_peer_leave(msg);
-            } else if (!strcmp(pattern, kAooMsgPeerChanged)) {
+            } else if (pattern == kAooMsgPeerChanged) {
                 handle_peer_changed(msg);
-            } else if (!strcmp(pattern, kAooMsgLogin)) {
+            } else if (pattern == kAooMsgLogin) {
                 handle_login(msg);
-            } else if (!strcmp(pattern, kAooMsgMessage)) {
+            } else if (pattern == kAooMsgMessage) {
                 handle_server_notification(msg);
-            } else if (!strcmp(pattern, kAooMsgGroupChanged)) {
+            } else if (pattern == kAooMsgGroupChanged) {
                 handle_group_changed(msg);
-            } else if (!strcmp(pattern, kAooMsgUserChanged)) {
+            } else if (pattern == kAooMsgUserChanged) {
                 handle_user_changed(msg);
-            } else if (!strcmp(pattern, kAooMsgGroupEject)) {
+            } else if (pattern == kAooMsgGroupEject) {
                 handle_group_eject(msg);
-            } else if (!strcmp(pattern, kAooMsgGroupJoin) ||
-                       !strcmp(pattern, kAooMsgGroupLeave) ||
-                       !strcmp(pattern, kAooMsgGroupUpdate) ||
-                       !strcmp(pattern, kAooMsgUserUpdate) ||
-                       !strcmp(pattern, kAooMsgRequest)) {
+            } else if ((pattern == kAooMsgGroupJoin) ||
+                       (pattern == kAooMsgGroupLeave) ||
+                       (pattern == kAooMsgGroupUpdate) ||
+                       (pattern == kAooMsgUserUpdate) ||
+                       (pattern == kAooMsgRequest)) {
                 // handle response
                 auto token = msg.ArgumentsBegin()->AsInt32();
                 auto it = pending_requests_.find(token);
@@ -2376,13 +2376,13 @@ void udp_client::send_server_message(const osc::OutboundPacketStream& msg, const
 }
 
 void udp_client::handle_server_message(Client& client, const osc::ReceivedMessage& msg, int onset) {
-    auto pattern = msg.AddressPattern() + onset;
+    std::string_view pattern = msg.AddressPattern() + onset;
     LOG_DEBUG("AooClient: got server OSC message " << pattern);
 
     try {
-        if (!strcmp(pattern, kAooMsgPong)){
+        if (pattern == kAooMsgPong) {
             LOG_DEBUG("AooClient: got UDP pong from server");
-        } else if (!strcmp(pattern, kAooMsgQuery)){
+        } else if (pattern == kAooMsgQuery) {
             handle_query(client, msg);
         } else {
             LOG_WARNING("AooClient: received unexpected UDP message "

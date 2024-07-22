@@ -457,18 +457,18 @@ AooError AOO_CALL aoo::Sink::handleMessage(
             osc::ReceivedPacket packet((const char *)data, size);
             osc::ReceivedMessage msg(packet);
 
-            auto pattern = msg.AddressPattern() + onset;
-            if (!strcmp(pattern, kAooMsgStart)){
+            std::string_view pattern = msg.AddressPattern() + onset;
+            if (pattern == kAooMsgStart) {
                 return handle_start_message(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgStop)){
+            } else if (pattern == kAooMsgStop) {
                 return handle_stop_message(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgDecline)){
+            } else if (pattern == kAooMsgDecline) {
                 return handle_decline_message(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgData)){
+            } else if (pattern == kAooMsgData) {
                 return handle_data_message(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgPing)){
+            } else if (pattern == kAooMsgPing) {
                 return handle_ping_message(msg, addr);
-            } else if (!strcmp(pattern, kAooMsgPong)){
+            } else if (pattern == kAooMsgPong) {
                 return handle_pong_message(msg, addr);
             } else {
                 LOG_WARNING("AooSink: unknown message " << pattern);

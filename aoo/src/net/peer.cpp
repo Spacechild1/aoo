@@ -482,18 +482,18 @@ void peer::send_ack(const message_ack &ack, const sendfn& fn) {
     }
 }
 
-void peer::handle_osc_message(Client& client, const char *pattern,
+void peer::handle_osc_message(Client& client, std::string_view pattern,
                               osc::ReceivedMessageArgumentIterator it,
                               int remaining, const ip_address& addr) {
     LOG_DEBUG("AooClient: got OSC message " << pattern << " from " << *this);
 
-    if (!strcmp(pattern, kAooMsgPing)) {
+    if (pattern == kAooMsgPing) {
         handle_ping(client, it, addr);
-    } else if (!strcmp(pattern, kAooMsgPong)) {
+    } else if (pattern == kAooMsgPong) {
         handle_pong(client, it, addr);
-    } else if (!strcmp(pattern, kAooMsgMessage)) {
+    } else if (pattern == kAooMsgMessage) {
         handle_client_message(client, it);
-    } else if (!strcmp(pattern, kAooMsgAck)) {
+    } else if (pattern == kAooMsgAck) {
         handle_ack(client, it, remaining);
     } else {
         LOG_WARNING("AooClient: got unknown message "

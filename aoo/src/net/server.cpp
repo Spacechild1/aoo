@@ -970,28 +970,28 @@ void Server::handle_message(client_endpoint& client,
 
     try {
         if (type == kAooMsgTypeServer){
-            auto pattern = msg.AddressPattern() + onset;
+            std::string_view pattern = msg.AddressPattern() + onset;
             LOG_DEBUG("AooServer: got server message " << pattern);
-            if (!strcmp(pattern, kAooMsgLogin)){
+            if (pattern == kAooMsgLogin){
                 handle_login(client, msg);
             } else {
                 // all other messages must be received after login!
                 if (!client.active()) {
                     throw error(kAooErrorNotPermitted, "not logged in");
                 }
-                if (!strcmp(pattern, kAooMsgPing)){
+                if (pattern == kAooMsgPing) {
                     handle_ping(client, msg);
-                } else if (!strcmp(pattern, kAooMsgPong)) {
+                } else if (pattern == kAooMsgPong) {
                     handle_pong(client, msg);
-                } else if (!strcmp(pattern, kAooMsgGroupJoin)){
+                } else if (pattern == kAooMsgGroupJoin) {
                     handle_group_join(client, msg);
-                } else if (!strcmp(pattern, kAooMsgGroupLeave)){
+                } else if (pattern == kAooMsgGroupLeave) {
                     handle_group_leave(client, msg);
-                } else if (!strcmp(pattern, kAooMsgGroupUpdate)){
+                } else if (pattern == kAooMsgGroupUpdate) {
                     handle_group_update(client, msg);
-                } else if (!strcmp(pattern, kAooMsgUserUpdate)){
+                } else if (pattern == kAooMsgUserUpdate) {
                     handle_user_update(client, msg);
-                } else if (!strcmp(pattern, kAooMsgRequest)){
+                } else if (pattern == kAooMsgRequest) {
                     handle_custom_request(client, msg);
                 } else {
                     // NB: the client is supposed to check the server version
@@ -1535,12 +1535,12 @@ void Server::handle_udp_message(const AooByte *data, AooSize size, int onset,
         osc::ReceivedPacket packet((const char *)data, size);
         osc::ReceivedMessage msg(packet);
 
-        auto pattern = msg.AddressPattern() + onset;
+        std::string_view pattern = msg.AddressPattern() + onset;
         LOG_DEBUG("AooServer: handle client UDP message " << pattern);
 
-        if (!strcmp(pattern, kAooMsgPing)){
+        if (pattern == kAooMsgPing) {
             handle_ping(msg, addr);
-        } else if (!strcmp(pattern, kAooMsgQuery)) {
+        } else if (pattern == kAooMsgQuery) {
             handle_query(msg, addr);
         } else {
             LOG_ERROR("AooServer: unknown message " << pattern);
