@@ -72,14 +72,15 @@ void sink_desc::handle_invite(Source &s, AooId token, bool accept){
         if (s.is_running()){
             notify_start();
             s.notify_start();
+        } else {
+            LOG_WARNING("AooSource: " << ep << ": accept invitation without running stream");
         }
     } else {
         LOG_DEBUG("AooSource: " << ep << ": decline invitation (" << token << ")");
-        if (s.is_running()){
-            sink_request r(request_type::decline, ep);
-            r.decline.token = token;
-            s.push_request(r);
-        }
+        // NB: always send /decline message, even if we are not streaming!
+        sink_request r(request_type::decline, ep);
+        r.decline.token = token;
+        s.push_request(r);
     }
 }
 
@@ -1288,7 +1289,7 @@ void Source::restart_stream() {
     stream_state_.compare_exchange_strong(expected, stream_state::start);
 }
 
-// must be real-time safe; always called with update lock!
+// must be real-time safe; always called with update (try-)lock!
 void Source::make_new_stream(aoo::time_tag tt, AooData *md) {
     stream_tt_ = tt;
     sequence_ = 0;
@@ -2475,7 +2476,7 @@ void Source::handle_invite(const osc::ReceivedMessage& msg,
 
     LOG_DEBUG("AooSource: handle invitation by " << addr << "|" << id);
 
-    event_ptr e1, e2;
+    event_ptr e1;
 
     // NB: sinks can be added/removed from different threads,
     // so we have to lock a mutex to avoid the ABA problem!
@@ -2491,16 +2492,24 @@ void Source::handle_invite(const osc::ReceivedMessage& msg,
     // make sure that the event is only sent once per invitation.
     if (sink->need_invite(token)) {
         // push "invite" event
-        e2 = make_event<invite_event>(addr, id, token, metadata);
-    }
+        auto e2 = make_event<invite_event>(addr, id, token, metadata);
 
-    lock1.unlock(); // unlock before sending events
+        lock1.unlock(); // unlock before sending events
 
-    if (e1) {
-        send_event(std::move(e1), kAooThreadLevelNetwork);
-    }
-    if (e2) {
+        if (e1) {
+            send_event(std::move(e1), kAooThreadLevelNetwork);
+        }
         send_event(std::move(e2), kAooThreadLevelNetwork);
+    } else {
+        assert(e1 == nullptr);
+        // either the sink resent its /invite message before it received our
+        // /start resp. /decline message, or our /decline message has been lost;
+        // in the latter case we just let the invitation time out.
+        // TODO: figure out a good way to resend /decline messages.
+        // NOTE: when we accept an invitation, we essentially start a new stream.
+        // Even if our initial /start messages was lost, the subsequent /data messages
+        // (with a matching stream ID) would tell the sink that the invitation has been accepted.
+        LOG_VERBOSE("AooSource: " << sink->ep << ": ignore redundant/outdated invitation");
     }
 }
 
@@ -2528,10 +2537,12 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
                     auto e = make_event<uninvite_event>(addr, id, token);
                     send_event(std::move(e), kAooThreadLevelNetwork);
                 }
-                return; // don't send /stop message!
+                // let the user handle the uninvitation, don't send a /stop message yet!
+                return;
             } else {
                 LOG_VERBOSE("AooSource: ignoring '" << kAooMsgUninvite
                             << "' message: stream token mismatch (outdated?)");
+                // TODO: should we just return instead?
             }
         } else {
             // if the sink is inactive, it probably means that we have accepted the

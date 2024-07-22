@@ -99,11 +99,15 @@ struct sink_desc {
         return channel_.load(std::memory_order_relaxed);
     }
 
-    // called while locked
+    // a new stream has been started by the user;
+    // called while (try-)locked
     void start();
 
+    // the stream has been stopped by the user
     void stop(Source& s, int32_t offset);
 
+    // (de)activate a source; if the stream is running,
+    // this will also queue a /start resp. /stop message.
     void activate(Source& s, bool b);
 
     bool is_active() const {
@@ -118,10 +122,12 @@ struct sink_desc {
 
     void handle_uninvite(Source& s, AooId token, bool accept);
 
+    // tell that we need to send a /start message
     void notify_start() {
         needstart_.exchange(true, std::memory_order_release);
     }
 
+    // check if we need to send a /start message
     bool need_start() {
         return needstart_.exchange(false, std::memory_order_acquire);
     }

@@ -2961,8 +2961,8 @@ void send_uninvitation(const Sink& s, const endpoint& ep,
     ep.send(msg, fn);
 }
 
-// only send every 50 ms! LATER we might make this settable
-#define INVITE_INTERVAL 0.05
+// only send every 100 ms! LATER we might make this settable
+#define INVITE_INTERVAL 0.1
 
 void source_desc::send_invitations(const Sink &s, const sendfn &fn){
     auto state = state_.load(std::memory_order_acquire);
