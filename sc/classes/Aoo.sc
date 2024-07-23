@@ -314,8 +314,8 @@ AooFormatPCM : AooFormat {
 
 	var <>bitDepth;
 
-	*new { arg channels, blockSize, sampleRate, bitDepth;
-		^super.newCopyArgs(channels, blockSize, sampleRate, bitDepth);
+	*new { arg channels, blockSize, sampleRate, bitDepth = \float32;
+		^super.newCopyArgs(channels, blockSize, sampleRate, bitDepth.asSymbol);
 	}
 }
 
@@ -324,8 +324,8 @@ AooFormatOpus : AooFormat {
 
 	var <>applicationType;
 
-	*new { arg channels, blockSize, sampleRate, applicationType;
-		^super.newCopyArgs(channels, blockSize, sampleRate, applicationType);
+	*new { arg channels, blockSize, sampleRate, applicationType = \audio;
+		^super.newCopyArgs(channels, blockSize, sampleRate, applicationType.asSymbol);
 	}
 }
 
