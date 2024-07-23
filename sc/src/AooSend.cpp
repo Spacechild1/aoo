@@ -420,7 +420,7 @@ bool get_opus_bitrate(AooSource *src, osc::OutboundPacketStream& msg) {
     opus_int32 value;
     auto err = AooSource_getOpusBitrate(src, 0, &value);
     if (err != kAooOk){
-        LOG_ERROR("could not get bitrate: " << aoo_strerror(err));
+        LOG_ERROR("could not get bit rate: " << aoo_strerror(err));
         return false;
     }
     switch (value){
@@ -441,13 +441,13 @@ void set_opus_bitrate(AooSource *src, sc_msg_iter &args) {
     // "auto", "max" or number
     opus_int32 value;
     if (args.nextTag() == 's'){
-        const char *s = args.gets();
-        if (!strcmp(s, "auto")){
+        std::string_view s = args.gets();
+        if (s == "auto") {
             value = OPUS_AUTO;
-        } else if (!strcmp(s, "max")){
+        } else if (s == "max") {
             value = OPUS_BITRATE_MAX;
         } else {
-            LOG_ERROR("bad bitrate argument '" << s << "'");
+            LOG_ERROR("bad bit rate argument '" << s << "'");
             return;
         }
     } else {
@@ -455,13 +455,13 @@ void set_opus_bitrate(AooSource *src, sc_msg_iter &args) {
         if (bitrate > 0){
             value = bitrate;
         } else {
-            LOG_ERROR("bitrate argument " << bitrate << " out of range");
+            LOG_ERROR("bit rate argument " << bitrate << " out of range");
             return;
         }
     }
     auto err = AooSource_setOpusBitrate(src, 0, value);
     if (err != kAooOk){
-        LOG_ERROR("could not set bitrate: " << aoo_strerror(err));
+        LOG_ERROR("could not set bit rate: " << aoo_strerror(err));
     }
 }
 
@@ -513,12 +513,12 @@ bool get_opus_signal(AooSource *src, osc::OutboundPacketStream& msg){
 void set_opus_signal(AooSource *src, sc_msg_iter &args){
     // "auto", "music", "voice"
     opus_int32 value;
-    const char *s = args.gets();
-    if (!strcmp(s, "auto")) {
+    std::string_view s = args.gets();
+    if (s == "auto") {
         value = OPUS_AUTO;
-    } else if (!strcmp(s, "music")) {
+    } else if (s == "music") {
         value = OPUS_SIGNAL_MUSIC;
-    } else if (!strcmp(s, "voice")) {
+    } else if (s == "voice") {
         value = OPUS_SIGNAL_VOICE;
     } else {
         LOG_ERROR("unsupported signal type '" << s << "'");
@@ -542,18 +542,18 @@ void aoo_send_codec_set(AooSendUnit *unit, sc_msg_iter* args){
             sc_msg_iter args(data->size, data->data);
             skipUnitCmd(&args);
 
-            auto codec = args.gets();
-            auto param = args.gets();
+            std::string_view codec = args.gets();
+            std::string_view param = args.gets();
 
         #if AOO_USE_OPUS
-            if (!strcmp(codec, "opus")) {
-                if (!strcmp(param, "bitrate")){
+            if (codec == "opus") {
+                if (param == "bitrate") {
                     set_opus_bitrate(owner.source(), args);
                     return false; // done
-                } else if (!strcmp(param, "complexity")){
+                } else if (param == "complexity") {
                     set_opus_complexity(owner.source(), args);
                     return false; // done
-                } else if (!strcmp(param, "signal")){
+                } else if (param == "signal") {
                     set_opus_signal(owner.source(), args);
                     return false; // done
                 }
@@ -578,31 +578,31 @@ void aoo_send_codec_get(AooSendUnit *unit, sc_msg_iter* args){
             skipUnitCmd(&args);
 
             auto replyID = args.geti();
-            auto codec = args.gets();
-            auto param = args.gets();
+            std::string_view codec = args.gets();
+            std::string_view param = args.gets();
 
             char buf[256];
             osc::OutboundPacketStream msg(buf, sizeof(buf));
             owner.beginReply(msg, "/aoo/codec/get", replyID);
-            msg << (int32_t)1 << codec << param;
+            msg << (int32_t)1 << codec.data() << param.data();
 
             // TODO: what to send on failure?
         #if AOO_USE_OPUS
-            if (!strcmp(codec, "opus")){
-                if (!strcmp(param, "bitrate")){
-                    if (get_opus_bitrate(owner.source(), msg)){
+            if (codec == "opus") {
+                if (param == "bitrate") {
+                    if (get_opus_bitrate(owner.source(), msg)) {
                         goto codec_sendit;
                     } else {
                         return false;
                     }
-                } else if (!strcmp(param, "complexity")){
-                    if (get_opus_complexity(owner.source(), msg)){
+                } else if (param == "complexity") {
+                    if (get_opus_complexity(owner.source(), msg)) {
                         goto codec_sendit;
                     } else {
                         return false;
                     }
-                } else if (!strcmp(param, "signal")){
-                    if (get_opus_signal(owner.source(), msg)){
+                } else if (param == "signal") {
+                    if (get_opus_signal(owner.source(), msg)) {
                         goto codec_sendit;
                     } else {
                         return false;
@@ -613,7 +613,7 @@ void aoo_send_codec_get(AooSendUnit *unit, sc_msg_iter* args){
             // failure
             msg.Clear();
             owner.beginReply(msg, "/aoo/codec/get", replyID);
-            msg << (int32_t)0 << codec << param;
+            msg << (int32_t)0 << codec.data() << param.data();
 codec_sendit:
             owner.sendMsgNRT(msg);
 

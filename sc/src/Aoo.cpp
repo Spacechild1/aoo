@@ -248,22 +248,22 @@ static int32_t getFormatParam(sc_msg_iter *args, const char *name, int32_t def)
 bool parseFormat(const AooUnit& unit, int defNumChannels,
                  sc_msg_iter *args, AooFormatStorage &f)
 {
-    const char *codec = args->gets("");
+    std::string_view codec = args->gets("");
 
-    if (!strcmp(codec, kAooCodecNull)) {
+    if (codec == kAooCodecNull) {
         auto numChannels = getFormatParam(args, "channels", defNumChannels);
         auto blockSize = getFormatParam(args, "blocksize", unit.bufferSize());
         auto sampleRate = getFormatParam(args, "samplerate", unit.sampleRate());
 
         AooFormatNull_init((AooFormatNull *)&f, numChannels, sampleRate, blockSize);
-    } else if (!strcmp(codec, kAooCodecPcm)){
+    } else if (codec == kAooCodecPcm) {
         auto numChannels = getFormatParam(args, "channels", defNumChannels);
         auto blockSize = getFormatParam(args, "blocksize", unit.bufferSize());
         auto sampleRate = getFormatParam(args, "samplerate", unit.sampleRate());
 
         int nbytes = getFormatParam(args, "bitdepth", 4);
         AooPcmBitDepth bitdepth;
-        switch (nbytes){
+        switch (nbytes) {
         case 1:
             bitdepth = kAooPcmInt8;
             break;
@@ -287,7 +287,7 @@ bool parseFormat(const AooUnit& unit, int defNumChannels,
         AooFormatPcm_init((AooFormatPcm *)&f, numChannels, sampleRate, blockSize, bitdepth);
     }
 #if AOO_USE_OPUS
-    else if (!strcmp(codec, kAooCodecOpus)){
+    else if (codec == kAooCodecOpus) {
         auto numChannels = getFormatParam(args, "channels", defNumChannels);
         auto blockSize = getFormatParam(args, "blocksize", 480); // 10ms
         auto sampleRate = getFormatParam(args, "samplerate", 48000);
@@ -295,12 +295,12 @@ bool parseFormat(const AooUnit& unit, int defNumChannels,
         // application type ("auto", "audio", "voip", "lowdelay")
         opus_int32 applicationType;
         if (args->remain() > 0){
-            auto type = args->gets("");
-            if (!strcmp(type, "auto") || !strcmp(type, "audio")){
+            std::string_view type = args->gets("");
+            if (type == "auto" || type == "audio") {
                 applicationType = OPUS_APPLICATION_AUDIO;
-            } else if (!strcmp(type, "voip")){
+            } else if (type == "voip") {
                 applicationType = OPUS_APPLICATION_VOIP;
-            } else if (!strcmp(type, "lowdelay")){
+            } else if (type == "lowdelay") {
                 applicationType = OPUS_APPLICATION_RESTRICTED_LOWDELAY;
             } else {
                 LOG_ERROR("unsupported application type '" << type << "'");
@@ -326,9 +326,10 @@ bool serializeFormat(osc::OutboundPacketStream& msg, const AooFormat& f)
     msg << f.codecName << (int32_t)f.numChannels
         << (int32_t)f.blockSize << (int32_t)f.sampleRate;
 
-    if (!strcmp(f.codecName, kAooCodecNull)) {
+    std::string_view codec = f.codecName;
+    if (codec == kAooCodecNull) {
         return true;
-    } else if (!strcmp(f.codecName, kAooCodecPcm)){
+    } else if (codec == kAooCodecPcm) {
         // pcm <channels> <blocksize> <samplerate> <bitdepth>
         auto& fmt = (AooFormatPcm &)f;
         int nbytes;
@@ -356,7 +357,7 @@ bool serializeFormat(osc::OutboundPacketStream& msg, const AooFormat& f)
         return true;
     }
 #if AOO_USE_OPUS
-    else if (!strcmp(f.codecName, kAooCodecOpus)){
+    else if (codec == kAooCodecOpus) {
         // opus <channels> <blocksize> <samplerate> <application>
         auto& fmt = (AooFormatOpus &)f;
 
