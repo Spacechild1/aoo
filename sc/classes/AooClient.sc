@@ -4,11 +4,10 @@ AooClient {
 
 	var <>server;
 	var <>port;
-	var <>id;
-	var <>state;
 	var <>dispatcher;
 	var <>peers;
 	var <>groups;
+	var <>state;
 
 	var eventOSCFunc;
 	var msgOSCFunc;
@@ -122,7 +121,7 @@ AooClient {
 		var event = type.switch(
 			\disconnect, {
 				"disconnected from server".error;
-				args[1]
+				AooError(args[0], args[1])
 			},
 			\peerJoin, {
 				md = AooData.fromBytes(*args[6..7]);
@@ -216,13 +215,13 @@ AooClient {
 		^nil;
 	}
 
-	connect { arg hostname, port, password, metadata, action, timeout=10;
-		var resp, token;
+	connect { arg hostname, port, password, metadata, timeout=5, action;
+		var resp, token, watchdog;
 		this.port ?? { MethodError("AooClient: not initialized", this).throw };
 
 		state.switch(
-			\connected, { "AooClient: already connected".warn; ^this },
-			\connecting, { "AooClient: still connecting".warn ^this }
+			\connected, { ^MethodError("already connected", this).throw },
+			\connecting, { ^MethodError("still connecting", this).throw }
 		);
 		state = \connecting;
 
@@ -231,35 +230,35 @@ AooClient {
 		token = this.class.prNextToken;
 
 		resp = OSCFunc({ arg msg;
-			var errmsg, errcode, clientID, version, metadata;
-			var success = (msg[3] == 0);
-			if (success) {
+			var err, clientID, version, metadata;
+			watchdog.stop; // cancel watchdog Routine!
+			if (msg[3] == 0) {
 				clientID = msg[4];
 				version = msg[5];
 				metadata = AooData.fromBytes(*msg[6..7]);
-				"AooClient: connected to % % (client ID: %)".format(hostname, port, clientID).postln;
+				// "%: connected to % % (client ID: %)".format(this.class.name, hostname, port, clientID).postln;
 				state = \connected;
-				action.value(true, clientID, version, metadata);
+				action.value(nil, clientID, version, metadata);
 			} {
-				errmsg = msg[4];
-				"AooClient: couldn't connect to % %: %".format(hostname, port, errmsg).error;
+				err = AooError(*msg[3..4]);
+				"AooClient: could not connect to % %: %".format(hostname, port, err.message).error;
 				state = \disconnected;
-				action.value(false, errmsg);
+				action.value(err);
 			};
 		}, '/aoo/client/connect', replyAddr, argTemplate: [this.port, token]).oneShot;
 
-		// NOTE: the default timeout should be larger than the default
-		// UDP handshake time out.
-		// We need the timeout in case a reply message gets lost and
-		// leaves the client in limbo...
-		SystemClock.sched(timeout, {
+		// We need a timeout mechanism in case the reply message gets lost
+		// and leaves the AooClient in limbo...
+		// NOTE: the timeout must be larger than the connection timeout!
+		watchdog = fork {
+			(timeout * 2).wait;
 			(state == \connecting).if {
-				"AooClient: connection time out".error;
+				"AooClient: connect method timed out with no reply".error;
 				resp.free;
 				state = \disconnected;
 				action.value(false, "time out");
 			}
-		});
+		};
 
 		if (metadata.notNil) {
 			server.sendMsg('/cmd', '/aoo_client_connect',
@@ -274,42 +273,43 @@ AooClient {
 		var token;
 		this.port ?? { MethodError("AooClient not initialized", this).throw };
 		(state != \connected).if {
-			"AooClient not connected".warn;
+			"AooClient: not connected".warn;
 			^this;
 		};
 		token = this.class.prNextToken;
 
 		OSCFunc({ arg msg;
-			var success = (msg[3] == 0);
-			var errmsg = msg[4];
-			success.if {
+			var err;
+			if (msg[3] == 0) {
 				// remove all groups and peers
 				this.peers = [];
 				this.groups = [];
-				this.id = nil;
-				"AooClient: disconnected".postln;
+				// "AooClient: disconnected".postln;
 			} {
-				"AooClient: couldn't disconnect: %".format(errmsg).error;
+				err = AooError(*msg[3..4]);
+				"AooClient: could not disconnect: %".format(err.message).error;
 			};
 			state = \disconnected;
-			action.value(success, errmsg);
+			action.value(err);
 		}, '/aoo/client/disconnect', replyAddr, argTemplate: [this.port, token]).oneShot;
 
 		server.sendMsg('/cmd', '/aoo_client_disconnect', this.port, token);
 	}
 
-	joinGroup { arg groupName, groupPwd, userName, userPwd, groupMetadata, userMetadata, relayAddr, action;
+	joinGroup { arg groupName, groupPassword, userName, userPassword, groupMetadata, userMetadata, relayAddr, action;
 		var token, args;
-		this.port ?? { MethodError("AooClient not initialized", this).throw };
+		this.port ?? { ^MethodError("AooClient not initialized", this).throw };
+		if (state != \connected) {
+			^MethodError("not connected to an AOO server", this).throw
+		};
 		token = this.class.prNextToken;
-		groupPwd = groupPwd ?? { "" };
-		userPwd = userPwd ?? { "" };
+		groupPassword = groupPassword ?? { "" };
+		userPassword = userPassword ?? { "" };
 
 		OSCFunc({ arg msg;
-			var errmsg, errcode, groupID, userID, user, group;
+			var err, groupID, userID, user, group;
 			var groupMetadata, userMetadata, privateMetadata, relayAddr;
-			var success = (msg[3] == 0);
-			if (success) {
+			if (msg[3] == 0) {
 				groupID = msg[4];
 				userID = msg[5];
 				groupMetadata = AooData.fromBytes(*msg[6..7]);
@@ -319,17 +319,17 @@ AooClient {
 				user = AooUser(userName, userID, userMetadata);
 				group = AooGroup(groupName, groupID, groupMetadata);
 				this.prAddGroup(group);
-				action.value(true, group, user, privateMetadata);
+				action.value(nil, group, user, privateMetadata);
 			} {
-				errmsg = msg[4];
-				"AooClient: couldn't join group '%': %".format(groupName, errmsg).error;
-				action.value(false, errmsg);
+				err = AooError(*msg[3..4]);
+				"AooClient: could not join group '%': %".format(groupName, err.message).error;
+				action.value(err);
 			};
 		}, '/aoo/client/group/join', replyAddr, argTemplate: [this.port, token]).oneShot;
 
 		// port, token, group name, group pwd, [group metadata],
 		// user name, user pwd, [user metadata], [relay address]
-		args = [this.port, token, groupName, groupPwd, userName, userPwd];
+		args = [this.port, token, groupName, groupPassword, userName, userPassword];
 		if (groupMetadata.notNil) {
 			args = args ++ groupMetadata.asOSCArgArray;
 		} { args.add($N).add($N) };
@@ -365,15 +365,15 @@ AooClient {
 		};
 
 		OSCFunc({ arg msg;
-			var success = (msg[3] == 0);
-			var errmsg = msg[4];
-			if (success) {
+			var err;
+			if (msg[3] == 0) {
 				"AooClient: left group '%'".format(group.name).postln;
 				this.prRemoveGroup(group);
 			} {
-				"AooClient: couldn't leave group '%': %".format(group.name, errmsg).error;
+				err = AooError(*msg[3..4]);
+				"AooClient: could not leave group '%': %".format(group.name, err.message).error;
 			};
-			action.value(success, errmsg);
+			action.value(err);
 		}, '/aoo/client/group/leave', replyAddr, argTemplate: [this.port, token]).oneShot;
 
 		server.sendMsg('/cmd', '/aoo_client_group_leave', this.port, token, group.id);

@@ -286,6 +286,20 @@ AooData {
 	}
 }
 
+AooError {
+	var <>code;
+	var <>message;
+
+	*new { arg code, message;
+		^super.newCopyArgs(code, message.asString);
+	}
+
+	printOn { arg stream;
+		stream << this.class.name << "("
+		<< message << ")";
+	}
+}
+
 AooFormat {
 	classvar <>codec = \unknown;
 
