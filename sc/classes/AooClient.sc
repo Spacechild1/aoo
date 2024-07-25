@@ -418,8 +418,8 @@ AooClient {
 		server.sendMsg('/cmd', '/aoo_packetsize', this.port, size);
 	}
 
-	pingInterval { arg sec;
-		server.sendMsg('/cmd', '/aoo_ping', this.port, sec);
+	pingInterval { arg seconds;
+		server.sendMsg('/cmd', '/aoo_ping', this.port, seconds);
 	}
 
 	// Try to find peer, but only if no IP/port is given.
