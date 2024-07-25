@@ -134,8 +134,10 @@ AooData {
 		// including conversion functions
 		// NB: \int64 is a valid AOO data type, but we currently don't
 		// support it on SC because it only has 32-bit integers.
-		typeArray = #[ \raw, \text, \osc, \midi, \fudi, \json, \xml,
-			\float32, \float64, \int16, \int32, \int64 ];
+		typeArray = #[
+			\raw, \text, \osc, \midi, \fudi, \json, \xml,
+			\float32, \float64, \int16, \int32, \int64
+		];
 		typeMap = typeArray.collectAs({ |name, i| name -> i }, IdentityDictionary);
 	}
 
@@ -149,15 +151,19 @@ AooData {
 	}
 
 	asOSCArgArray {
-		var bytes, toBytes = #{ |a|
+		var bytes;
+		var toBytes = #{ |a|
 			a.collectAs(_.asInteger, Int8Array)
 		};
 
 		// TODO: optimize
-		var fromNumber = #{ |data, sel|
+		var fromNumber = #{ |data, sel, convert|
 			var a = Int8Array[];
 			var col = CollStream(a);
-			data.do { |i| col.perform(sel, i) };
+			data.do { |value|
+				convert !? { value = value.perform(convert) };
+				col.perform(sel, value);
+			};
 			a;
 		};
 
@@ -166,13 +172,13 @@ AooData {
 			\text, { toBytes.(data.asString) },
 			\fudi, { toBytes.(data.asString) },
 			\json, { toBytes.(data.asString) },
-			\xml, { toBytes.(data) },
+			\xml, { toBytes.(data.asString) },
 			\midi, { toBytes.(data) },
-			\int16, { fromNumber.(data, \putInt16) },
-			\int32, { fromNumber.(data, \putInt32) },
+			\int16, { fromNumber.(data, \putInt16, \asInteger) },
+			\int32, { fromNumber.(data, \putInt32, \asInteger) },
 			\int64, { "data type 'int64' not supported".warn; nil },
-			\float32, { fromNumber.(data, \putFloat32) },
-			\float64, { fromNumber.(data, \putFloat64) },
+			\float32, { fromNumber.(data, \putFloat) },
+			\float64, { fromNumber.(data, \putDouble) },
 			\raw, {
 				if (data.class != Int8Array) {
 					"raw data must be Int8Array!".error; nil
@@ -186,15 +192,15 @@ AooData {
 	}
 
 	*fromBytes { arg typeID, bytes;
-		var type, data, toString = #{ |a|
+		var type, data;
+		var toString = #{ |a|
 			a.collectAs(_.asAscii, String);
 		};
-
 		// TODO: optimize
 		var toNumber = #{ |data, elemSize, sel|
 			var col = CollStream(data);
 			var count = (data.size / elemSize).asInteger;
-			count.do { col.perform(sel) };
+			count.collect { col.perform(sel) };
 		};
 
 		// HACK so we can just pass OSC arguments without checking
@@ -215,12 +221,14 @@ AooData {
 			\fudi, { toString.(bytes) },
 			\json, { toString.(bytes) },
 			\xml, { toString.(bytes) },
-			\midi, { bytes },
+			\midi, {
+				bytes.collect { |b| if (b < 0) { b + 256 } { b } }
+			},
 			\int16, { toNumber.(bytes, 2, \getInt16) },
 			\int32, { toNumber.(bytes, 4, \getInt32) },
 			\int64, { "data type 'int64' not supported".error; ^nil },
-			\float32, { toNumber.(bytes, 4, \getFloat32) },
-			\float64, { toNumber.(bytes, 8, \getFloat64) },
+			\float32, { toNumber.(bytes, 4, \getFloat) },
+			\float64, { toNumber.(bytes, 8, \getDouble) },
 			\raw, { bytes },
 			{ "ignore data of unknown type '%'".format(type).warn; ^nil }
 		);
