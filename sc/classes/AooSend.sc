@@ -30,7 +30,7 @@ AooSend : UGen {
 	synthIndex_ { arg index;
 		super.synthIndex_(index); // !
 		// update metadata (ignored if reconstructing from disk)
-		this.desc.notNil.if { this.desc.index = index; };
+		this.desc !? { |desc| desc.index = index };
 	}
 }
 

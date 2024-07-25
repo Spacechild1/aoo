@@ -34,7 +34,7 @@ AooReceive : MultiOutUGen {
 	synthIndex_ { arg index;
 		super.synthIndex_(index); // !
 		// update metadata (ignored if reconstructing from disk)
-		this.desc.notNil.if { this.desc.index = index; }
+		this.desc !? { |desc| desc.index = index };
 	}
 }
 
@@ -65,7 +65,7 @@ AooReceiveCtl : AooCtl {
 		var id = args[2];
 		var source = AooEndpoint(addr, id);
 		var event = [source];
-		var codec, fmt, states;
+		var codec, fmt, states = #[ \inactive, \active, \buffering ];
 		// If source doesn't exist, fake an \add event.
 		// This happens if the source has been added
 		// before we could create the controller.
@@ -93,7 +93,6 @@ AooReceiveCtl : AooCtl {
 			\start, { ^event ++ AooData.fromBytes(*args[3..]) },
 			\stop, { ^event },
 			\state, {
-				states = #[ \inactive, \active, \buffering ];
 				^event ++ states[args[3]];
 			},
 			\latency, { ^event ++ args[3..] },
