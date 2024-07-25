@@ -17,11 +17,11 @@ AooServer {
 		^servers[port];
 	}
 
-	*new { arg port, server, action;
-		^super.new.init(port, server, action);
+	*new { arg port, server, password, relay = false;
+		^super.new.init(port, server, password, relay);
 	}
 
-	init { arg port, server, password, relay = false;
+	init { arg port, server, password, relay;
 		var localAddr = NetAddr.localAddr;
 		port = port ?? this.class.defaultPort;
 
@@ -50,6 +50,8 @@ AooServer {
 			}
 		});
 	}
+
+	isOpen { ^this.port.notNil }
 
 	prPostInit { arg port, addr;
 		this.port = port;
