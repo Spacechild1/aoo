@@ -379,9 +379,15 @@ AooClient {
 		server.sendMsg('/cmd', '/aoo_client_group_leave', this.port, token, group.id);
 	}
 
-	sendMsg { arg target, time, msg, type = \osc, reliable = false;
-		var oscMsg, data = AooData(type, msg);
-		var groupID = -1, userID = -1, group, peer;
+	sendMsg { arg target, time, msg, reliable = false;
+		var oscMsg, groupID = -1, userID = -1, group, peer;
+		if (msg.isKindOf(Array)) {
+			// interpret Array as OSC message
+			msg = AooData(\osc, msg);
+		};
+		if (msg.class != AooData) {
+			^MethodError("'msg' must be Array or AooData", this).throw;
+		};
 		if (target.notNil) {
 			if (target.isKindOf(AooPeer)) {
 				// peer
@@ -404,7 +410,7 @@ AooClient {
 				}
 			}
 		}; // else: broadcast
-		oscMsg = ['/sc/msg', groupID, userID, time !? { time.asFloat }, reliable.asBoolean.asInteger ] ++ data.asOSCArgArray;
+		oscMsg = ['/sc/msg', groupID, userID, time !? { time.asFloat }, reliable.asBoolean.asInteger ] ++ msg.asOSCArgArray;
 		time.notNil.if {
 			// schedule on the current (logical) system time.
 			// on the Server, we add the relative timestamp contained in the OSC message
