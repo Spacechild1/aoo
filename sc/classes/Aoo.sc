@@ -554,7 +554,7 @@ AooDispatcher : OSCMessageDispatcher {
 				^this;
 			};
 			AooData.prParseOSCMsg(msg[5]) !? { |oscMsg|
-				super.value(oscMsg, time, peer, client.port);
+				super.value(oscMsg, time, peer, client);
 			}
 		}
 	}
