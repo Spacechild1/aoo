@@ -296,7 +296,7 @@ AooClient {
 		server.sendMsg('/cmd', '/aoo_client_disconnect', this.port, token);
 	}
 
-	joinGroup { arg groupName, groupPassword, userName, userPassword, groupMetadata, userMetadata, relayAddr, action;
+	joinGroup { arg groupName, userName, groupPassword, userPassword, groupMetadata, userMetadata, relayAddr, action;
 		var token, args;
 		this.port ?? { ^MethodError("AooClient not initialized", this).throw };
 		if (state != \connected) {
