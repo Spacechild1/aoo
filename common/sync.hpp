@@ -31,30 +31,16 @@
 #endif
 
 // for spinlock
-// Intel
-#if defined(__i386__) || defined(_M_IX86) || \
-    defined(__x86_64__) || defined(_M_X64)
-  #define HAVE_PAUSE
-  #include <immintrin.h>
-// ARM
-#elif (defined(__ARM_ARCH_6K__) || \
-       defined(__ARM_ARCH_6Z__) || \
-       defined(__ARM_ARCH_6ZK__) || \
-       defined(__ARM_ARCH_6T2__) || \
-       defined(__ARM_ARCH_7__) || \
-       defined(__ARM_ARCH_7A__) || \
-       defined(__ARM_ARCH_7R__) || \
-       defined(__ARM_ARCH_7M__) || \
-       defined(__ARM_ARCH_7S__) || \
-       defined(__ARM_ARCH_8A__) || \
-       defined(__aarch64__))
-// mnemonic 'yield' is supported from ARMv6k onwards
-  #define HAVE_YIELD
-#elif defined(ESP_PLATFORM)
-// TODO
-#else
-// fallback
-  #include <thread>
+#if defined(_MSC_VER)
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <Windows.h>
+#elif defined(__SSE2__)
+# include <immintrin.h>
 #endif
 
 // for shared_lock
@@ -64,20 +50,19 @@
 namespace aoo {
 namespace sync {
 
-inline void pause_cpu(){
-#if defined(HAVE_PAUSE)
+inline void pause_cpu() {
+#if defined(_MSC_VER)
+    YieldProcessor();
+#elif defined(__SSE2__)
     _mm_pause();
-#elif defined(HAVE_YIELD)
+#elif defined(__aarch64__)
+    __asm__ __volatile__("isb");
+#elif defined(__arm__)
     __asm__ __volatile__("yield");
 #elif defined(ESP_PLATFORM)
-// TODO
-#else // fallback
-  #warning "architecture does not support yield/pause instruction"
-  #if 0
-    std::this_thread::sleep_for(std::chrono::microseconds(0));
-  #else
-    std::this_thread::yield();
-  #endif
+    // TODO
+#else
+# warning "Cannot pause CPU, falling back to busy-waiting."
 #endif
 }
 
