@@ -375,7 +375,8 @@ AooAddr {
 	}
 
 	hash {
-		^this.instVarHash(#[\ip, \port])
+		// only hash the name because 'id' is optional
+		^this.name.hash;
 	}
 
 	printOn { arg stream;
@@ -401,7 +402,8 @@ AooGroup {
 	}
 
 	hash {
-		^this.instVarHash(#[\name, \id])
+		// only hash the name because 'id' is optional
+		^this.name.hash;
 	}
 
 	printOn { arg stream;
