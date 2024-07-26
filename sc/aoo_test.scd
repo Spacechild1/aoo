@@ -29,8 +29,8 @@ SynthDef(\aoo_recv, { |out|
 ~s.addSink(AooAddr.resolve("localhost", 9999), 1);
 ~s.addSink(AooPeer("test", "bar"), 1);
 ~s.removeAll;
-~s.setFormat(AooFormatPCM(2, 256, 48000, 2));
-~s.setFormat(AooFormatOpus(2, 480));
+~s.setFormat(AooFormatPCM(2, 256), _.postln);
+~s.setFormat(AooFormatOpus(2, 480), _.postln);
 ~s.format;
 ~s.setCodecParam(\bitrate, 100000);
 ~s.setCodecParam(\complexity, 12);
@@ -53,6 +53,7 @@ SynthDef(\aoo_recv, { |out|
 
 ~r = AooReceiveCtl(Synth(\aoo_recv));
 ~r.addListener(\ping, { |...args| "AooReceive: ping: %".format(args).warn });
+~r.addListener(\event, { |type ...args| "AooReceive: '%' event: %".format(type, args).warn });
 ~r.sources[0]
 
 (
@@ -70,11 +71,11 @@ fork {
 	s.sync;
 
 	~c.connect("localhost", action: {
-		~c.joinGroup("test", nil, "foo", nil)
+		~c.joinGroup("test", "foo")
 	});
 
 	~d.connect("localhost", action: {
-		~d.joinGroup("test", nil, "bar", nil)
+		~d.joinGroup("test", "bar")
 	});
 }
 )
@@ -96,8 +97,8 @@ fork {
 ~c.removeListener(\ping);
 ~c.removeListener(\msg);
 
-~c.connect("localhost", action: { |success| "success: %".format(success).warn });
-~c.joinGroup("test", nil, "foo", nil, action: { |success| "success: %".format(success).warn; });
+~c.connect("localhost", action: { |err| if (err.isNil) { "connected".warn } });
+~c.joinGroup("test", "foo", action: { |err| if (err.isNil) { "joined group".warn } });
 ~c.leaveGroup;
 ~c.disconnect;
 ~c.peers;
@@ -119,8 +120,8 @@ fork {
 ~d.removeListener(\ping);
 ~d.removeListener(\msg);
 
-~d.connect("localhost", action: { |success| "success: %".format(success).warn });
-~d.joinGroup("test", nil, "bar", nil, action: { |success| "success: %".format(success).warn; });
+~d.connect("localhost", action: { |err| if (err.isNil) { "connected".warn } });
+~d.joinGroup("test", "bar", action: { |err| if (err.isNil) { "joined group".warn } });
 ~d.leaveGroup;
 ~d.disconnect;
 ~d.peers;
@@ -129,6 +130,8 @@ fork {
 ~d.sendMsg(nil, 10, [ "/foo", 1, 2, 3]);
 ~d.sendMsg(AooPeer("test", "foo"), nil, [ "/foo", 1, 2, 3]);
 ~d.sendMsg(AooGroup("test"), nil, [ "/foo", 1, 2, 3]);
+~d.sendMsg(nil, nil, AooData(\fudi, "foo 1 2 3"));
+~d.sendMsg(nil, nil, AooData(\midi, [144, 60, 100]));
 
 ~c.sendMsg(nil, 10, [ "/foo", 1, 2, 3]);
 ~c.sendMsg(nil, 10, [ "/foo", 4, 5, 6]);
@@ -171,6 +174,31 @@ e[\a].sinks;
 e[\b].sinks;
 
 
+d = AooData(\int16, [ 1, 2, 3.5]).asOSCArgArray;
+AooData.fromBytes(*d);
+d = AooData(\float32, [ 1, 2, 3.5, 4.7]).asOSCArgArray;
+AooData.fromBytes(*d);
+d = AooData(\midi, [ 144, 60, 100 ]).asOSCArgArray;
+AooData.fromBytes(*d);
+d = AooData(\osc, ['/foo', 1, 2, 3, "bar" ]).asOSCArgArray;
+AooData.fromBytes(*d);
+~msg = "{x=%,y=%,z=%}".format(5, 3, 1.5);
+d = AooData(\json, ~msg).asOSCArgArray;
+AooData.fromBytes(*d);
+
+(
+fork {
+	5.do { |i|
+		"iteration %".format(i).postln;
+		10.do {
+			var logical = thisThread.seconds;
+			var real = Main.elapsedTime;
+			"logical time: %, realtime: %".format(logical, real).postln;
+		};
+		0.25.wait;
+	}
+}
+)
 AooAddr("localhost", 9999)
 AooAddr("::1", 9999)
 AooAddr("192.168.0.1", 9999)
