@@ -69,13 +69,7 @@ set_target_properties(sc PROPERTIES
 if (SC_SUPERNOVA)
     add_library(supernova MODULE ${sc_sources})
 
-    target_include_directories(supernova PRIVATE
-        ${sc_include}
-        # for <nova-tt/spin_lock.h>
-        "${SC_INCLUDE_DIR}/external_libraries/nova-tt"
-        # for <boost/atomic.hpp>
-        "${SC_INCLUDE_DIR}/external_libraries/boost"
-    )
+    target_include_directories(supernova PRIVATE ${sc_include})
 
     target_link_libraries(supernova PRIVATE aoo aoo_common aoo_binary)
 
