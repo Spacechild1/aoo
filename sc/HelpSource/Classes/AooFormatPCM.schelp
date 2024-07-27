@@ -1,7 +1,7 @@
 TITLE:: AooFormatPCM
-summary:: PCM format settings
-categories:: Server>Abstractions
-related:: Classes/AooSendCtl, Classes/AooReceiveCtl
+summary:: PCM streaming format
+categories:: External Control>AOO
+related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooFormatOpus, Classes/AooFormatNull, Classes/AooFormat
 
 DESCRIPTION::
 Uncompressed PCM audio.
@@ -10,24 +10,43 @@ Uncompressed PCM audio.
 CLASSMETHODS::
 
 METHOD:: new
-See the instance methods for the meaning of each parameter. All parameters are optional.
+All arguments are optional.
+
+ARGUMENT:: channels
+the number of channels, between 1 and 255.
+
+code::nil:: = same as input channel count
+
+ARGUMENT:: blockSize
+the block size in samples. (All values allowed.)
+
+code::nil:: = same as Server block size.
+
+ARGUMENT:: sampleRate
+the sample rate. (All values allowed.)
+
+code::nil:: = same as Server sample rate.
+
+ARGUMENT:: bitDepth
+the bit depth, see link::#-bitDepth::.
 
 INSTANCEMETHODS::
 
-METHOD:: channels
-number of channels (default: UGen channel size)
+COPYMETHOD:: AooFormat -codec
 
-METHOD:: blockSize
-block size in samples (default: Server block size)
+COPYMETHOD:: AooFormat -channels
 
-METHOD:: sampleRate
-sample rate in Herz (default: Server sample rate)
+COPYMETHOD:: AooFormat -blockSize
+
+COPYMETHOD:: AooFormat -sampleRate
 
 METHOD:: bitDepth
-the bit depth in number of bytes (default: 32-bit).
+the bit depth as a Symbol. Possible values:
+
 table::
-## 2 || 16 bit (integer)
-## 3 || 24 bit (integer)
-## 4 || 32 bit (float)
-## 8 || 64 bit (float)
+## code::\int8:: || 8-bit integer
+## code::\int16:: || 16-bit integer
+## code::\int24:: || 24-bit integer
+## code::\float32:: || 32-bit float
+## code::\float64:: || 64-bit float
 ::

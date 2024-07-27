@@ -1,196 +1,539 @@
 TITLE:: AooReceiveCtl
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Control an AooReceive UGen
+categories:: External Control>AOO
+related:: Classes/AooReceive, Classes/AooSend, Classes/AooSendCtl, Classes/AooAddr, Classes/AooClient, Guides/AOO_Introduction
 
 DESCRIPTION::
-(put long description here)
+This class is used to control an link::Classes/AooReceive:: UGen instance.
+
+Simple example:
+code::
+(
+~port = 40000;
+
+fork {
+	SynthDef(\aoo_recv, { |bus=0|
+		var sig = AooReceive.ar(~port, 0, 2);
+		Out.ar(bus, sig);
+	}).add;
+
+	s.sync;
+
+	// create Synth + controller
+	~recv = AooReceiveCtl(Synth(\aoo_recv));
+	// wait until fully initialized
+	s.sync;
+	// listen to ping, start and stop events
+	~recv.addListener(\ping, { |sink|
+		"AooReceive: got ping from %".format(sink).postln;
+	});
+	~recv.addListener(\start, { |sink|
+		"AooReceive: stream started by %".format(sink).postln;
+	});
+	~recv.addListener(\stop, { |sink|
+		"AooReceive: stream stopped by %".format(sink).postln;
+	});
+}
+)
+::
+
+See link::Classes/AooSendCtl:: for the corresponding sender.
+
+If you want to stream over the Internet, or you do not want to deal with IP addresses, see link::Classes/AooClient::.
 
 
 CLASSMETHODS::
 
-METHOD:: ugenClass
-(describe method here)
+METHOD:: new
 
-returns:: (describe returnvalue here)
+Create an AooReceiveCtl for a given Synth.
 
-METHOD:: initClass
-(describe method here)
+ARGUMENT:: synth
+the link::Classes/Synth:: containing the link::Classes/AooReceive:: you want to control.
 
-returns:: (describe returnvalue here)
+ARGUMENT:: tag
+(optional) a Symbol which uniquely identifies the link::Classes/AooReceive:: in the link::Classes/SynthDef::.
+
+This is only required if the Synth contains several AooReceive instances. See the corresponding code::tag:: argument in link::Classes/AooReceive#*ar::.
+
+ARGUMENT:: synthDef
+(optional) the Synth's SynthDef.
+
+You can omit this argument if the SynthDef has been added to the global SynthDescLib, e.g. with link::Classes/SynthDef#-add:: or link::Classes/SynthDef#-store::. In this case, the SynthDef will be automatically deduced from the code::synth:: argument.
+
+DISCUSSION::
+
+The link::Classes/AooReceive:: UGen is instantiated asynchronously, so you need to synchronize with the Server after creating the containing Synth before you can call any methods on the corresponding AooReceiveCtl instance:
+
+code::
+(
+fork {
+	SynthDef(\aoo_recv, { |bus=0|
+		var sig = AooReceive.ar(9998, 1, 2);
+		Out.ar(bus, sig);
+	}).add;
+
+	s.sync;
+
+	b = AooReceiveCtl(Synth(\aoo_recv));
+
+	s.sync; // make sure that the  AooReceive UGen has been fully initialized!
+
+	b.latency(0.05);
+}
+::
+
+METHOD:: collect
+
+Same as link::#*new::, but returns an Event of  AooReceiveCtls, with their tags used as keys. This is useful if you have a SynthDef that contains several AooReceive instances.
+
+ARGUMENT:: synth
+the Synth, see link::#*new::
+
+ARGUMENT:: tags
+(optional) an Array of tags referring to AooReceive instances in the SynthDef, or code::nil:: (= collect all). See also the code::tag:: argument in link::#*new::.
+
+ARGUMENT:: synthDef
+(optional) the SynthDef, see link::#*new::
+
+DISCUSSION::
+
+The link::Classes/AooReceive:: UGen is instantiated asynchronously, so you need to synchronize with the Server after creating the containing Synth before you can call any methods on the corresponding  AooReceiveCtl instance:
+
+code::
+(
+fork {
+	SynthDef(\aoo_send, { |bus=0|
+		var left = AooReceive.ar(9999, 1, 1, tag: \left);
+		var right = AooReceive.ar(9999, 2, 1, tag: \right);
+		Out.ar(bus, [left, right]);
+	}).add;
+
+	s.sync;
+
+	e = AooSendCtl.collect(Synth(\aoo_send));
+
+	s.sync; // make sure that the AooSend UGesn have been fully initialized!
+
+	e[\left].invite(AooAddr("127.0.0.1", 9999), 1);
+	e[\right].invite(AooAddr("127.0.0.1", 9999), 2);
+}
+)
+::
 
 
 INSTANCEMETHODS::
 
+PRIVATE:: prFindSource, prAddSource, prRemoveSource, prParseEvent
+PRIVATE:: dllBandwidth, dynamicResampling, packetSize, pingInterval
+
+
+METHOD:: isOpen
+returns:: whether the object has been created successfully
+
+METHOD:: port
+the UDP port
+
+METHOD:: id
+the sink ID
+
+METHOD:: synth
+the Synth containing the AooReceive UGen
+
 METHOD:: latency
-(describe method here)
+set the jitter buffer latency
 
-ARGUMENT:: sec
-(describe argument here)
+ARGUMENT:: seconds
+the latency in seconds
 
-returns:: (describe returnvalue here)
+DISCUSSION::
+Increase the latency for unstable or jittery networks. If the latency is large enough, lost packets can even be resent in time (see link::Classes/AooReceiveCtl#-resend::) and the stream becomes more and more reliable.
 
-METHOD:: resetAll
-(describe method here)
+For low latency applications, you should set the latency as low as possible, possibly risking occasional drop outs or relying on packet-loss-concealment (see link::Classes/AooFormatOpus::).
 
-returns:: (describe returnvalue here)
-
-METHOD:: resendLimit
-(describe method here)
-
-ARGUMENT:: limit
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: resend
-(describe method here)
-
-ARGUMENT:: enable
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prParseEvent
-(describe method here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: args
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: invite
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: metadata
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: dynamicResampling
-(describe method here)
-
-ARGUMENT:: b
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: bufferSize
-(describe method here)
-
-ARGUMENT:: sec
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: dllBandwidth
-(describe method here)
-
-ARGUMENT:: bw
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: packetSize
-(describe method here)
-
-ARGUMENT:: size
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: uninvite
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prAdd
-(describe method here)
-
-ARGUMENT:: source
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: free
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: reset
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: init
-(describe method here)
-
-returns:: (describe returnvalue here)
 
 METHOD:: sources
-(describe method here)
 
-returns:: (describe returnvalue here)
+returns:: the list of currently active sources.
 
-METHOD:: resendInterval
-(describe method here)
 
-ARGUMENT:: sec
-(describe argument here)
+SUBSECTION:: Event handling
 
-returns:: (describe returnvalue here)
+AooReceiveCtl receives various events from the Server.
+The user can handle these events by installing corresponding event handler functions, link::#-addListener::.
 
-METHOD:: prRemove
-(describe method here)
+Currently, the following event types are supported:
 
-ARGUMENT:: source
-(describe argument here)
+definitionlist::
 
-returns:: (describe returnvalue here)
+## code::\add::
+|| A new sink has been added
+
+Arguments:
+table::
+## (link::Classes/AooEndpoint::) || the new sink
+::
+
+
+## code::\remove::
+|| A sink has been removed
+
+Arguments:
+table::
+## (link::Classes/AooEndpoint::) || the removed sink
+::
+
+
+## code::\format::
+|| The stream format for a particular source has changed.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## subclass of link::Classes/AooFormat:: || the new format
+::
+
+
+## code::\start::
+|| A new stream has started
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## link::Classes/AooData:: || (optional) metadata
+::
+
+
+## code::\stop::
+|| A stream has stopped
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+
+## code::\state::
+|| The stream state has changed
+
+Arguments:
+table::
+## Symbol || the new stream state.
+::
+
+Possible stream states:
+table::
+## code::\active:: || stream is active
+## code::\inactive:: || stream is inactive (stopped or buffer underrun)
+## code::\buffering:: || stream is buffering
+::
+
+
+## code::\latency::
+|| The stream latency has changed
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## Float || total source latency (reblock/resample/codec delay) in seconds
+## Float || total sink latency (reblock/resample/codec delay) in seconds
+## Float || the (actual) jitter buffer latency in seconds
+::
+
+
+## code::\ping::
+|| Ping event.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## Float || emphasis::delta1:: (sink → source time) in seconds
+## Float || emphasis::delta2:: (source → sink time) in seconds
+## Float || network RTT (round-trip-time) in seconds
+## Float || total RTT in seconds
+::
+
+note::emphasis::delta1:: and emphasis::delta2:: do not reflect the real time difference and can even be negative!::
+
+Useful formulas:
+
+numberedlist::
+## Estimated end-to-end latency:
+
+code::network-RTT * 0.5::
+
+## Estimated clock offset between client and peer:
+
+code::(delta1 - delta2) * 0.5::
+::
+
+
+## code::\decline::
+|| An invitation request has been declined.
+See also link::#-invite::.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+
+## code::\inviteTimeout::
+|| An invitation has timed out, i.e. the corresponding source did not respond in time.
+See also link::#-invite::.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+
+## code::\uninviteTimeout::
+|| An uninvitation has timed out, i.e. the corresponding source did not respond in time.
+See also link::#-uninvite::.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+
+## code::\overrun::
+|| Jitter buffer overrun.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+This happens when data is received at a faster rate than can be processed.
+Typically, this is caused by network jitter and as a consequence you should try to increase the jitter buffer latency,
+see link::#-latency::.
+
+
+## code::\underrun::
+|| Jitter buffer underrun.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+::
+
+This happens when data is processed at a faster rate than being received.
+Typically, this is caused by network jitter and as a consequence you should try to increase the jitter buffer latency,
+see link::#-latency::.
+
+
+## code::\blockDropped::
+|| one or more blocks have been dropped.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## Integer || the number of dropped blocks
+::
+
+This happens when one or more frames have been lost and could not be resent in time.
+The most common reasons for dropped blocks are UDP packet loss and a too small jitter buffer latency.
+Try to use reduce the data rate, e.g. with the link::Classes/AooFormatOpus:: format, and/or increase the jitter buffer link::#-latency::.
+
+
+## code::\blockResent::
+|| one or more blocks have been resent.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## Integer || the number of resent blocks
+::
+
+This happens when some frames have been lost initially, but could be resent in time.
+If you only get code::\blockResent:: and no code::\blockDropped:: events, it means that
+packet resending (see link::#Packet resending::) works as desired.
+You still should try to reduce the data rate to minimize packet loss and thus reduce the need for packet resending.
+
+
+## code::\blockXRun::
+|| received one or more empty blocks due to source xrun
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the source
+## Integer || the number of empty blocks
+::
+
+This tells the user that the sink received one or more empty blocks that are meant to fill the gaps caused by xruns on the source machine.
+
+
+## code::\event::
+|| Catch-all event type.
+
+Arguments:
+table::
+## Symbol || the event type, e.g. code::\add::
+## Array || the event arguments
+::
+
+::
+
+METHOD:: addListener
+add an event handling function
+
+ARGUMENT:: type
+the event type as a Symbol (see below).
+
+ARGUMENT:: func
+the function to be called.
+
+DISCUSSION::
+
+The function arguments are specific to the given event type (see below). For example:
+code::
+~sink.addListener(\start, { |source, metadata|
+	// handle event
+});
+::
+
+note::It is possible to register several functions for the same event type.::
+
+METHOD:: removeListener
+remove an event handling function
+
+ARGUMENT:: type
+the event type as a Symbol (see below).
+
+ARGUMENT:: func
+the function to be removed
+
+
+SUBSECTION:: Invitation
+
+METHOD:: invite
+invite a source.
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the source ID
+
+ARGUMENT:: metadata
+optional metadata (link::Classes/AooData::).
+
+The metadata can be received by the source, see the code::\invite:: event in link::Classes/AooSendCtl#-addListener::.
+
+ARGUMENT:: action
+a function to be called when the command as finished.
+
+On success the function receives the new source as an link::Classes/AooEndpoint::;
+on failure it receives code::nil::.
+
+DISCUSSION::
+Instead of waiting passively, we can actively "invite" sources to send to us. The source can accept or decline the request. There are three possible outcomes:
+
+numberedlist::
+## If accepted, the source adds us to its list of sinks and we will subsequently receive a new stream together with a code::\start:: event.
+
+## If declined, we receive a code::\decline:: event.
+
+## If the invited source does not answer within a certain time frame, we receive an code::\inviteTimeout:: event. See also link::#-addListener::.
+::
+
+METHOD:: uninvite
+uninvite a source.
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the source ID
+
+ARGUMENT:: action
+a function to be called when the command has finished.
+
+The function receives code::true:: on success or code::false:: on failure.
+
+DISCUSSION::
+When we "uninvite" a source, we basically ask it to stop sending to us. The source can accept or decline the request. There are two possible outcomes:
+
+numberedlist::
+## If accepted, the source stops its stream and we receive a code::\stop:: event.
+
+## If declined, or the source does not answer within a certain time frame, we receive an code::\uninviteTimeout:: event. We keep the source in a timeout state and ignore incoming data until we a.) invite a new stream or b.) receive a new stream.
+::
 
 METHOD:: uninviteAll
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prFind
-(describe method here)
-
-ARGUMENT:: source
-(describe argument here)
-
-returns:: (describe returnvalue here)
+uninvite all current sources.
 
 
-EXAMPLES::
+SUBSECTION:: Resending
 
-code::
-(some example code)
-::
+METHOD:: resend
+Enable/disable packet resending
+
+ARGUMENT:: enable
+code::true:: or code::false::
+
+DISCUSSION::
+
+If packet resending is enabled, AooReceive will ask the source(s) to resend any packets that have been lost on the way. (Packet loss is very common when sending UDP datagrams over the public internet!) Note that the jitter buffer latency must be large enough so that the resent packets can arrive in time, see link::#-latency::.
+
+If packet resending is disabled, all missing packets are simply dropped, leaving a gap in the audio stream, unless the codec supports packet-loss-concealment (see link::Classes/AooFormatOpus::).
+
+At high latencies, packet resending can provide very stable streams, even over unreliable networks.
+
+note::Make sure that the resend buffer size in the corresponding source(s) is large enough, see link::Classes/AooSendCtl#-resendBufferSize::!::
+
+METHOD:: resendInterval
+Set the interval at which missing each missing block/frame should be requested.
+
+ARGUMENT:: seconds
+the interval in seconds.
+
+
+METHOD:: resendLimit
+Set the maximum number of resend requests before giving up and dropping the block.
+
+ARGUMENT:: limit
+the limit
+
+
+SUBSECTION:: Advanced
+
+COPYMETHOD:: AooSendCtl -pingInterval
+
+
+COPYMETHOD:: AooSendCtl -packetSize
+
+
+METHOD:: reset
+reset a given source.
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+source ID
+
+
+METHOD:: resetAll
+reset all active sources.
+
+
+METHOD:: bufferSize
+set the actual size of the jitter buffer.
+
+ARGUMENT:: seconds
+the buffer size in seconds
+
+DISCUSSION::
+To prevent possible infinite growth of latency and memory, the jitter buffer has a fixed size or capacity. By default, the size is twice the jitter buffer latency and it is resized automatically when the latency is changed (see link::#-latency::).
+
+With this method you can set the buffer size indepedently from the latency. This might be useful for certain situations, but chances are you will never need it.
+
+If you set the size to 0, the default behavior will be restored.
+
+
+COPYMETHOD:: AooSendCtl -dynamicResampling
+
+COPYMETHOD:: AooSendCtl -dllBandwidth

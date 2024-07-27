@@ -1,70 +1,53 @@
 TITLE:: AooUser
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Represents an AOO user
+categories:: External Control>AOO
+related:: Classes/AooPeer, Classes/AooGroup, Classes/AooEndpoint, Classes/AooClient
 
 DESCRIPTION::
-(put long description here)
+AooUser represents a user in an AOO network. It is defined by its name and ID and it may also contain additional metadata.
+
+See link::Classes/AooClient:: for more information about AOO users.
 
 
 CLASSMETHODS::
 
 METHOD:: new
-(describe method here)
 
 ARGUMENT:: name
-(describe argument here)
+the user name (String)
 
 ARGUMENT:: id
-(describe argument here)
+(optional) the user ID (Integer)
 
 ARGUMENT:: metadata
-(describe argument here)
+(optional) user metadata (link::Classes/AooData::)
 
-returns:: (describe returnvalue here)
+DISCUSSION::
+
+AooUser objects are typically part of link::Classes/AooPeer:: objects and rarely created by the user.
 
 
 INSTANCEMETHODS::
 
 METHOD:: name
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: printOn
-(describe method here)
-
-ARGUMENT:: stream
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: metadata
-(describe method here)
-
-returns:: (describe returnvalue here)
+the user name (String)
 
 METHOD:: id
-(describe method here)
+the user ID (Integer)
 
-returns:: (describe returnvalue here)
+METHOD:: metadata
+optional user metadata (link::Classes/AooData:: or code::nil::)
 
 METHOD:: hash
 (describe method here)
 
 returns:: (describe returnvalue here)
 
+
 METHOD:: ==
-(describe method here)
-
-ARGUMENT:: that
-(describe argument here)
-
-returns:: (describe returnvalue here)
+Two AooUser objects compare equal if they have the same name or the same ID.
 
 
-EXAMPLES::
+METHOD:: hash
 
-code::
-(some example code)
-::
+custom hash function which allows AooUser to be used as a key in associative containers (e.g. link::Classes/IdentityDictionary::).

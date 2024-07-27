@@ -1,74 +1,78 @@
 TITLE:: AooAddr
 summary:: Represents an AOO network endpoint
-categories:: External Control>OSC
-related:: Classes/AooPeer, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooClient
+categories:: External Control>AOO
+related:: Classes/AooPeer, Classes/AooEndpoint, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooClient
 
 DESCRIPTION::
-AooAddr describes a network endpoint as a pair of IP address + port.
 
+AooAddr represents an IP endpoint (= IP address + port number).
+
+AooAddr objects are often returned from event handlers. They can also be created ad-hoc and used as method arguments:
+
+code::
+// ~synth is a Synth containing an AooSend instance
+~ctl = AooSendCtl(~synth);
+// add sink
+~ctl.addSink(AooAddr("192.168.0.10", 9000), 1);
+::
+
+Contrary to link::Classes/NetAddr::, AooAddr also supports IPv6 addresses!
+
+Examples:
+code::
+// a typical IPv4 address:
+AooAddr("192.168.0.196", 9000);
+// a typical IPv6 address:
+AooAddr("2a02:8388:c40:1a80:1b0d:4520:a4cb:ff5", 9000);
+// IPv4 loopback address:
+AooAddr("127.0.0.l", 9000);
+// IPv6 loopback address:
+AooAddr("::", 9000);
+::
 
 CLASSMETHODS::
 
 METHOD:: new
 
 ARGUMENT:: ip
-the IP address/hostname as a String or Symbol.
+the IP address as a String
 
 ARGUMENT:: port
-the port number as an Integer.
+the port number
+
+
 METHOD:: resolve
-(describe method here)
+create an AooAddr from a emphasis::hostname:: and a port number.
 
 ARGUMENT:: hostname
-(describe argument here)
+the hostname (e.g. "localhost")
 
 ARGUMENT:: port
-(describe argument here)
+the port number
 
-returns:: (describe returnvalue here)
+returns:: an instance of AooAddr if it could resolve the hostname; throws an exception otherwise.
 
+DISCUSSION::
+
+Example:
+code::
+AooAddr.resolve("vrr.iem.at", 7078); // -> AooAddr(193.170.129.99, 7078)
+::
+
+note::Because hostname resolution is performed in sclang, it will always return an IPv4 address. (sclang does not support IPv6.)::
 
 INSTANCEMETHODS::
 
-METHOD:: ==
-(describe method here)
-
-ARGUMENT:: that
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
 METHOD:: ip
-the IP address/hostname (Symbol), e.g. code::'192.168.1.10':: or code::'vrr.iem.at'::.
-
-Currently, AOO only supports the IPv4 protocol, but it will add IPv6 support in the future.
+the IP address string
 
 METHOD:: port
-the port number (Integer).
-METHOD:: printOn
-(describe method here)
+the port number
 
-ARGUMENT:: stream
-(describe argument here)
+METHOD:: ==
 
-returns:: (describe returnvalue here)
+Two AooAddr objects compare equal if they have the same link::#-ip:: and link::#-port::.
 
 METHOD:: hash
-(describe method here)
 
-returns:: (describe returnvalue here)
-
-METHOD:: matchItem
-(describe method here)
-
-ARGUMENT:: item
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-
-EXAMPLES::
-
-code::
-(some example code)
-::
+custom hash function which allows AooAddr to be used as a key in associative containers (e.g. link::Classes/IdentityDictionary::).

@@ -1,275 +1,576 @@
 TITLE:: AooSendCtl
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Control an AooSend UGen
+categories:: External Control>AOO
+related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Guides/AOO_Introduction
 
 DESCRIPTION::
-(put long description here)
+This class is used to control an link::Classes/AooSend:: UGen instance.
+
+Simple example:
+code::
+(
+~port = 30000;
+~destAddr = AooAddr("127.0.0.1", 40000);
+~format = AooFormatPCM(2, 256);
+
+fork {
+	SynthDef(\aoo_send, {
+		var sig = SinOsc.ar([440, 220]) * 0.1;
+		AooSend.ar(~port, 0, sig);
+	}).add;
+
+	s.sync;
+
+	// create Synth + controller
+	~send = AooSendCtl(Synth(\aoo_send));
+	// wait until fully initialized
+	s.sync;
+	// listen to ping events
+	~send.addListener(\ping, { |sink|
+		"AooSend: got ping from %".format(sink).postln;
+	});
+	// add destination sink
+	~send.addSink(~destAddr, 0);
+	// set stream format
+	~send.setFormat(~format, { |format|
+		if (format.notNil) {
+			"AooSend: stream format: %".format(format).postln;
+			// start stream
+			~send.start;
+		}
+	});
+}
+)
+// stop the stream
+~send.stop;
+// resume the stream
+~send.start;
+::
+
+See link::Classes/AooReceiveCtl:: for the corresponding receiver.
+
+If you want to stream over the Internet, or you do not want to deal with IP addresses, see link::Classes/AooClient::.
 
 
 CLASSMETHODS::
 
-METHOD:: ugenClass
-(describe method here)
+METHOD:: new
 
-returns:: (describe returnvalue here)
+Create an AooSendCtl for a given Synth.
 
-METHOD:: initClass
-(describe method here)
+ARGUMENT:: synth
+the link::Classes/Synth:: containing the link::Classes/AooSend:: you want to control.
 
-returns:: (describe returnvalue here)
+ARGUMENT:: tag
+(optional) a Symbol which uniquely identifies the link::Classes/AooSend:: in the link::Classes/SynthDef::.
+
+This is only required if the Synth contains several AooSend instances. See the corresponding code::tag:: argument in link::Classes/AooSend#*ar::.
+
+ARGUMENT:: synthDef
+(optional) the Synth's SynthDef.
+
+You can omit this argument if the SynthDef has been added to the global SynthDescLib, e.g. with link::Classes/SynthDef#-add:: or link::Classes/SynthDef#-store::. In this case, the SynthDef will be automatically deduced from the code::synth:: argument.
+
+DISCUSSION::
+
+The link::Classes/AooSend:: UGen is instantiated asynchronously, so you need to synchronize with the Server after creating the containing Synth before you can call any methods on the corresponding AooSendCtl instance:
+
+code::
+(
+SynthDef(\aoo_send, {
+	AooSend.ar(9998, 1, SinOsc.ar([440, 220]) * 0.1);
+}).add;
+
+fork {
+	a = AooSendCtl(Synth(\aoo_send));
+
+	s.sync; // make sure that the AooSend UGen has been fully initialized!
+
+	a.add(AooAddr("127.0.0.1", 9999), 1);
+}
+::
+
+METHOD:: collect
+
+Same as link::#*new::, but returns an Event of AooSendCtls, with their tags used as keys. This is useful if you have a SynthDef that contains several AooSend instances.
+
+ARGUMENT:: synth
+the Synth, see link::#*new::
+
+ARGUMENT:: tags
+(optional) an Array of tags referring to AooSend instances in the SynthDef, or code::nil:: (= collect all). See also the code::tag:: argument in link::#*new::.
+
+ARGUMENT:: synthDef
+(optional) the SynthDef, see link::#*new::
+
+DISCUSSION::
+
+The link::Classes/AooSend:: UGen is instantiated asynchronously, so you need to synchronize with the Server after creating the containing Synth before you can call any methods on the corresponding AooSendCtl instance:
+
+code::
+(
+fork {
+	SynthDef(\aoo_send, {
+		AooSend.ar(9998, 1, SinOsc.ar(220) * 0.1, tag: \a);
+		AooSend.ar(9998, 2, SinOsc.ar(440) * 0.1, tag: \b);
+	}).add;
+
+	s.sync;
+
+	e = AooSendCtl.collect(Synth(\aoo_send));
+
+	s.sync; // make sure that the AooSend UGesn have been fully initialized!
+
+	e[\a].addSink(AooAddr("127.0.0.1", 9999), 3);
+	e[\b].addSink(AooAddr("127.0.0.1", 9999), 4);
+}
+)
+::
 
 
 INSTANCEMETHODS::
 
-METHOD:: removeAll
-(describe method here)
+PRIVATE:: prFindSink, prAddSink, prRemoveSink, prParseEvent
 
-ARGUMENT:: action
-(describe argument here)
 
-returns:: (describe returnvalue here)
+METHOD:: isOpen
+returns:: whether the object has been created successfully
 
-METHOD:: autoInvite
-(describe method here)
+METHOD:: port
+the UDP port
 
-ARGUMENT:: enable
-(describe argument here)
+METHOD:: id
+the source ID
 
-returns:: (describe returnvalue here)
+METHOD:: synth
+the Synth containing the AooSend UGen
 
-METHOD:: prFind
-(describe method here)
 
-ARGUMENT:: sink
-(describe argument here)
+SUBSECTION:: Event handling
 
-returns:: (describe returnvalue here)
+AooSendCtl receives various events from the Server.
+The user can handle these events by installing corresponding event handler functions, link::#-addListener::.
 
-METHOD:: setCodecParam
-(describe method here)
+Currently, the following event types are supported:
 
-ARGUMENT:: codec
-(describe argument here)
+definitionlist::
 
-ARGUMENT:: param
-(describe argument here)
+## code::\add::
+|| A sink has been added automatically (e.g. by an invitation)
 
-ARGUMENT:: value
-(describe argument here)
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the new sink
+::
 
-returns:: (describe returnvalue here)
+## code::\remove::
+|| A sink has been removed automatically (e.g. by an uninvitation)
 
-METHOD:: prAdd
-(describe method here)
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the removed sink
+::
 
-ARGUMENT:: sink
-(describe argument here)
+## code::\invite::
+|| An invitation request.
 
-returns:: (describe returnvalue here)
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the inviting sink
+## Integer || token
+## link::Classes/AooData:: || (optional) metadata
+::
 
-METHOD:: handleUninvite
-(describe method here)
+If link::#-autoInvite:: is disabled, you must manually handle the invitation
+by calling link::#-handleInvite:: with the same code::sink:: and code::token:: arguments.
 
-ARGUMENT:: addr
-(describe argument here)
+Otherwise, this event only informs that an invitation has been (automatically) accepted.
 
-ARGUMENT:: id
-(describe argument here)
+The optional metadata is the same as the code::metadata:: argument passed to link::Classes/AooReceive#-invite::.
 
-ARGUMENT:: token
-(describe argument here)
+## code::\uninvite::
+|| An uninvitation request.
 
-ARGUMENT:: accept
-(describe argument here)
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the uninviting sink
+## Integer || token
+::
 
-returns:: (describe returnvalue here)
+If link::#-autoInvite:: is disabled, you must manually handle the uninvitation
+by calling link::#-handleUninvite:: with the same code::sink:: and code::token:: arguments.
 
-METHOD:: prRemove
-(describe method here)
+Otherwise, this event only informs that an uninvitation has been (automatically) accepted.
 
-ARGUMENT:: sink
-(describe argument here)
+## code::\ping::
+|| Ping event.
 
-returns:: (describe returnvalue here)
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the sink
+## Float || emphasis::delta1:: (source → sink time) in seconds
+## Float || emphasis::delta2:: (sink → source time) in seconds
+## Float || network RTT (round-trip-time) in seconds
+## Float || total RTT in seconds
+## Float || current packet loss percentage
+::
 
-METHOD:: resendBufferSize
-(describe method here)
+note::emphasis::delta1:: and emphasis::delta2:: do not reflect the real time difference and can even be negative!::
 
-ARGUMENT:: sec
-(describe argument here)
+Useful formulas:
 
-returns:: (describe returnvalue here)
+numberedlist::
+## Estimated end-to-end latency:
 
-METHOD:: dynamicResampling
-(describe method here)
+code::network-RTT * 0.5::
 
-ARGUMENT:: b
-(describe argument here)
+## Estimated clock offset between client and peer:
 
-returns:: (describe returnvalue here)
+code::(delta1 - delta2) * 0.5::
+::
 
-METHOD:: dllBandwidth
-(describe method here)
-
-ARGUMENT:: bw
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: sinks
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: handleInvite
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: token
-(describe argument here)
-
-ARGUMENT:: accept
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: redundancy
-(describe method here)
-
-ARGUMENT:: n
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: remove
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: add
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: active
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: format
-(describe method here)
-
-ARGUMENT:: fmt
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: pingInterval
-(describe method here)
-
-ARGUMENT:: sec
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: sinkChannelOffset
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: id
-(describe argument here)
-
-ARGUMENT:: onset
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: packetSize
-(describe method here)
-
-ARGUMENT:: size
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: init
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: free
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prParseEvent
-(describe method here)
+## code::\frameResent::
+|| The source had to resend one or more frames.
+
+Arguments:
+table::
+## link::Classes/AooEndpoint:: || the sink who asked us to resend the frame(s)
+## Integer || the number of frames
+::
+
+## code::\event::
+|| Catch-all event type.
+
+Arguments:
+table::
+## Symbol || the event type, e.g. code::\add::
+## Array || the event arguments
+::
+
+::
+
+METHOD:: addListener
+add an event handling function
 
 ARGUMENT:: type
-(describe argument here)
+the event type as a Symbol (see link::#Event handling::).
 
-ARGUMENT:: args
-(describe argument here)
+ARGUMENT:: func
+the function to be called
 
-returns:: (describe returnvalue here)
+DISCUSSION::
 
-METHOD:: start
-(describe method here)
+The function arguments are specific to the given event type (see above). For example:
+code::
+~source.addListener(\invite, { |sink, token, metadata|
+	// handle event
+});
+::
 
-ARGUMENT:: metadata
-(describe argument here)
+note::It is possible to register several functions for the same event type.::
 
-returns:: (describe returnvalue here)
+METHOD:: removeListener
+remove an event handling function
 
-METHOD:: stop
-(describe method here)
+ARGUMENT:: type
+the event type as a Symbol (see above).
 
-returns:: (describe returnvalue here)
+ARGUMENT:: func
+the function to be removed
 
-METHOD:: getCodecParam
-(describe method here)
 
-ARGUMENT:: codec
-(describe argument here)
+SUBSECTION:: Sink management
 
-ARGUMENT:: param
-(describe argument here)
+METHOD:: sinks
+
+returns:: the list of currently added sinks.
+
+
+METHOD:: addSink
+add a new sink (= destination).
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the sink ID
+
+ARGUMENT:: active
+whether the sink should be initially active
 
 ARGUMENT:: action
-(describe argument here)
+a function to be called when the command as finished.
 
-returns:: (describe returnvalue here)
+On success the function receives the new sink as an link::Classes/AooEndpoint::;
+on failure it receives code::nil::.
 
 
-EXAMPLES::
+METHOD:: removeSink
+remove an existing sink.
 
-code::
-(some example code)
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the sink ID
+
+ARGUMENT:: action
+a function to be called when the command has finished.
+
+The function receives code::true:: on success or code::false:: on failure.
+
+
+METHOD:: removeAll
+remove all sinks.
+
+ARGUMENT:: action
+a function to be called when the command has finished.
+
+The command always succeeds, so the function takes no arguments.
+
+
+METHOD:: channelOffset
+set the sink channel offset.
+
+This is the channel offset in the given sink where our stream will be received. For example, if we send a two-channel stream and set the sink channel offset to 2, the sink will receive our stream on channels 2 and 3.
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the sink ID
+
+ARGUMENT:: offset
+the channel offset (counting from zero)
+
+
+METHOD:: activateSink
+(de)activate a given sink.
+
+ARGUMENT:: addr
+link::Classes/AooAddr:: or link::Classes/AooPeer::
+
+ARGUMENT:: id
+the sink ID
+
+ARGUMENT:: active
+whether the sink should be active or not.
+
+DISCUSSION::
+This can be used to selectively (de)activate a stream only for specific sinks. Note that this makes only sense when there are several sinks, otherwise you can just use link::#-start:: and link::#-stop:: to start/stop the stream.
+
+
+SUBSECTION:: Streaming
+
+METHOD:: setFormat
+set the streaming format.
+
+ARGUMENT:: format
+the new format, which must be a subclass of link::Classes/AooFormat::.
+
+At the time of writing, you can choose between link::Classes/AooFormatPCM:: and link::Classes/AooFormatOpus::.
+
+ARGUMENT:: action
+a function to be called when the command has finished.
+
+If the format has been set successfully, the function receives the new (validated) format; on failure, the function receives code::nil::. In both cases, the link::#-format:: member will be updated accordingly.
+
+note::The actual format can deviate from the desired format!::
+
+
+METHOD:: format
+
+returns:: the current format
+
+
+METHOD:: start
+start a new stream.
+
+ARGUMENT:: metadata
+optional metadata (link::Classes/AooData::)
+
+The metadata can be received by the sink, see the code::\start:: event in link::Classes/AooReceiveCtl#-addListener::.
+
+DISCUSSION::
+
+This message can be scheduled sample accurately.
+
+Alternatively, you can start/stop streams via the code::gate:: UGen argument in link::Classes/AooSend#*ar::, but note that in this case you cannot use metadata.
+
+
+METHOD:: stop
+stop the current stream.
+
+This message can be scheduled sample accurately.
+
+
+METHOD:: setCodecParam
+set a parameter on the current codec.
+
+ARGUMENT:: param
+the parameter name
+
+ARGUMENT:: value
+the new value
+
+DISCUSSION::
+
+At the time of writing, the following parameters are available:
+
+Opus:
+
+table::
+## code::\bitrate::
+|| The bit rate in bits/s
+
+code::\auto:: = default bit rate;
+
+code::\max:: = max. bit rate.
+
+note::This is the emphasis::total:: bit rate for all channels combined!::
+
+## code::\complexity::
+|| The codec complexity as an Integer between 1 (lowest) and 10 (highest);
+
+higher complexity gives better quality, but needs more CPU time.
+
+## code::\signal::
+|| The signal type. Possible values:
+list::
+## code::\music:: – optimize for music
+## code::\voice:: – optimize for voice
+## code::\auto:: – automatic
 ::
+
+::
+
+
+METHOD:: getCodecParam
+get a parameter of the current codec.
+
+See link::#-setCodecParam:: for available parameters.
+
+ARGUMENT:: param
+the parameter name
+
+ARGUMENT:: action
+a function that receives the requested parameter value, or code::nil:: on failure.
+
+
+SUBSECTION:: Invitation
+
+METHOD:: autoInvite
+enable/disable automatic invitation handling
+
+ARGUMENT:: enable
+code::true:: or code::false::
+
+DISCUSSION::
+If enabled, invitations and uninvitations are automatically accepted and no code::\invite:: or code::\uninvite:: events are generated.
+
+note::emphasis::autoInvite:: is enabled by default.::
+
+
+METHOD:: handleInvite
+handle an invitation in response to an code::\invite:: event, see link::#-addListener::.
+
+ARGUMENT:: sink
+the sink who sent the invitation
+
+ARGUMENT:: token
+the invitation token
+
+ARGUMENT:: accept
+whether to accept or decline the invitation
+
+DISCUSSION::
+The code::sink:: and code::token:: arguments are typically taken straight from the corresponding code::\invite:: event.
+
+This method is only relevant if link::#-autoInvite:: has been disabled.
+
+
+METHOD:: handleUninvite
+handle an uninvitation in response to an code::\uninvite:: event, see link::#-addListener::.
+
+ARGUMENT:: sink
+the sink who sent the uninvitation
+
+ARGUMENT:: token
+the uninvitation token
+
+ARGUMENT:: accept
+whether to accept or decline the invitation
+
+DISCUSSION::
+The code::sink:: and code::token:: arguments are typically taken straight from the corresponding code::\uninvite:: event.
+
+This method is only relevant if link::#-autoInvite:: has been disabled.
+
+
+SUBSECTION:: Advanced
+
+METHOD:: pingInterval
+set the interval at which code::\ping:: events are generated.
+See also link::#Event handling::.
+
+ARGUMENT:: seconds
+the ping interval in seconds.
+
+Set to 0 to disable code::\ping:: events.
+
+
+METHOD:: resendBufferSize
+set the resend buffer size.
+
+The resend buffer size determines how long blocks/frames can be resent after they have been first sent.
+
+ARGUMENT:: seconds
+the buffer size in seconds.
+
+The current default is 1 second. Set it to 0 to disable resending.
+
+
+METHOD:: packetSize
+set the max. UDP packet size.
+
+ARGUMENT:: size
+the packet size in bytes.
+
+DISCUSSION::
+By default, AOO uses a max. UDP packet size of 512 bytes. This avoids possible IP fragmentation - and resulting packet loss - when sending over the internet or wireless networks.
+
+(The minimum IPv4 datagram size that hosts/links must be able to receive is only 576 bytes! See also https://stackoverflow.com/questions/1098897/what-is-the-largest-safe-udp-packet-size-on-the-internet.)
+
+Depending on the network, you might be able to increase the packet size to save some bandwidth. For example, the default MTU of Ethernet and IPv6 is 1500 resp. 1280 bytes, so in a wired local IPv6 network, you can safely increase the packet size to ca. 1200  bytes; in practice, you can usually go much higher.
+
+See https://en.wikipedia.org/wiki/Maximum_transmission_unit and https://en.wikipedia.org/wiki/IP_fragmentation for further information.
+
+note::AOO uses its own fragmentation mechanism for sending large data blocks, which is more reliable than IP fragmentation.::
+
+
+METHOD:: redundancy
+set the packet redundancy.
+
+By increasing the redundancy, packets may be sent more once. This emphasis::may:: prevent packet loss under very specific circumstances.
+
+warning::Typically, packet loss is caused by buffer overruns, so increasing redundancy can actually make things worse!::
+
+ARGUMENT:: count
+how often each packet should be sent. The default is 1 (= no redundancy).
+
+
+METHOD:: dynamicResampling
+enable/disable dynamic resampling.
+
+ARGUMENT:: enable
+code::true:: or code::false::
+
+DISCUSSION::
+The audio clocks on different machines run at slightly different speeds, so streams may slowly get out of sync, eventually causing buffer overruns or underruns. When dynamic resampling is enabled, both ends continuously estimate the "real" sample rate by sampling and filtering the current (NTP) system time. The sink then resamples the incoming audio stream based on the estimated sample rates.
+
+
+METHOD:: dllBandwidth
+set the bandwidth of the time DLL filter that is used for dynamic resampling.
+
+ARGUMENT:: bandwidth
+the new bandwidth

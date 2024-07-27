@@ -1,91 +1,64 @@
 TITLE:: AooPeer
 summary:: Represents an AOO peer
-categories:: External Control>OSC
-related:: Classes/AooAddr, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooClient
+categories:: External Control>AOO
+related:: Classes/AooAddr, Classes/AooGroup, Classes/AooUser, Classes/AooClient
 
 DESCRIPTION::
-Describes a peer in an AOO network (see link::Classes/AooClient::). It is defined by its user name and the group that it is part of.
+
+AooPeer represents a peer in an AOO network (see link::Classes/AooClient::). It is defined by its group and user.
+
+AooPeer objects are often returned from event handlers. In this case, they always have valid link::#-ip:: and link::#-port:: members.
+
+However, they can also be created ad-hoc and used as method arguments:
+code::
+// ~synth is a Synth containing an AooSend instance
+~ctl = AooSendCtl(~synth);
+// add user "foo" in group "test" as a sink (with ID 1), assuming we have also joined the same group.
+~ctl.addSink(AooPeer("test", "foo"), 1);
+::
 
 
 CLASSMETHODS::
 
+PRIVATE:: prFromEvent
+
+
 METHOD:: new
-(describe method here)
 
 ARGUMENT:: group
-(describe argument here)
+link::Classes/AooGroup:: or group name (String)
 
 ARGUMENT:: user
-(describe argument here)
+link::Classes/AooUser:: or user name (String)
 
 ARGUMENT:: addr
-(describe argument here)
+(optional) IP address String
 
 ARGUMENT:: port
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prFromEvent
-(describe method here)
-
-ARGUMENT:: groupID
-(describe argument here)
-
-ARGUMENT:: userID
-(describe argument here)
-
-ARGUMENT:: groupName
-(describe argument here)
-
-ARGUMENT:: userName
-(describe argument here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: port
-(describe argument here)
-
-returns:: (describe returnvalue here)
+(optional) port number
 
 
 INSTANCEMETHODS::
 
-METHOD:: hash
-(describe method here)
+METHOD:: group
+the group (link::Classes/AooGroup::)
 
-returns:: (describe returnvalue here)
 
 METHOD:: user
-(describe method here)
+the user (link::Classes/AooUser::)
 
-returns:: (describe returnvalue here)
+
+COPYMETHOD:: AooAddr -ip
+
+COPYMETHOD:: AooAddr -port
+
 
 METHOD:: ==
-(describe method here)
+Two AooPeers objects compare equal if their link::#-group::s and link::#-user::s compare equal.
 
-ARGUMENT:: that
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: printOn
-(describe method here)
-
-ARGUMENT:: stream
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: group
-(describe method here)
-
-returns:: (describe returnvalue here)
+An AooPeer and link::Classes/AooAddr:: compare equal if they have the same link::#-ip:: and link::#-port::.
 
 
-EXAMPLES::
+METHOD:: hash
 
-code::
-(some example code)
-::
+custom hash function which allows AooPeer to be used as a key in associative containers (e.g. link::Classes/IdentityDictionary::).

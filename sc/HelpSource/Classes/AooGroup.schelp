@@ -1,70 +1,50 @@
 TITLE:: AooGroup
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Represents an AOO group
+categories:: External Control>AOO
+related:: Classes/AooPeer, Classes/AooUser, Classes/AooEndpoint, Classes/AooClient
 
 DESCRIPTION::
-(put long description here)
+AooGroup represents a group in an AOO network (see link::Classes/AooClient::). It is defined by its group and user.
+
+See link::Classes/AooClient:: for more information about AOO groups.
 
 
 CLASSMETHODS::
 
 METHOD:: new
-(describe method here)
 
 ARGUMENT:: name
-(describe argument here)
+the group name (String)
 
 ARGUMENT:: id
-(describe argument here)
+(optional) the group ID (Integer)
 
 ARGUMENT:: metadata
-(describe argument here)
+(optional) group metadata (link::Classes/AooData::)
 
-returns:: (describe returnvalue here)
+DISCUSSION::
+
+AooGroup objects are typically part of link::Classes/AooPeer:: objects.
+Users rarely need to create AooGroup objects themselves; one example is link::Classes/AooClient#-sendMsg::.
 
 
 INSTANCEMETHODS::
 
 METHOD:: name
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: printOn
-(describe method here)
-
-ARGUMENT:: stream
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: metadata
-(describe method here)
-
-returns:: (describe returnvalue here)
+the group name (String)
 
 METHOD:: id
-(describe method here)
+the group ID (Integer)
 
-returns:: (describe returnvalue here)
 
-METHOD:: hash
-(describe method here)
+METHOD:: metadata
+optional metadata (link::Classes/AooData:: or code::nil::)
 
-returns:: (describe returnvalue here)
 
 METHOD:: ==
-(describe method here)
-
-ARGUMENT:: that
-(describe argument here)
-
-returns:: (describe returnvalue here)
+Two AooGroup objects compare equal if they have the same name or the same ID.
 
 
-EXAMPLES::
+METHOD:: hash
 
-code::
-(some example code)
-::
+custom hash function which allows AooGroup to be used as a key in associative containers (e.g. link::Classes/IdentityDictionary::).

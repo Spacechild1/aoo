@@ -1,58 +1,52 @@
 TITLE:: AooDispatcher
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: AOO message dispatcher
+categories:: External Control>AOO
+related:: Classes/AooClient, Classes/AooPeer, Classes/OSCFunc, Classes/OSCdef
 
 DESCRIPTION::
-(put long description here)
 
+AooDispatcher is a custom message dispatcher class which can be used with link::Classes/OSCFunc:: or link::Classes/OSCdef:: to handle OSC messages from peers.
 
-CLASSMETHODS::
+There are a few important differences:
 
-METHOD:: new
-(describe method here)
+numberedlist::
+## The code::recvPort:: argument to link::Classes/OSCFunc#*new:: resp. link::Classes/OSCdef#*new:: must be code::nil::!
 
-ARGUMENT:: client
-(describe argument here)
+(AooDispatcher matches AooClient objects, not port numbers.)
 
-returns:: (describe returnvalue here)
+## The code::srcId:: argument is an link::Classes/AooPeer:: (instead of a link::Classes/NetAddr::).
 
+## The third argument (code::addr::) of the message function is an link::Classes/AooPeer:: (instead of a link::Classes/NetAddr::).
 
-INSTANCEMETHODS::
+## The forth argument (code::recvPort::) of the message function is the corresponding AooClient (instead of the port number)
+::
 
-METHOD:: value
-(describe method here)
+Users are not supposed to create AooDispatcher objects themselves; instead they should use link::Classes/AooClient#-dispatcher:: or link::Classes/Aoo#*dispatcher::.
 
-ARGUMENT:: msg
-(describe argument here)
-
-ARGUMENT:: time
-(describe argument here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-ARGUMENT:: recvPort
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: wrapFunc
-(describe method here)
-
-ARGUMENT:: funcProxy
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: client
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-
-EXAMPLES::
-
+Example:
 code::
-(some example code)
+~client = AooClient(9000);
+
+// receive /test1 OSC message from all peers
+OSCFunc({ |msg, time, peer|
+	"received /test1 message from %".format(peer).postln;
+}, '/test1', dispatcher: ~client.dispatcher);
+
+// receive /test2 OSC message only from a specific peer
+OSCFunc({ |msg, time, peer|
+	"received /test2 message from %".format(peer).postln;
+}, '/test2', AooPeer("test", "foo"), dispatcher: ~client.dispatcher);
+
+// argument templates work as expected
+OSCFunc({ |msg, time, peer|
+	"received /test2 message from %".format(peer).postln;
+}, '/test3', argTemplate: [1, 2], dispatcher: ~client.dispatcher);
+
+// if you use the global dispatcher, the fourth argument of
+// the message function will give you the AooClient object:
+OSCFunc({ |msg, time, peer, client|
+	"received /test2 message from %".format(peer).postln;
+	// send reply
+	client.sendMsg(peer, nil, ['/reply', "hello!"]);
+}, '/test3', argTemplate: [1, 2], dispatcher: Aoo.dispatcher);
 ::

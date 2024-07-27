@@ -1,344 +1,609 @@
 TITLE:: AooClient
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: AOO client
+categories:: External Control>AOO
+related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooServer, Classes/AooPeer, Guides/AOO_Introduction
 
 DESCRIPTION::
-(put long description here)
+
+AooClient allows to exchange audio or messages between peers over the internet. For this purpose, it joins an AOO server (see link::Classes/AooServer::) which facilitates the peer-to-peer connectivity.
+
+When streaming over the internet, you typically don't know the public IP addresses of your peers. For this purpose, AooClient allows you refer to them emphasis::by name::. This can also be handy for local networks because you do not have to manage IP addresses. (In particular, you don't need to assign static IP addresses or configure a DHCP server.)
+
+First you need to link::#-connect:: to an AOO server. To communicate over the internet, the server must be publicly accessible. For example, you can use the public AOO server at the IEM in Graz ("vrr.iem.at").
+
+Once you are connected, you must join a group with a user name (see link::#-joinGroup::).
+
+Example:
+code::
+(
+~port = 9999; // just pick a port number
+s.boot; // the Server must be running!
+)
+
+(
+fork {
+	~client = AooClient(~port);
+
+	s.sync; // wait for AooClient
+
+	// connect to an AOO server
+	~client.connect("vrr.iem.at", action: { |success|
+		if (success) {
+			// now join a group
+			~client.joinGroup("the_group_name", "my_user_name", action: {
+				|success, group, user|
+				if (success) {
+					"successfully joined group % as user %".format(group.name, user.name).postln;
+				}
+			});
+		}
+	});
+}
+)
+::
+
+After you have successfully joined the group, you will receive a series of code::\peerJoin:: events for all existing group members. You will also receive code::\peerJoin:: events when new peers join the group and code::\peerLeave:: events when peers leave the group. (See link::#Event handling:: for all events.)
+
+A peer is represented by an link::Classes/AooPeer:: object which can be used instead of link::Classes/AooAddr:: in link::Classes/AooSendCtl:: and link::Classes/AooReceiveCtl::.
+
+Example:
+code::
+// Add every new peer to our AOO source and
+// remove it again when it leaves it group.
+(
+fork {
+	SynthDef(\aoo_send, {
+		var sig = SinOsc.ar([440, 220]) * 0.1;
+		AooSend.ar(~port, 0, sig);
+	}).add;
+
+	s.sync; // wait for SynthDef
+
+	~send = AooSendCtl(Synth(\aoo_send));
+
+	s.sync; // wait for AooSend UGen
+
+	~client.addListener(\peerJoin, { |peer|
+		~send.addSink(peer, 1);
+	});
+	~client.addListener(\peerLeave, { |peer|
+		~send.removeSink(peer, 1);
+	});
+}
+)
+::
+
+Peers can also exchange arbitrary messages, even with reliable transmission if desired. See link::#Messaging:: for more information.
+
+Example:
+code::
+// Listen to all peer messages and reply to each message.
+(
+~client.addListener(\msg, { |msg, time, peer|
+	"got % message '%' from peer %".format(msg.type, msg.data, peer).postln;
+	~client.sendMsg(peer, ['/reply', "roger!"]);
+});
+::
 
 
 CLASSMETHODS::
 
-METHOD:: initClass
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: clients
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: find
-(describe method here)
-
-ARGUMENT:: port
-(describe argument here)
-
-returns:: (describe returnvalue here)
+PRIVATE:: prNextToken
 
 METHOD:: new
-(describe method here)
 
 ARGUMENT:: port
-(describe argument here)
+the UDP port
+
+note::This must be the same port as the corresponding link::Classes/AooSend:: and link::Classes/AooReceive:: objects!::
 
 ARGUMENT:: server
-(describe argument here)
+the Server or code::nil:: (= default Server)
 
-ARGUMENT:: action
-(describe argument here)
+DISCUSSION::
 
-returns:: (describe returnvalue here)
+The AooClient is created emphasis::asynchronously:: on the Server. You can use link::Classes/Server#-sync:: to make sure the object is ready and possibly check for errors with link::#-isOpen::.
 
-METHOD:: prNextToken
-(describe method here)
-
-returns:: (describe returnvalue here)
+code::
+(
+fork {
+	~client = AooClient(9999);
+	s.sync;
+	if (~client.isOpen) {
+		// ok
+	};
+}
+)
+::
 
 
 INSTANCEMETHODS::
 
+PRIVATE:: prPostInit, prHandleEvent, prHandleMsg, prAddPeer, prRemovePeer, prFindPeer
+PRIVATE:: prAddGroup, prRemoveGroup, prFindGroup, prResolveAddr
+
+
+METHOD:: isOpen
+returns:: whether the object has been created successfully
+
 METHOD:: server
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prInit
-(describe method here)
-
-ARGUMENT:: port
-(describe argument here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prRemoveGroup
-(describe method here)
-
-ARGUMENT:: group
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prAddPeer
-(describe method here)
-
-ARGUMENT:: peer
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prFindPeer
-(describe method here)
-
-ARGUMENT:: peer
-(describe argument here)
-
-ARGUMENT:: loud
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prResolveAddr
-(describe method here)
-
-ARGUMENT:: addr
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prHandleMsg
-(describe method here)
-
-ARGUMENT:: time
-(describe argument here)
-
-ARGUMENT:: group
-(describe argument here)
-
-ARGUMENT:: user
-(describe argument here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: data
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: packetSize
-(describe method here)
-
-ARGUMENT:: size
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: joinGroup
-(describe method here)
-
-ARGUMENT:: groupName
-(describe argument here)
-
-ARGUMENT:: groupPwd
-(describe argument here)
-
-ARGUMENT:: userName
-(describe argument here)
-
-ARGUMENT:: userPwd
-(describe argument here)
-
-ARGUMENT:: groupMetadata
-(describe argument here)
-
-ARGUMENT:: userMetadata
-(describe argument here)
-
-ARGUMENT:: relayAddr
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: state
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: peers
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: connect
-(describe method here)
-
-ARGUMENT:: hostname
-(describe argument here)
-
-ARGUMENT:: port
-(describe argument here)
-
-ARGUMENT:: password
-(describe argument here)
-
-ARGUMENT:: metadata
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-ARGUMENT:: timeout
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: free
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prRemovePeer
-(describe method here)
-
-ARGUMENT:: peer
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: leaveGroup
-(describe method here)
-
-ARGUMENT:: group
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prAddGroup
-(describe method here)
-
-ARGUMENT:: group
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: sendMsg
-(describe method here)
-
-ARGUMENT:: target
-(describe argument here)
-
-ARGUMENT:: time
-(describe argument here)
-
-ARGUMENT:: msg
-(describe argument here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: reliable
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: init
-(describe method here)
-
-ARGUMENT:: port
-(describe argument here)
-
-ARGUMENT:: server
-(describe argument here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prHandleEvent
-(describe method here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: args
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: removeListener
-(describe method here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: func
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: groups
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: addListener
-(describe method here)
-
-ARGUMENT:: type
-(describe argument here)
-
-ARGUMENT:: func
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: prFindGroup
-(describe method here)
-
-ARGUMENT:: group
-(describe argument here)
-
-ARGUMENT:: loud
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: disconnect
-(describe method here)
-
-ARGUMENT:: action
-(describe argument here)
-
-returns:: (describe returnvalue here)
+the link::Classes/Server:: instance
 
 METHOD:: port
-(describe method here)
+the UDP port
 
-returns:: (describe returnvalue here)
+METHOD:: peers
+the list of peers (link::Classes/AooPeer::)
 
-METHOD:: pingInterval
-(describe method here)
-
-ARGUMENT:: sec
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: dispatcher
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: id
-(describe method here)
-
-returns:: (describe returnvalue here)
+METHOD:: groups
+the list of groups (link::Classes/AooGroup::)
 
 
-EXAMPLES::
+SUBSECTION:: Event handling
+
+AooClient receives various events from the Server.
+The user can handle these events by installing corresponding event handler functions, link::#-addListener::.
+
+Currently, the following event types are supported:
+
+definitionlist::
+
+## code::\msg::
+|| A peer has sent a message.
+
+Arguments:
+table::
+## link::Classes/AooData:: || the message
+## Float || the scheduled time
+## link::Classes/AooPeer:: || the sender
+::
+
+note::OSC messages can also be handled with an link::Classes/OSCFunc:: or link::Classes/OSCdef::, see link::#-dispatcher::.::
+
+## code::\disconnected::
+|| The AOO client has been disconnected from the AOO server.
+
+Arguments:
+table::
+## link::Classes/AooError:: || error
+::
+
+## code::\peerJoin::
+|| A new peer has joined the group. (This event is sent after a successfully handshake, see code::\peerHandshake:: below.)
+
+Arguments:
+table::
+## link::Classes/AooPeer:: || the new peer
+::
+
+## code::\peerLeave::
+|| A peer has left the group
+
+Arguments:
+table::
+## link::Classes/AooPeer:: || the peer
+::
+
+## code::\peerHandshake::
+|| Started handshake with new peer.
+
+Arguments:
+table::
+## link::Classes/AooPeer:: || the new peer
+::
+
+If the handshake succeeds, it is followed by a code::\peerJoin:: event; on failure you will receive a code::\peerTimeout:: event.
+
+## code::\peerTimeout::
+|| Peer handshake has timed out, see code::\peerHandshake:: above.
+
+Arguments:
+table::
+## link::Classes/AooPeer:: || the peer
+::
+
+## code::\peerPing::
+|| Peer ping event.
+
+Arguments:
+table::
+## link::Classes/AooPeer:: || the peer
+## Float || emphasis::delta1:: (client → peer time) in seconds
+## Float || emphasis::delta2:: (peer → client time) in seconds
+## Float || network RTT (round-trip-time) in seconds
+## Float || total RTT in seconds
+::
+
+note::emphasis::delta1:: and emphasis::delta2:: do not reflect the real time difference and can even be negative!::
+
+Useful formulas:
+
+numberedlist::
+## Estimated end-to-end latency:
+
+code::network-RTT * 0.5::
+
+## Estimated clock offset between client and peer:
+
+code::(delta1 - delta2) * 0.5::
+::
+
+## code::\event::
+|| Catch-all event type (except for code::\msg::)
+
+Arguments:
+table::
+## Symbol || the event type, e.g. code::\peerJoin::
+## Array || the event arguments
+::
+
+::
+
+METHOD:: addListener
+add an event handling function
+
+ARGUMENT:: type
+the event type as a Symbol (see link::#Event handling::).
+
+ARGUMENT:: func
+the function to be called
+
+DISCUSSION::
+
+The function arguments are specific to the given event type (see above). For example:
+code::
+~client.addListener(\peerJoin, { |peer|
+	// handle event
+});
+::
+
+note::It is possible to register several functions for the same event type.::
+
+METHOD:: removeListener
+remove an event handling function
+
+ARGUMENT:: type
+the event type as a Symbol (see above).
+
+ARGUMENT:: func
+the function to be removed
+
+
+SUBSECTION:: Requests
+
+METHOD:: connect
+connect to an AOO server.
+
+ARGUMENT:: hostname
+the server hostname or IP address.
+
+ARGUMENT:: port
+optional port number; if omitted, the default port (link::Classes/AooServer#-defaultPort::) will be used.
+
+ARGUMENT:: password
+optional password, in case the AOO server is password protected.
+
+ARGUMENT:: metadata
+optional metadata (link::Classes/AooData::)
+
+ARGUMENT:: timeout
+connection timeout in seconds
+
+ARGUMENT:: action
+a function to be called when the request has finished.
+
+On success the function will be called with the following arguments:
+table::
+## code::nil:: ||
+## Integer || client ID
+## String || version string
+## link::Classes/AooData:: || (optional) metadata
+::
+
+---
+
+On failure the function will be called with an link::Classes/AooError::.
+
+DISCUSSION::
+
+If you want to connect to peers over the internet, the AOO server must publicly accessible. For example, you can use the public AOO server of the IEM ("vrr.iem.at").
+
+If all the peers are in the same local network, the server can be in the same network (e.g. on one peer's machine).
+
+Example:
+code::
+~client.connect("vrr.iem.at", action: { |err, clientID, version, metadata|
+	if (err.isNil) {
+		// success
+		"connected!".postln;
+	} {
+		// failure
+		"could not connect: %".format(err).postln;
+	}
+});
+::
+
+
+METHOD:: disconnect
+disconnect from the AOO server.
+
+ARGUMENT:: action
+a function that will be called with code::nil:: on success or link::Classes/AooError:: on failure.
+
+
+METHOD:: joinGroup
+join a group on the AOO server
+
+Example:
 
 code::
-(some example code)
+// assuming that we are already connected to the server
+~client.joinGroup("the_group_name", "my_user_name", "password1234", action: {
+	if (err.isNil) {
+		// success
+	} {
+		// failure
+		"could not join group: %".format(err.message).postln;
+	}
+});
 ::
+
+note::Usually, you would only join a single group, but it is possible to join multiple groups simultaneously.::
+
+ARGUMENT:: groupName
+the group name
+
+The group name must be unique within the AOO server. It is effectively set by the first user who tries to join the group (see link::#More Group Features::).
+
+ARGUMENT:: userName
+the user name.
+
+The user name only has to be unique within the given group. For example, you can join a group as the user "Jane" as long as there are no other "Janes" in the same group.
+
+ARGUMENT:: groupPassword
+optional group password
+
+The group password prevents strangers from joining the group. For example, two different parties might try to join the group "test" at the same time; without a password, both parties would unwittingly end up in the same group.
+
+note::The password is set by the first user who tries to join the group (see link::#More Group Features::).::
+
+ARGUMENT:: userPassword
+optional user password
+
+The user password only ensures that nobody can impersonate you in a given group, which  is only relevant for persistent users (see link::#More Group Features::).
+
+ARGUMENT:: groupMetadata
+optional group metadata (link::Classes/AooData::)
+
+This is arbitrary metadata that is associated with the group; it is visible to all group members via the code::action:: function (see link::Classes/AooGroup#-metadata::).
+
+For example, an online-jamming app can use the metadata to specify the geographical location and preferred musical style.
+
+code::
+~client.joinGroup("test", "foo", "password", action: { |err, group, user|
+	var info = group.metadata.data.parseJSON;
+	"location: %, style: %".format(info.location, info.style).postln;
+});
+::
+
+note::The group metadata can only be set by the first user who joins the group (see link::#More Group Features::).::
+
+ARGUMENT:: userMetadata
+optional user metadata (link::Classes/AooData::)
+
+This is some arbitrary data that is associated with your user; it is visible to all peers via the code::\peerJoin:: event (see link::#Event handling:: and link::Classes/AooUser#-metadata::).
+
+For example, an online-jamming app can use the metadata to specify the geographical location and preferred musical style.
+
+code::
+~client.addListener(\peerJoin, { |peer|
+	var info = peer.user.metadata;
+	"location: %, instrument: %, channels: %".format(info.location, info.instrument, info.channels).postln;
+});
+::
+
+ARGUMENT:: relayAddr
+optional relay address (link::Classes/AooAddr::)
+
+You can provide your own relay server for this group. This helps peers which cannot establish a peer-to-peer connection because it will relay their traffic over your server. Note that a relay server must be publicly accessible!
+
+ARGUMENT:: action
+a function to be called when the request has finished.
+
+On success the function will be called with the following arguments:
+table::
+## code::nil:: ||
+
+## link::Classes/AooGroup:: || the group;
+e.g. lets you view the group metadata (link::Classes/AooGroup#-metadata::)
+
+## link::Classes/AooUser:: || your user;
+e.g. tells you the user ID (link::Classes/AooUser#-id::)
+
+## link::Classes/AooData:: || (optional) private metadata;
+
+unlike the user metadata, which is visible to all peers, the private metadata is only visible to you. It is generated by the AOO server.
+::
+
+---
+
+On failure the function will be called with an link::Classes/AooError::.
+
+DISCUSSION::
+
+emphasis::More Group Features::
+anchor::More Group Features::
+
+Groups are typically created on demand, i.e. the first person who tries to join a group implicitly creates it; conversely, a group will be destroyed when all members have left. The same goes for group users.
+
+AOO servers can also have emphasis::persistent:: groups, but those can only be created by the server admin. A persistent group can also have persistent users.
+
+Every AOO group and user also has a unique ID, see link::Classes/AooGroup#-id:: and link::Classes/AooUser#-id::. The group ID is not particulary relevant for end users. The user ID, however, can be utilized in various ways. For example, in an online jamming application every client should probably have an AOO sink emphasis::for each peer::, so they can be mixed and panned independently. For this purpose you can simply use the peer's user ID as the sink ID. Conversely, when a client sends its audio signal to all its peers, it would use emphasis::its own:: user ID as the destination sink ID.
+
+
+METHOD:: leaveGroup
+leave a server group
+
+ARGUMENT:: group
+the group; if connected to a single group, this can be code::nil::.
+
+ARGUMENT:: action
+a function that will be called with code::nil:: on success or link::Classes/AooError:: on failure.
+
+
+SUBSECTION:: Messaging
+
+METHOD:: sendMsg
+send a message to one or more peers
+
+ARGUMENT:: target
+the message target.
+table::
+## link::Classes/AooPeer:: || a single peer
+## code::nil:: || all peers
+## link::Classes/AooGroup:: || all peers in the given group
+::
+
+ARGUMENT:: time
+optional time offset, similar to OSC bundles (see link::Classes/NetAddr#-sendBundle::).
+
+note::The time offset can be negative!::
+
+See also link::#Scheduling::.
+
+ARGUMENT:: msg
+the message.
+
+OSC messages can be passed as Arrays, e.g. code::['/foo', 1, 2, 3]::.
+
+Other message types must be passed as link::Classes/AooData::.
+
+ARGUMENT:: reliable
+whether the transmission should be reliable or not.
+
+If code::reliabel:: is code::true::, the message is guaranteed to arrive complete and in order with other reliable messages.
+
+If code::reliabel:: is code::false:: (= default), the message may not arrive on the other end, e.g. due to UDP packet loss.
+
+See link::#Reliable Transmission::.
+
+DISCUSSION::
+
+Examples:
+
+code::
+// send OSC message ["/foo", 1, 2, 3] to all peers
+~client.sendMsg(nil, nil, ["/foo", 1, 2, 3]);
+
+// same as above, but with a 0.5 second timestamp
+~client.sendMsg(nil, 0.5, ["/foo", 1, 2, 3]);
+
+// send the same message to a single peer
+~client.sendMsg(AooPeer("test", "foo"), nil, ["/foo", 1, 2, 3]);
+
+// send the message to all peers in group "test".
+// (This only makes sense if you are a member of multiple groups.)
+~client.sendMsg(AooGroup("test"), nil, [ "/foo", 1, 2, 3]);
+
+// send a JSON message to all peers
+~client.sendMsg(nil, nil, AooData(\json, "{x=%,y=%,z=%}".format(5, 3, 1.5)));
+
+// send a MIDI message to all peers
+~client.sendMsg(nil, nil, AooData(\midi, [144, 60, 100]));
+::
+
+You can receive messages by listening to code::\msg:: events (see link::#-addListener::). OSC messages can also be received with an link::Classes/OSCFunc:: or link::Classes/OSCdef::, see link::#-dispatcher::.
+
+emphasis::Reliable vs. Unreliable Transmission::
+anchor::Reliable Transmission::
+
+Reliable transmission is typically used for emphasis::stateful:: messages. For example, if you send MIDI note-on and note-off events, you really want to make sure they all arrive (in the right order), otherwise you might end up with hanging notes.
+
+Unreliable transmission can often be used for emphasis::stateless:: messages. For example, let's assume a note message that contains all the necessary information (including its duration); if such a message does not arrive, all you get is a missing note, but the rest of the application is not affected.
+
+Finally, unreliable transmission is also fine for continuous message streams, e.g. the output of an IMU sensor or continuous pitch tracking information.
+
+note::Reliable transmission may cause head-of-line blocking (see https://en.wikipedia.org/wiki/Head-of-line_blocking) and can therefore be problematic for latency-sensivite applications.
+::
+
+emphasis::Scheduling::
+anchor::Scheduling::
+
+The code::time:: argument can be used for accurate scheduling. Most importantly, the relative timing between messages can be preserved. For example, you can send rhythmical sequences over the network and play them back accurately on the other end.
+
+For this purpose, messages must be scheduled slightly into the future by applying a constant latency to every message; otherwise the message might arrive "late" (= the timestamp lies in the past). This is very similar to link::Guides/ServerTiming::, but with the additional caveat that emphasis::sender and receiver don't share the same system clock::! For example, if the receiver runs early (relative to the sender), you must apply a higher latency than usual to avoid "late" messages. Conversely, if the receiver runs late, you can decrease the latency accordingly.
+
+strong::HINT::: You can use the code::\peerPing:: event (see link::#Event handling::) to estimate the peer's clock offset and adjust the message latency accordingly.
+
+code::
+// Create local AOO server and two clients.
+(
+fork {
+	~server = AooServer();
+	s.sync;
+	~client1 = AooClient(9999);
+	~client2 = AooClient(9998);
+	s.sync;
+	~client1.connect("localhost", action: {
+		~client1.joinGroup("test", "client1");
+	});
+	~client2.connect("localhost", action: {
+		~client2.joinGroup("test", "client2");
+	});
+}
+)
+
+// client2 listens to messages from client1 and posts the delta times.
+// Note how the delta is exactly the same as the one used by client1
+// (see below).
+(
+~prevTime = nil;
+
+OSCFunc({ |msg, time, peer|
+	// schedule message
+	SystemClock.schedAbs(time, { |t|
+		var delta;
+		if (~prevTime.notNil) {
+			delta = t - ~prevTime;
+		};
+		~prevTime = t;
+		"% % %".format(msg[1], t, delta).postln;
+	});
+}, '/count', dispatcher: ~client2.dispatcher);
+)
+
+(
+~latency = 0.5; // message latency
+
+fork {
+	// Count to 10 at a regular interval and apply the latency
+	// to every message.
+	10.do { |i|
+		~client1.sendMsg(AooPeer("test", "client2"), ~latency, ['/count', i]);
+		0.25.wait;
+	}
+}
+)
+::
+
+METHOD:: dispatcher
+the client's link::Classes/AooDispatcher:: object.
+
+This is necessary to receive OSC messages with link::Classes/OSCFunc:: or link::Classes/OSCdef::. Alternatively, you can also use the global link::Classes/Aoo#*dispatcher:: object.
+
+See link::Classes/AooDispatcher:: for more information and examples.
+
+
+SUBSECTION:: Advanced
+
+METHOD:: pingInterval
+set the interval at which code::\peerPing:: events are generated.
+See also link::#Event handling::.
+
+ARGUMENT:: seconds
+the ping interval in seconds.
+
+Set to 0 to disable code::\ping:: events.
+
+
+COPYMETHOD:: AooSendCtl -packetSize

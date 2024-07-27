@@ -1,0 +1,46 @@
+TITLE:: AooData
+summary:: Typed data object
+categories:: External Control>AOO
+related:: Classes/AooClient, Classes/AooSendCtl, Classes/AooReceiveCtl
+
+DESCRIPTION::
+AooData represents arbitrary typed data. See link::#*new:: for all supported types.
+
+AooData is typically used for metadata, e.g. (e.g. the stream metadata in link::Classes/AooSendCtl#-start::), but also for peer messages (see link::Classes/AooClient#-sendMsg::).
+
+CLASSMETHODS::
+
+PRIVATE:: prParseOSCMsg
+
+METHOD:: new
+
+ARGUMENT:: type
+the data type
+
+ARGUMENT:: data
+the data
+
+DISCUSSION::
+Currently, the following data types are supported:
+table::
+## type || data || description
+## code::\raw:: || link::Classes/Int8Array:: || raw binary data
+## code::\text:: || String || text (UTF-8 encoded)
+## code::\json:: || String || JSON (UTF-8 encoded)
+## code::\xml:: || String || XML (UTF-8 encoded)
+## code::\osc:: || OSC Array || OSC message
+## code::\midi:: || Array || MIDI message
+## code::\fudi:: || String || FUDI message (Pure Data)
+## code::\int16:: || Integer Array || list of 16-bit integers
+## code::\int32:: || Integer Array || list of 32-bit integers
+## code::\float32:: || Float Array || list of 32-bit floats
+## code::\float64:: || Float Array || list of 64-bit floats
+::
+
+INSTANCEMETHODS::
+
+METHOD:: type
+the data type, see link::#*new::
+
+METHOD:: data
+the data, see link::#*new::

@@ -1,70 +1,48 @@
 TITLE:: AooEndpoint
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Represents an AOO endpoint
+categories:: External Control>AOO
+related:: Classes/AooAddr, Classes/AooPeer, Classes/AooClient, Classes/AooSendCtl, Classes/AooReceiveCtl
 
 DESCRIPTION::
-(put long description here)
+AooEndpoint respresents an AOO endpoint, which can be either an AOO source (e.g. link::Classes/AooSend::) or an AOO sink (e.g. link::Classes/AooReceive::).
+
+Every AOO endpoint is defined by a network endpoint (link::Classes/AooAddr:: or link::Classes/AooPeer::) and an ID. The latter distinguishes multiple sources resp. sinks on the same port.
+
+AooEndpoint objects are often returned from event handlers:
+
+code::
+// ~synth is a Synth containing an AooReceive instance
+~ctl = AooReceiveCtl(~synth);
+~ctl.addListener(\start, { |source, metadata|
+	// source is an AooEndpoint
+	"new stream from source %s".format(source).postln;
+});
+::
 
 
 CLASSMETHODS::
 
 METHOD:: new
-(describe method here)
 
 ARGUMENT:: addr
-(describe argument here)
+network endpoint (link::Classes/AooAddr:: or link::Classes/AooPeer::)
 
 ARGUMENT:: id
-(describe argument here)
-
-returns:: (describe returnvalue here)
+source/sink ID (Integer)
 
 
 INSTANCEMETHODS::
 
-METHOD:: ==
-(describe method here)
-
-ARGUMENT:: that
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: printOn
-(describe method here)
-
-ARGUMENT:: stream
-(describe argument here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: hash
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: matchItem
-(describe method here)
-
-ARGUMENT:: item
-(describe argument here)
-
-returns:: (describe returnvalue here)
+METHOD:: addr
+network endpoint (link::Classes/AooAddr:: or link::Classes/AooPeer::)
 
 METHOD:: id
-(describe method here)
+source/sink ID (Integer)
 
-returns:: (describe returnvalue here)
-
-METHOD:: addr
-(describe method here)
-
-returns:: (describe returnvalue here)
+METHOD:: ==
+Two AooEndpoint objects compare equal if their addresses and IDs compare equal.
 
 
-EXAMPLES::
+METHOD:: hash
 
-code::
-(some example code)
-::
+custom hash function which allows AooEndpoint to be used as a key in associative containers (e.g. link::Classes/IdentityDictionary::).

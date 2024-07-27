@@ -1,56 +1,25 @@
 TITLE:: AooFormat
-summary:: (put short description here)
-categories:: Undocumented classes
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: Base class for all streaming formats
+categories:: External Control>AOO
+related:: Classes/AooFormatPCM, Classes/AooFormatOpus, Classes/AooFormatNull
 
 DESCRIPTION::
-(put long description here)
 
-
-CLASSMETHODS::
-
-METHOD:: codec
-(describe method here)
-
-returns:: (describe returnvalue here)
+AooFormat is the common base class for all streaming formats.
 
 
 INSTANCEMETHODS::
 
-METHOD:: asOSCArgArray
-(describe method here)
+METHOD:: codec
 
-ARGUMENT:: array
-(describe argument here)
+returns:: the code name as a Symbol
 
-returns:: (describe returnvalue here)
-
-METHOD:: sampleRate
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-METHOD:: printOn
-(describe method here)
-
-ARGUMENT:: stream
-(describe argument here)
-
-returns:: (describe returnvalue here)
 
 METHOD:: channels
-(describe method here)
-
-returns:: (describe returnvalue here)
+the number of channels
 
 METHOD:: blockSize
-(describe method here)
+the block size in samples
 
-returns:: (describe returnvalue here)
-
-
-EXAMPLES::
-
-code::
-(some example code)
-::
+METHOD:: sampleRate
+the sample rate in Hz

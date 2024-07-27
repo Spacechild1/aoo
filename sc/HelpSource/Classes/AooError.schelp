@@ -1,0 +1,17 @@
+TITLE:: AooError
+summary:: AOO error
+categories:: External Control>AOO
+related:: Classes/AooClient
+
+DESCRIPTION::
+AooError represents an error response in client requests (see link::Classes/AooClient#Requests::) and also some events (see link::Classes/AooClient#Event handling::).
+
+CLASSMETHODS::
+
+INSTANCEMETHODS::
+
+METHOD:: code
+the error code
+
+METHOD:: message
+the error message

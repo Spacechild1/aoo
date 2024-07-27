@@ -1,7 +1,7 @@
 TITLE:: AooFormatOpus
-summary:: Opus codec settings
-categories:: Server>Abstractions
-related:: Classes/AooSendCtl, Classes/AooReceiveCtl
+summary:: Opus streaming format
+categories:: External Control>AOO
+related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooFormatPCM, Classes/AooFormatNull, Classes/AooFormat
 
 DESCRIPTION::
 Opus is a high quality and low latency codec for sending compressed audio over the internet (https://opus-codec.org/).
@@ -10,38 +10,57 @@ Opus is a high quality and low latency codec for sending compressed audio over t
 CLASSMETHODS::
 
 METHOD:: new
-See the instance methods for the meaning of each parameter. All parameters are optional.
+
+All arguments for optional.
+
+ARGUMENT:: channels
+the number of channels, between 1 and 255.
+
+code::nil:: = same as input channel count
+
+ARGUMENT:: blockSize
+the block size in samples, see link::#-blockSize::.
+
+code::nil:: = default (480 samples)
+
+ARGUMENT:: sampleRate
+the sample rate, see link::#-sampleRate::.
+
+code::nil:: = default (48000 Hz)
+
+ARGUMENT:: applicationType
+the application type, see link::#-applicationType::.
 
 
 INSTANCEMETHODS::
 
-METHOD:: channels
-number of channels (default: UGen channel size)
+COPYMETHOD:: AooFormat -codec
+
+COPYMETHOD:: AooFormat -channels
 
 METHOD:: blockSize
-block size in samples (default: 480).
+block size in samples.
 
-Opus works with block sizes that are multiples of 2.5 ms (@ 48 kHz). The minimum block size is 120 samples (= 2.5 ms @ 48 kHz), the maximum block size is 2880 samples (= 60 ms @ 48 kHz).
+Opus works with block sizes that are multiples of 2.5 ms; the max. block size is 120 ms.
 
-The value of code::blockSize:: is automatically rounded down to the nearest Opus block size.
+At 48 kHz, possible values are 120, 240, 480, 960, 1920, 2880, 3840, 4800 and 5760 samples.
 
-note::Higher block sizes yield better compression and audio quality, but introduce more latency.::
+note::The block size passed to link::#*new:: will be automatically rounded down to the nearest Opus block size.::
+
+Generally, higher block sizes yield better compression and audio quality, but introduce more latency. Low block sizes like 240 or 480 work fine as long as the bit rate is high enough (see link::Classes/AooSendCtl#-setCodecParam::).
+
 
 METHOD:: sampleRate
-sample rate in Herz (default: 48000 Hz). Possible values: 48000, 24000, 16000, 12000, 8000.
+sample rate in Hz. Possible values are 48000, 24000, 16000, 12000 and 8000.
 
-
-
-INSTANCEMETHODS::
 
 METHOD:: applicationType
-(describe method here)
-
-returns:: (describe returnvalue here)
-
-
-EXAMPLES::
-
-code::
-(some example code)
+Opus application type. Possible values:
+table::
+## code::\audio:: || high quality audio
+## code::\voip:: || VOIP applications
+## code::\lowdelay:: || optimize for low-latency applications. (Voice signal modes are disabled.)
 ::
+
+Opus normally adds a codec delay of 6.5 ms, but with code::\lowdelay:: the delay can be reduced to 2.5 ms.
+
