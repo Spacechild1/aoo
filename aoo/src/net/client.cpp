@@ -204,7 +204,7 @@ AooError AOO_CALL aoo::net::Client::run(AooSeconds timeout){
                 cmd->perform(*this);
             }
 
-            if (peers_.update()){
+            if (peers_.reclaim()){
                 LOG_DEBUG("AooClient: free stale peers");
             }
 

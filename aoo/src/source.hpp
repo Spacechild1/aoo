@@ -346,7 +346,7 @@ class Source final : public AooSource, rt_memory_pool_client {
     // requests
     aoo::unbounded_mpsc_queue<sink_request> requests_;
     // sinks
-    using sink_list = aoo::rcu_list<sink_desc>;
+    using sink_list = aoo::concurrent_list<sink_desc>;
     using sink_lock = std::unique_lock<sink_list>;
     sink_list sinks_;
     sync::mutex sink_mutex_;

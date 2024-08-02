@@ -610,7 +610,7 @@ AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
 
     send_ping(reply);
 
-    if (sinks_.update()){
+    if (sinks_.reclaim()){
         LOG_DEBUG("AooSource: free stale sinks");
     }
 

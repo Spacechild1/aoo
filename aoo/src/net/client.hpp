@@ -415,7 +415,7 @@ private:
     aoo::vector<sink_desc> sinks_;
     sync::shared_mutex source_sink_mutex_;
     // peers
-    using peer_list = aoo::rcu_list<peer>;
+    using peer_list = aoo::concurrent_list<peer>;
     using peer_lock = std::unique_lock<peer_list>;
     peer_list peers_;
     // connect/login

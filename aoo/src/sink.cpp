@@ -498,7 +498,7 @@ AooError AOO_CALL aoo::Sink::send(AooSendFunc fn, void *user){
     lock.unlock(); // !
 
     // free unused sources
-    if (sources_.update()){
+    if (sources_.reclaim()){
         LOG_DEBUG("AooSink: free stale sources");
     }
 
@@ -564,7 +564,7 @@ AooError AOO_CALL aoo::Sink::process(
         }
     }
 #if 1
-    if (sources_.empty() && !sources_.need_update() && requestqueue_.empty()) {
+    if (sources_.empty() && !sources_.need_reclaim() && requestqueue_.empty()) {
         // nothing to process and no need to call send()
         return kAooErrorIdle;
     }
@@ -903,7 +903,7 @@ AooError Sink::handle_stop_message(const osc::ReceivedMessage& msg,
     AooId id = (it++)->AsInt32();
     AooId stream = (it++)->AsInt32();
     int32_t offset = 0;
-    // NB: the <offset> argument has been added in 2.0-pre4
+    // NB: the <offset> argument has been added in 2.0-test4
     if (it != msg.ArgumentsEnd()) {
         offset = (it++)->AsInt32();
     }

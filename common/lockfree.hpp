@@ -377,17 +377,17 @@ class unbounded_mpsc_queue :
     }
 };
 
-//------------------------ rcu_list ---------------------------------//
+//------------------------ concurrent_list ---------------------------------//
 
 // A lock-free singly-linked list with RCU algorithm.
 // It supports concurrent iteration and adding/removal of items,
 // with a few restrictions:
-// * you may only call methods while the list is locked; the only exception is update()
+// * you may only call methods while the list is locked; the only exception is reclaim()
 // * you may only access list items while the list is (still) locked
 // * nodes must not be removed concurrently resp. without external synchronization
 
 template<typename T, typename Alloc = std::allocator<T>>
-class rcu_list :
+class concurrent_list :
     detail::node_allocator_base<detail::atomic_node_base<T>, Alloc>
 {
     typedef detail::node_allocator_base<detail::atomic_node_base<T>, Alloc> base;
@@ -395,7 +395,7 @@ class rcu_list :
 public:
     template<typename U>
     class base_iterator {
-        friend class rcu_list;
+        friend class concurrent_list;
         U *node_;
     public:
         typedef std::ptrdiff_t difference_type;
@@ -431,12 +431,12 @@ public:
     using iterator = base_iterator<node>;
     using const_iterator = base_iterator<const node>;
 
-    rcu_list(const Alloc& alloc = Alloc{})
+    concurrent_list(const Alloc& alloc = Alloc{})
         : base(alloc) {}
 
-    rcu_list(const rcu_list&) = delete;
+    concurrent_list(const concurrent_list&) = delete;
 
-    rcu_list(rcu_list&& other)
+    concurrent_list(concurrent_list&& other)
         : base(std::move(other))
     {
         head_ = other.head_.exchange(nullptr);
@@ -444,12 +444,12 @@ public:
         refcount_ = other.refcount_.exchange(0);
     }
 
-    ~rcu_list(){
+    ~concurrent_list(){
         destroy_list(head_.load());
         destroy_list(free_.load());
     }
 
-    rcu_list& operator=(rcu_list&& other){
+    concurrent_list& operator=(concurrent_list&& other){
         base::operator=(std::move(other));
         head_ = other.head_.exchange(nullptr);
         free_ = other.free_.exchange(nullptr);
@@ -494,7 +494,7 @@ public:
             auto n = head_.load(std::memory_order_acquire);
             if (n == it.node_){
                 // try to remove head
-                // there is no ABA problem, see update().
+                // there is no ABA problem, see reclaim().
                 auto next = n->next_.load(std::memory_order_acquire);
                 if (head_.compare_exchange_strong(n, next, std::memory_order_acq_rel)){
                     dispose_node(n);
@@ -561,7 +561,7 @@ public:
         refcount_.fetch_sub(1, std::memory_order_release);
     }
 
-    bool need_update() const {
+    bool need_reclaim() const {
         return free_.load(std::memory_order_relaxed) != nullptr;
     }
 
@@ -570,7 +570,7 @@ public:
     // NB: items on the free list are never reused, so there is no ABA problem
     // in the CAS loop in erase(). We might put the items back again (see below),
     // but in this case the list head would still point to the original (unmodified) object.
-    bool update(){
+    bool reclaim(){
         // check if the list appears be non-empty; if yes, also check the refcount
         if (free_.load(std::memory_order_relaxed)
                 && !refcount_.load(std::memory_order_relaxed)){
@@ -632,7 +632,7 @@ private:
         }
         // prepend to the free list; 'list' becomes new head
         // NB: there is no ABA problem because this method is only called
-        // from update(), so nobody can concurrently *remove* items.
+        // from reclaim(), so nobody can concurrently *remove* items.
         // (It is possible that new items are pushed by erase(), though.)
         auto head = free_.load(std::memory_order_relaxed);
         do {
