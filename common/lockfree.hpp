@@ -77,7 +77,7 @@ class spsc_queue {
     }
     // returns: the number of available *blocks* for reading
     int32_t read_available() const {
-        return balance_.load(std::memory_order_relaxed);
+        return balance_.load(std::memory_order_acquire);
     }
 
     void read(T& out) {
@@ -108,7 +108,7 @@ class spsc_queue {
 
     // returns: the number of available *blocks* for writing
     int32_t write_available() const {
-        return capacity_ - balance_.load(std::memory_order_relaxed);
+        return capacity_ - balance_.load(std::memory_order_acquire);
     }
 
     template<typename U>
@@ -339,7 +339,7 @@ class unbounded_mpsc_queue :
 
     bool empty() const {
         return divider_.load(std::memory_order_relaxed)
-                == last_.load(std::memory_order_relaxed);
+                == last_.load(std::memory_order_acquire);
     }
 
     // not thread-safe (?)
@@ -355,7 +355,7 @@ class unbounded_mpsc_queue :
     node * get_node() {
         // try to reuse existing node
         sync::unique_lock<sync::spinlock> l(lock_);
-        if (first_ != divider_.load(std::memory_order_relaxed)) {
+        if (first_ != divider_.load(std::memory_order_acquire)) {
             auto n = first_;
             first_ = first_->next_;
             n->next_ = nullptr; // !
