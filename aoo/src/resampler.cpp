@@ -41,6 +41,8 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
                               int32_t srfrom, int32_t srto, bool fixed_sr,
                               int32_t nchannels, AooResampleMethod mode) {
     ideal_ratio_ = (double)srto / (double)srfrom;
+    fixed_sr_ = fixed_sr;
+    latency_ = 0;
     if (fixed_sr && srfrom == srto) {
         method_ = resample_method::none; // no resampling required
     } else if (fixed_sr && srto < srfrom && (srfrom % srto) == 0) {
@@ -53,16 +55,17 @@ void dynamic_resampler::setup(int32_t nfrom, int32_t nto, bool fixed_n,
             break;
         case kAooResampleLinear:
             method_ = resample_method::linear;
+            latency_ = latency_linear;
             break;
         case kAooResampleCubic:
             method_ = resample_method::cubic;
+            latency_ = latency_cubic;
             break;
         default:
             LOG_ERROR("bad resample method");
             method_ = resample_method::linear;
         }
     }
-    fixed_sr_ = fixed_sr;
     bool reblock = !fixed_n || nfrom != nto;
     bypass_ = (method_ == resample_method::none) && !reblock;
     if (bypass_) {
@@ -123,7 +126,6 @@ void dynamic_resampler::reset() {
         wrpos_ = latency_cubic;
         rdpos_ = 0.0;
         balance_ = latency_cubic;
-        latency_ = latency_cubic;
     } else if (method_ == resample_method::linear) {
         assert(buffer_ != nullptr);
         // write one frame of zero(s)
@@ -134,12 +136,10 @@ void dynamic_resampler::reset() {
         wrpos_ = latency_linear;
         rdpos_ = 0.0;
         balance_ = latency_linear;
-        latency_ = latency_linear;
     } else {
         wrpos_ = 0;
         rdpos_ = 0;
         balance_ = 0;
-        latency_ = 0;
     }
 }
 
