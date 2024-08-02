@@ -1,7 +1,12 @@
 Aoo {
 	classvar serverMap;
 
-	classvar <>dispatcher;
+	classvar <versionMajor=2;
+	classvar <versionMinor=0;
+	classvar <versionPatch=0;
+	classvar <versionString;
+
+	classvar <dispatcher;
 
 	*initClass {
 		StartUp.add {
@@ -10,6 +15,7 @@ Aoo {
 		ServerQuit.add { |server|
 			serverMap[server] = nil;
 		};
+		versionString = "%.%.%".format(versionMajor, versionMinor, versionPatch);
 		dispatcher = AooDispatcher();
 	}
 

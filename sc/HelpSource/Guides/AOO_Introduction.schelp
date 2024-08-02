@@ -1,7 +1,7 @@
 TITLE:: AOO Introduction
 summary:: An introduction to AOO
 categories:: External Control>AOO
-related:: Classes/AooSend, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooReceive, Classes/AooClient, Classes/AooServer
+related:: Classes/Aoo, Classes/AooSend, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooReceive, Classes/AooClient, Classes/AooServer
 
 DESCRIPTION::
 This is an introduction to the AOO library.

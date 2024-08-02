@@ -1,7 +1,7 @@
 TITLE:: AooReceive
 summary:: Receive AOO streams
 categories:: UGens>Streaming, External Control>AOO
-related:: Classes/AooReceiveCtl, Classes/AooSend, Classes/AooSendCtl, Classes/AooClient, Guides/AOO_Introduction
+related:: Classes/AooReceiveCtl, Classes/AooSend, Classes/AooSendCtl, Classes/AooClient, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 This UGen creates an AOO sink on the Server. It receives audio stream from one or more AOO sources (e.g. link::Classes/AooSend::) and sends the signal to its outputs. If the sink receives several streams on the same channel(s), the signals on each channel are automatically summed.

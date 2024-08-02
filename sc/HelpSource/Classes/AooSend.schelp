@@ -1,7 +1,7 @@
 TITLE:: AooSend
 summary:: Send an AOO stream
 categories:: UGens>Streaming, External Control>AOO
-related:: Classes/AooSendCtl, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Guides/AOO_Introduction
+related:: Classes/AooSendCtl, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 

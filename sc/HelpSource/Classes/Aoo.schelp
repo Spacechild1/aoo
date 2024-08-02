@@ -5,12 +5,29 @@ related:: Classes/AooClient, Guides/AOO_Introduction
 
 DESCRIPTION::
 
-Global variables and methods.
+This class holds some global variables and methods.
 
+For a general overview please see link::Guides/AOO_Introduction::.
 
 CLASSMETHODS::
 
 PRIVATE:: prGetReplyAddr, prFindUGens, prFindMetadata, prMakeMetadata
+
+METHOD:: versionMajor
+
+returns:: major library version
+
+METHOD:: versionMajor
+
+returns:: minor library version
+
+METHOD:: versionPatch
+
+returns:: patch/bugfix version
+
+METHOD:: versionString
+
+returns:: version String in the format code::<major>.<minor>.<patch>::
 
 METHOD:: dispatcher
 

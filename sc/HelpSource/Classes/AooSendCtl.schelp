@@ -1,7 +1,7 @@
 TITLE:: AooSendCtl
 summary:: Control an AooSend UGen
 categories:: External Control>AOO
-related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Guides/AOO_Introduction
+related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 This class is used to control an link::Classes/AooSend:: UGen instance.

@@ -1,7 +1,7 @@
 TITLE:: AooClient
 summary:: AOO client
 categories:: External Control>AOO
-related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooServer, Classes/AooPeer, Guides/AOO_Introduction
+related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooServer, Classes/AooPeer, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 
