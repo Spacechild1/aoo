@@ -1434,7 +1434,7 @@ void send_start_msg(const endpoint& ep, int32_t id, int32_t stream_id,
 
 // /aoo/sink/<id>/stop <src> <stream_id> <offset>
 void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream,
-                   int32_t offset, const sendfn& fn) {
+                   int32_t last_seq, int32_t offset, const sendfn& fn) {
     LOG_DEBUG("AooSource: send " kAooMsgStop " to " << ep
               << " (stream = " << stream << ")");
 
@@ -1447,7 +1447,7 @@ void send_stop_msg(const endpoint& ep, int32_t id, int32_t stream,
     snprintf(address, sizeof(address), "%s/%d%s",
              kAooMsgDomain kAooMsgSink, (int)ep.id, kAooMsgStop);
 
-    msg << osc::BeginMessage(address) << id << stream << offset
+    msg << osc::BeginMessage(address) << id << stream << last_seq << offset
         << osc::EndMessage;
 
     ep.send(msg, fn);
@@ -1501,12 +1501,16 @@ void Source::dispatch_requests(const sendfn& fn){
         switch (r.type) {
         case request_type::stop:
         {
-            auto offset = r.stop.offset;
-            if (offset > 0) {
+            int32_t last_seq;
+            int32_t offset;
+            {
                 shared_lock updatelock(update_mutex_); // reader lock!
-                offset = offset * resampler_.ratio();
+                offset = r.stop.offset * resampler_.ratio();
+                // TODO: the stream might have changed in the meantime,
+                // in which case the sequence number would not be valid...
+                last_seq = sequence_;
             }
-            send_stop_msg(r.ep, id(), r.stop.stream, offset, fn);
+            send_stop_msg(r.ep, id(), r.stop.stream, last_seq, offset, fn);
             break;
         }
         case request_type::decline:
@@ -2341,7 +2345,7 @@ void Source::handle_stop_request(const osc::ReceivedMessage& msg,
     // check if sink exists (not strictly necessary, but might help catch errors)
     sink_lock lock(sinks_);
     auto sink = find_sink(addr, id);
-    if (sink){
+    if (sink) {
         // A stream can be considered stopped if the source is stopped (idle)
         // and/or the sink is deactivated.
         auto state = stream_state();

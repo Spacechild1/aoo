@@ -167,7 +167,8 @@ public:
                           aoo::time_tag tt, int32_t latency, int32_t codec_delay,
                           const std::optional<AooData>& md, int32_t offset);
 
-    AooError handle_stop(const Sink& s, int32_t stream, int32_t offset);
+    AooError handle_stop(const Sink& s, int32_t stream,
+                         int32_t last_seq, int32_t offset);
 
     AooError handle_decline(const Sink& s, int32_t token);
 

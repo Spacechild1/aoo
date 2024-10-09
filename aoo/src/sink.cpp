@@ -895,20 +895,22 @@ AooError Sink::handle_start_message(const osc::ReceivedMessage& msg,
                              tt, latency, codec_delay, metadata, offset);
 }
 
-// /aoo/sink/<id>/stop <src> <stream> <offset>
+// /aoo/sink/<id>/stop <src> <stream> <last_seq> <offset>
 AooError Sink::handle_stop_message(const osc::ReceivedMessage& msg,
                                    const ip_address& addr) {
     auto it = msg.ArgumentsBegin();
 
     AooId id = (it++)->AsInt32();
     AooId stream = (it++)->AsInt32();
+    int32_t last_seq = kAooIdInvalid;
     int32_t offset = 0;
-    // NB: the <offset> argument has been added in 2.0-test4
-    if (it != msg.ArgumentsEnd()) {
+    // NB: the <last_seq> and <offset> arguments have been added in 2.0-test4
+    if (msg.ArgumentCount() >= 4) {
+        last_seq = (it++)->AsInt32();
         offset = (it++)->AsInt32();
     }
 
-    if (id < 0){
+    if (id < 0) {
         LOG_WARNING("AooSink: bad ID for " << kAooMsgStop << " message");
         return kAooErrorBadArgument;
     }
@@ -916,7 +918,7 @@ AooError Sink::handle_stop_message(const osc::ReceivedMessage& msg,
     source_lock lock(sources_);
     auto src = find_source(addr, id);
     if (src){
-        return src->handle_stop(*this, stream, offset);
+        return src->handle_stop(*this, stream, last_seq, offset);
     } else {
         return kAooErrorNotFound;
     }
@@ -1489,12 +1491,13 @@ AooError source_desc::handle_start(const Sink& s, int32_t stream_id, int32_t seq
     return kAooOk;
 }
 
-AooError source_desc::handle_stop(const Sink& s, int32_t stream, int32_t offset) {
+AooError source_desc::handle_stop(const Sink& s, int32_t stream,
+                                  int32_t last_seq, int32_t offset) {
     LOG_DEBUG("AooSink: handle stop (" << stream << ")");
     // ignore redundant /stop messages!
     // NOTE: stream_id_ can only change in this thread,
     // so we don't need a lock to safely *read* it!
-    // TODO: handle sample offset
+    // TODO: handle last_seq and sample offset
     if (stream == stream_id_){
         // check if we're already idle to avoid duplicate "stop" events
         auto state = state_.load(std::memory_order_relaxed);

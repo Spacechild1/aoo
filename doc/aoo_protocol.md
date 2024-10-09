@@ -82,11 +82,12 @@ Stop a stream.
 
 #### Arguments
 
-| type  | description   |
-| ----: | ------------- |
-|  `i`  | source ID     |
-|  `i`  | stream ID     |
-|  `i`  | sample offset |
+| type  | description          |
+| ----: | -------------------- |
+|  `i`  | source ID            |
+|  `i`  | stream ID            |
+|  `i`  | last sequence number |
+|  `i`  | sample offset        |
 
 ---
 
