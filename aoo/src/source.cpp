@@ -581,9 +581,10 @@ AOO_API AooError AOO_CALL AooSource_send(
 
 AooError AOO_CALL aoo::Source::send(AooSendFunc fn, void *user) {
 #if 1
+    // avoid locking if stream is not running, see process().
     // NB: we must also check for requests, otherwise this would
     // break the /stop message.
-    if (stream_state() == stream_state::idle && requests_.empty()) {
+    if (stream_state() != stream_state::run && requests_.empty()) {
         return kAooOk; // nothing to do
     }
 #endif
@@ -697,9 +698,8 @@ AooError AOO_CALL aoo::Source::process(
         return kAooOk;
     } else if (state == stream_state::start){
         // start -> play
-        // the mutex should be uncontended most of the time.
-        // although it is repeatedly locked in send(), the latter
-        // returns early if we're not already playing.
+        // The mutex should be uncontended most of the time. It is repeatedly
+        // locked in the send() method, but only if the stream is running.
         unique_lock lock(update_mutex_, sync::try_to_lock); // writer lock!
         if (!lock.owns_lock()){
             LOG_DEBUG("AooSource: process would block");
