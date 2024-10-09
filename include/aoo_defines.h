@@ -104,7 +104,7 @@
 /** \brief the AOO bugfix version */
 #define kAooVersionPatch 0
 /** \brief the AOO test version (0: stable release) */
-#define kAooVersionTest 3
+#define kAooVersionTest 4
 
 /*------------------ OSC address patterns ------------------*/
 
