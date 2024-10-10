@@ -29,7 +29,7 @@ one or more UGen inputs. The size of code::channels:: determines the max. number
 ARGUMENT:: gate
 turn streaming on (1) or off (0).
 
-This is allows to start and stop streams through a UGen input, as opposed to the link::Classes/AooSendCtl#-start:: and link::Classes/AooSendCtl#-stop:: methods. The input can be control rate or audio rate.
+This allows to start and stop streams with a UGen input, as opposed to the link::Classes/AooSendCtl#-start:: and link::Classes/AooSendCtl#-stop:: methods. The input can be control rate or audio rate.
 
 ARGUMENT:: tag
 (optional) a Symbol which uniquely identifies this UGen within a SynthDef.

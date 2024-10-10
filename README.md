@@ -5,11 +5,11 @@ AOO (audio over OSC)
 
 AOO is a lightweight and flexible peer-to-peer audio streaming and messaging solution, using Open Sound Control [^OSC] as the underlying transport protocol.
 
-It is fundamentally connectionless and allows to send audio in real time and on demand between arbitrary network endpoints.
+It is fundamentally connectionless and allows to send audio and messages in real time and on demand between arbitrary network endpoints.
 
 The C/C++ library can be easily embedded in host applications or plugins. It even runs on embedded devices, such as the ESP32. In addition, the project contains a Pure Data external, and soon also a SuperCollider extension.
 
-The following article provides a high-level overview: https://www.soundingfuture.com/en/article/aoo-low-latency-peer-peer-audio-streaming-and-messaging
+For more information please visit https://aoo.iem.at.
 
 **WARNING**: AOO is still alpha software, there are breaking changes between pre-releases!
 
@@ -19,19 +19,17 @@ The following article provides a high-level overview: https://www.soundingfuture
 
 - Peer-to-peer audio networks (IPv4 and IPv6) of any topology with arbitrary ad-hoc connections.
 
-- Each IP endpoint can have multiple so-called 'sources' (= senders) and 'sinks' (= receivers), each with their own ID.
+- Each IP endpoint can have multiple so-called 'sources' (= senders) and 'sinks' (= receivers).
 
-- Sources can send audio to several sinks.
-  Conversely, sinks can listen to several sources, summing the signals at the output.
-
-- AOO sinks can listen to several sources at the same time, summing the signals.
+- Sources can send audio to several sinks. Conversely, sinks can receive from several sources, summing the signals at the output.
 
 - AOO is connectionless: streams can start/stop at any time, enabling a "message-based audio" approach.
 
 - AOO sinks can "invite" and "uninvite" sources, i.e. ask them to send resp. stop sending audio.
   The source may accept the (un)invitation or decline it.
 
-- Sources can send arbitrary messages with sample-accurate timestamps together with the audio data. For example, this may be used to embed control data, timing information or MIDI messages.
+- Sources can send arbitrary messages with sample-accurate timestamps together with the audio data.
+  For example, this may be used to embed control data, timing information or MIDI messages.
 
 - Sources and sinks can operate at different blocksizes and samplerates. Streams are resampled and reblocked automatically.
 
@@ -40,7 +38,8 @@ The following article provides a high-level overview: https://www.soundingfuture
 - Support for different audio codecs. Currently, only PCM (uncompressed) and Opus (compressed) are implemented,
   but additional codecs can be added with the codec plugin API.
 
-- Network jitter, packet reordering and packet loss are handled by the sink jitter buffer deals. The latency can be adjusted dynamically.
+- Network jitter, packet reordering and packet loss are handled by the sink jitter buffer deals.
+  The latency can be adjusted dynamically.
 
 - Sinks can ask sources to resend dropped packets.
 

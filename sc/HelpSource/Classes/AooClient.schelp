@@ -9,7 +9,7 @@ AooClient allows to exchange audio or messages between peers over the internet. 
 
 When streaming over the internet, you typically don't know the public IP addresses of your peers. For this purpose, AooClient allows you refer to them emphasis::by name::. This can also be handy for local networks because you do not have to manage IP addresses. (In particular, you don't need to assign static IP addresses or configure a DHCP server.)
 
-First you need to link::#-connect:: to an AOO server. To communicate over the internet, the server must be publicly accessible. For example, you can use the public AOO server at the IEM in Graz ("vrr.iem.at").
+First you need to link::#-connect:: to an AOO server. To communicate over the internet, the server must be publicly accessible. For example, you can use the public AOO server at the IEM in Graz ("aoo.iem.at").
 
 Once you are connected, you must join a group with a user name (see link::#-joinGroup::).
 

@@ -4,4 +4,44 @@ categories:: External Control>AOO
 related:: Classes/Aoo, Classes/AooSend, Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooReceive, Classes/AooClient, Classes/AooServer
 
 DESCRIPTION::
-This is an introduction to the AOO library.
+
+AOO is a lightweight and flexible peer-to-peer audio streaming and messaging solution that uses OSC as the underlying transport protocol.
+It is fundamentally connectionless and allows to send audio and messages in real time and on demand between arbitrary network endpoints.
+
+For more information about AOO please visit link::https://aoo.iem.at::.
+
+subsection:: Selected Features
+
+list::
+## Peer-to-peer audio networks (IPv4 and IPv6) of any topology with arbitrary ad-hoc connections.
+
+## Each IP endpoint can have multiple so-called emphasis::sources:: (= senders) and emphasis::sinks:: (= receivers).
+
+## Sources can send audio to several sinks. Conversely, sinks can listen to several sources, summing the signals at the output.
+
+## AOO is connectionless, i.e. streams can start/stop at any time, enabling a "message-based audio" approach.
+
+## AOO sinks can "invite" and "uninvite" sources, i.e. ask them to send resp. stop sending audio.
+The source may accept the (un)invitation or decline it.
+
+## Sources and sinks can operate at different blocksizes and samplerates. Streams are resampled and reblocked automatically.
+
+## Clock differences between machines can be adjusted automatically with dynamic resampling.
+
+## Support for different audio codecs. Currently, only PCM (uncompressed) and Opus (compressed) are implemented,
+but additional codecs can be added with the codec plugin API.
+
+## Network jitter, packet reordering and packet loss are handled by the sink jitter buffer deals.
+The latency can be adjusted dynamically.
+
+## Sinks can ask sources to resend dropped packets.
+
+## Several diagnostic events about packet loss, resent packets, etc.
+
+## A connection server facilitates peer-to-peer communication in local networks or over the public internet.
+
+## AOO clients can send each other timestamped messages with optional reliable transmission.
+::
+
+subsection:: Quick Guide
+

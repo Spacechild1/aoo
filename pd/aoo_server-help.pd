@@ -1,4 +1,4 @@
-#N canvas 205 147 552 666 12;
+#N canvas 205 147 552 673 12;
 #X declare -lib aoo;
 #X floatatom 41 496 5 0 0 0 - - - 0;
 #N canvas 496 503 597 371 events 0;
@@ -42,6 +42,15 @@
 #X text 358 606 see also;
 #X obj 427 607 aoo_client;
 #X text 218 496 <-- events;
+#N canvas 281 219 450 300 sub 0;
+#X obj 100 100 bng 19 250 50 0 \$0-dummy \$0-dummy empty 0 -10 0 12 #fcfcfc #000000 #000000;
+#X obj 100 157 pdcontrol;
+#X msg 100 131 browse https://aoo.iem.at;
+#X connect 0 0 2 0;
+#X connect 2 0 1 0;
+#X coords 0 -1 1 1 19 19 2 100 100;
+#X restore 483 563 pd sub;
+#X text 285 550 For more information about AOO please visit aoo.iem.at, f 27;
 #X connect 9 0 11 0;
 #X connect 10 0 9 0;
 #X connect 11 0 0 0;
