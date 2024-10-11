@@ -27,12 +27,12 @@ fork {
 	s.sync; // wait for AooClient
 
 	// connect to an AOO server
-	~client.connect("vrr.iem.at", action: { |success|
-		if (success) {
+	~client.connect("aoo.iem.at", action: { |err|
+		if (err.isNil) {
 			// now join a group
 			~client.joinGroup("the_group_name", "my_user_name", action: {
-				|success, group, user|
-				if (success) {
+				|err, group, user|
+				if (err.isNil) {
 					"successfully joined group % as user %".format(group.name, user.name).postln;
 				}
 			});
@@ -306,13 +306,13 @@ On failure the function will be called with an link::Classes/AooError::.
 
 DISCUSSION::
 
-If you want to connect to peers over the internet, the AOO server must publicly accessible. For example, you can use the public AOO server of the IEM ("vrr.iem.at").
+If you want to connect to peers over the internet, the AOO server must publicly accessible. For example, you can use the public AOO server of the IEM ("aoo.iem.at").
 
 If all the peers are in the same local network, the server can be in the same network (e.g. on one peer's machine).
 
 Example:
 code::
-~client.connect("vrr.iem.at", action: { |err, clientID, version, metadata|
+~client.connect("aoo.iem.at", action: { |err, clientID, version, metadata|
 	if (err.isNil) {
 		// success
 		"connected!".postln;
