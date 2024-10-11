@@ -43,5 +43,334 @@ The latency can be adjusted dynamically.
 ## AOO clients can send each other timestamped messages with optional reliable transmission.
 ::
 
-subsection:: Quick Guide
+section:: Quick Start
 
+For this short tutorial we will set a simple goal: stream two sine tones from one network endpoint to another, first in a local network, then over the public internet.
+
+Usually, the network endpoints would reside on different machines, but for our purposes we will run both on the same machine
+("localhost") and in the same scsynth instance. However, I will try to separate the code for the two endpoints ("A" and "B") so that
+you can try and run it on different machines (or in different SuperCollider instances).
+
+As already mentioned above, an AOO network consists of emphasis::sources:: and emphasis::sinks::. These are defined by their IP endpoint (IP address + port) and ID.
+In SuperCollider, AOO sources and sinks are represented by the link::Classes/AooSend:: and link::Classes/AooReceive:: UGens.
+
+subsection:: Setup
+
+First, we need to create two SynthDefs: one for the source and another one for the sink. We also define the port numbers for the two endpoints.
+
+code::
+s.boot; // boot the Server
+
+// A: AOO source with 2 channels
+(
+~portA = 7000; // pick any free port
+
+SynthDef(\aoo_send, { |id=1, bus=0|
+	AooSend.ar(~portA, id, In.ar(bus, 2))
+}).add;
+)
+
+// B: AOO sink with 2 channels
+(
+~portB = 7001; // pick another free port
+
+SynthDef(\aoo_recv, { |id=1, bus=0|
+	Out.ar(bus, AooReceive.ar(~portB, id))
+}).add;
+)
+::
+
+note::If the source and sink reside on different machines, you can actually use the same port number!
+Here we only pick different port numbers so that the example also works when running in
+different Server instances emphasis::on the same machine::.
+::
+
+subsection:: Stream in a local network
+
+Now we create the actual AOO source and sink instances. The link::Classes/AooSendCtl:: and link::Classes/AooReceiveCtl:: objects allow us to control the UGens, as we will see in a minute. We pass the Synth directly to the constructor; you can later access the Synth with the link::Classes/AooSendCtl#-synth:: resp. link::Classes/AooReceiveCtl#-synth:: member.
+
+We also need to tell the AOO source its stream destination (IP endpoint + ID). Since SuperCollider does not support IPv6 - but AOO does! - IP endpoints are represented by the link::Classes/AooAddr:: class.
+
+code::
+// A:
+(
+// Create the destination adddress:
+
+// Note: hostnames must be resolved with AooAddr.resolve!
+~destAddr = AooAddr.resolve("localhost", ~portB);
+
+// Alternatively, you can provide the raw IP address:
+// a. IPv4:
+// ~destAddr = AooAddr("127.0.0.1", ~portB);
+// b. IPv6:
+// ~destAddr = AooAddr("::1", ~portB);
+
+~bus = Bus.audio(s, 2);
+
+fork {
+	~source = AooSendCtl(Synth(\aoo_send, [bus: ~bus]));
+
+	// AOO sources are created asynchronously, so we have to
+	// synchronize with the Server before we can call methods!
+	s.sync;
+
+	"AOO source is ready!".postln;
+	// add the sink that should receive our stream
+	~source.addSink(~destAddr, 1);
+}
+)
+
+// B:
+(
+fork {
+	~sink = AooReceiveCtl(Synth(\aoo_recv));
+
+	// AOO sinks are created asynchronously, so we have to
+	// synchronize with the Server before we can call methods!
+	// (Here it wouldn't be necessary as we don't call any methods.)
+	s.sync;
+
+	"AOO sink is ready!".postln;
+}
+)
+::
+
+Finally, let's play two sine tones and start the stream.
+You should hear the sound through the code::\aoo_recv:: Synth that we created above!
+
+code::
+// A:
+(
+// Play two sine tones *before* the AOO source Synth.
+{
+	Out.ar(~bus, SinOsc.ar([440, 220]) * 0.1)
+}.play(target: ~source.synth, addAction: \addBefore);
+)
+
+// Finally, start the stream.
+~source.start;
+
+// You can pause the stream
+~source.stop;
+// ... and resume it.
+~source.start;
+::
+
+subsection:: Stream format
+
+At the moment, AOO supports two audio codecs:
+numberedlist::
+## PCM (uncompressed); use for highest audio quality and/or lowest latency. See link::Classes/AooFormatPCM::.
+## Opus (compressed); use for minimizing bandwidth, in particular when sending over the internet.
+See link::Classes/AooFormatOpus::.
+::
+The default codec is PCM.
+
+You can specify the channel count, blocksize, samplerate and some codec-specific properties
+(such as the PCM bit depth) - or just use the default values.
+
+Opus also lets you dynamically control certain codec properties, see link::Classes/AooSendCtl#-setCodecParam::.
+
+Let's change the format to Opus:
+
+code::
+~source.setFormat(AooFormatOpus());
+::
+
+And back to PCM:
+code::
+~source.setFormat(AooFormatPCM())
+::
+
+For more information, see the documentation of the individual streaming format classes.
+
+
+subsection:: Event handling
+
+AooSource and AooSink receive a variety of events. If you want to handle any of these events, you need to install an event handler function.
+
+First, let's install an event handler in our AOO sink that prints when a stream has been started or stopped and when the stream state has changed:
+
+code::
+// B:
+(
+~sink.addListener(\start, { |source|
+	"B: start new stream from %".format(source).postln;
+});
+
+~sink.addListener(\stop, { |source|
+	"B: stop stream from %".format(source).postln;
+});
+
+~sink.addListener(\state, { |source, state|
+	"B: stream from % changed state to '%'".format(source, state).postln;
+});
+)
+::
+
+Now try to start and stop the stream and watch the post window:
+
+code::
+// A:
+~source.start;
+
+~source.stop;
+::
+
+Second, let's install an event handler in our AOO source that prints ping events. (Pings are automatically sent at regular intervals between the source and sink, and vice versa, when the stream is active. Among other things, they function as a kind of "heartbeat", i.e. they tell the other end that the network connection is working; they also allow to estimate the network latency.)
+
+code::
+// A:
+(
+~source.addListener(\ping, { |sink, delta1, delta2, rtt|
+	"A: received ping from % (network RTT: % ms)".format(sink, rtt * 1000).postln;
+})
+)
+::
+
+Again, try to start and stop the stream (see above) and watch the post window.
+
+For more information, see link::Classes/AooSendCtl#Event handling:: and link::Classes/AooReceiveCtl#Event handling::.
+
+
+subsection:: Stream over the internet
+
+note::The following example requires an internet connection!::
+
+Now, let's assume that the AOO source and sink reside on different machines
+that are emphasis::not:: part of the same local network. In other words -
+we want to stream over the public internet!
+
+For various reasons, we cannot simply type the destination IP address,
+as we need in the example above. Instead, the clients must establish
+a mutual peer-to-peer "connection" through an AOO connection server.
+Here we are using the public AOO server of the IEM in Graz.
+
+note::The AOO server must be publicly available!::
+
+First, we remove the sink from our source:
+code::
+~source.removeSink(~destAddr, 1);
+::
+
+Then we create two AOO clients, one for the source and another one for the sink.
+link::Classes/AooClient:: represents a network endpoint in an AOO network and manages one or more AOO sources and/or sinks.
+
+Once the client has been created, we connect to the public AOO server and join
+a so-called emphasis::group:: under some user name.
+
+code::
+// A and B:
+(
+// Replace with your own unique group name! You might not be
+// the only one who is currently reading this tutorial :)
+~groupName = "example";
+)
+
+// A:
+(
+fork {
+	~clientA = AooClient(~portA);
+
+	// AooClient is created asynchronously, so we need to sync
+	// with the Server before we can call methods!
+	s.sync;
+
+	~clientA.connect("aoo.iem.at", action: { |err|
+        if (err.isNil) {
+            // connected successfully! now join the group.
+            ~clientA.joinGroup(~groupName, "A", action: { |err|
+                if (err.isNil) {
+					"A: successfully joined group!".postln;
+                }
+            });
+        }
+    });
+}
+)
+
+// B:
+(
+fork {
+	~clientB = AooClient(~portB);
+
+	s.sync;
+
+	~clientB.connect("aoo.iem.at", action: { |err|
+        if (err.isNil) {
+            // connected successfully! now join the group.
+            ~clientB.joinGroup(~groupName, "B", action: { |err|
+                if (err.isNil) {
+					"B: successfully joined group!".postln;
+                }
+            });
+        }
+    });
+}
+)
+::
+
+Now we can add the sink to our source again, but this time we can refer to it by name.
+Note how we are passing an link::Classes/AooPeer:: instance instead of an link::Classes/AooAddr::.
+
+code::
+~source.addSink(AooPeer(~groupName, "B"), 1);
+::
+
+Finally, resume the stream, if you have paused it:
+
+code::
+~source.start;
+::
+
+emphasis::Side note::: you can also run a private AOO server in a local network (see link::Classes/AooServer::);
+this allows clients/peers to refer to each other by name, so they don't have to deal with raw IP addresses.
+
+subsection:: Messaging
+
+AooClient does not only facilitate peer-to-peer audio streaming, it can also be used
+to send arbitrary messages between clients/peers. Messages can be time-stamped
+to preserve the relative timing and they can be delivered reliable, if desired.
+
+To demonstrate this feature, let's just send a simple OSC message from  code::~clientA:: to code::~clientB:: and back.
+
+First we need to register OSCFuncs for both clients. Note that we need to pass a custom message dispatcher!
+
+code::
+// Client B: receive message
+(
+var replyAddr = AooPeer(~groupName, "A");
+
+OSCFunc({ |msg|
+	"B: received message %".format(msg).postln;
+
+	// send reply
+	~clientB.sendMsg(replyAddr, nil, [ '/reply', "ciao!", msg[2] ]);
+}, '/greeting', dispatcher: ~clientB.dispatcher);
+)
+
+// Client A: receive reply
+(
+OSCFunc({ |msg|
+	"A: received reply %".format(msg).postln;
+}, '/reply', dispatcher: ~clientA.dispatcher);
+)
+::
+
+Then we can send the messages:
+
+code::
+(
+var target = AooPeer(~groupName, "B");
+
+// send 5 messages and wait 1 second in between.
+fork {
+	5.do { |i|
+		~clientA.sendMsg(target, nil, ['/greeting', "hello!", i]);
+		1.wait;
+	}
+}
+)
+::
+
+For more information please see link::Classes/AooClient#Messaging::.

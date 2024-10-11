@@ -1,11 +1,13 @@
 TITLE:: AooFormat
 summary:: Base class for all streaming formats
 categories:: External Control>AOO
-related:: Classes/AooFormatPCM, Classes/AooFormatOpus, Classes/AooFormatNull
+related:: Classes/AooFormatPCM, Classes/AooFormatOpus, Classes/AooFormatNull, Classes/AooSendCtl, Classes/AooReceiveCtl, Guides/AOO_Introduction
 
 DESCRIPTION::
 
 AooFormat is the common base class for all streaming formats.
+
+Visit the subclasses above for more information about the individual streaming formats.
 
 
 INSTANCEMETHODS::

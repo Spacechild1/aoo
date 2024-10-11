@@ -6,6 +6,10 @@ related:: Classes/AooSendCtl, Classes/AooReceiveCtl, Classes/AooFormatOpus, Clas
 DESCRIPTION::
 Uncompressed PCM audio.
 
+PCM enables the highest possible audio quality and lowest latency at the expense of a rather high bitrate.
+
+strong::TIP::: If you want to stream over the internet, you should consider link::Classes/AooFormatOpus::.
+
 
 CLASSMETHODS::
 
@@ -15,17 +19,19 @@ All arguments are optional.
 ARGUMENT:: channels
 the number of channels, between 1 and 255.
 
-code::nil:: = same as input channel count
+Default (code::nil::) = same as input channel count
 
 ARGUMENT:: blockSize
 the block size in samples. (All values allowed.)
 
-code::nil:: = same as Server block size.
+Larger block sizes require less bandwidth and - depending on the network - can give more stable results, but increase the latency.
+
+Default (code::nil::) = same as Server block size (no latency!)
 
 ARGUMENT:: sampleRate
 the sample rate. (All values allowed.)
 
-code::nil:: = same as Server sample rate.
+Default (code::nil::) = same as Server sample rate.
 
 ARGUMENT:: bitDepth
 the bit depth, see link::#-bitDepth::.

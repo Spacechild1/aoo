@@ -16,17 +16,17 @@ All arguments for optional.
 ARGUMENT:: channels
 the number of channels, between 1 and 255.
 
-code::nil:: = same as input channel count
+Default (code::nil::) = same as input channel count
 
 ARGUMENT:: blockSize
 the block size in samples, see link::#-blockSize::.
 
-code::nil:: = default (480 samples)
+Default (code::nil::) = 480 samples
 
 ARGUMENT:: sampleRate
 the sample rate, see link::#-sampleRate::.
 
-code::nil:: = default (48000 Hz)
+Default (code::nil::) = 48000 Hz
 
 ARGUMENT:: applicationType
 the application type, see link::#-applicationType::.
