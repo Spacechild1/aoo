@@ -180,7 +180,13 @@ void AooSend::removeAll(){
 AooSendUnit::AooSendUnit() {
     int32_t port = in0(portIndex);
     AooId id = in0(idIndex);
+#if 1
+    // this allows to initialize 'gate' to 1.0 and it will trigger
+    // as soon as the AOO source has been initialized, see next().
+    lastGate_ = 0.f;
+#else
     lastGate_ = in0(gateIndex);
+#endif
     numChannels_ = in0(channelIndex);
     assert(numChannels_ >= 0 &&
            numChannels_ <= (numInputs() - bufferIndex));
