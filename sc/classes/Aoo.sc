@@ -562,17 +562,23 @@ AooDispatcher : OSCMessageDispatcher {
 		var client, peer, port;
 		// 2 -> OSC
 		if (msg[0] == '/aoo/client/msg' and: { msg[4] == 2 }) {
-			client = this.client ?? {
+			port = msg[1];
+			if (this.client.notNil) {
+				if (port == this.client.port) {
+					client = this.client;
+				} {
+					^this; // not meant for this client
+				}
+			} {
 				// global dispatcher: get client from port argument
-				port = msg[1];
-				AooClient.find(port) ?? {
+				client = AooClient.find(port) ?? {
 					"could not find AooClient on port %".format(port).error;
 					^this;
 				}
 			};
 			peer = AooPeer.prFromEvent(msg[2], msg[3]);
 			peer = client.prFindPeer(peer) ?? {
-				"AooClient: received message from unknown peer (group ID: %, user ID: %)".format(addr, msg[2], msg[3]).warn;
+				"AooClient: received message from unknown peer (group ID: %, user ID: %)".format(msg[2], msg[3]).warn;
 				^this;
 			};
 			AooData.prParseOSCMsg(msg[5]) !? { |oscMsg|
