@@ -120,9 +120,9 @@ The library features four object classes:
 
 Objects:
 
-`[aoo_send~]` - send an AOO stream (with integrated threaded network IO)
+`[aoo_send~]` - send an AOO stream
 
-`[aoo_receive~]` - receive one or more AOO streams (with integrated threaded network IO)
+`[aoo_receive~]` - receive one or more AOO streams
 
 `[aoo_client]` - connect to AOO peers over the public internet or in a local network
 
@@ -136,7 +136,24 @@ The Pd external is available on Deken (in Pd -> Help -> "Find externals" search 
 
 # SC extension
 
-TODO
+Classes/UGens:
+
+`AooSend` - a UGen that sends an AOO stream
+
+`AooSendCtl` - control an `AooSend` UGen
+
+`AooReceive`- a UGen that receives on or more AOO streams
+
+`AooReceiveCtl` - control an `AooReceive` UGen
+
+`AooClient` - connect to AOO peers over the public internet or in a local network
+
+`AooServer` - AOO connection server
+
+... and many more.
+
+See `Guides/AOO_Introduction.schelp` for a gentle introduction
+and the corresponding help files for detailed documentation.
 
 ---
 
