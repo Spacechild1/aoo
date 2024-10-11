@@ -1,8 +1,7 @@
 AooSend : UGen {
-	var <>desc;
+	var <>desc; // reference to desc in SynthDef metadata
 	var <>tag;
 	var <>port;
-	var <>id;
 
 	*ar { arg port, id=0, channels, gate=0, tag;
 		^this.multiNewList([\audio, tag, port, id, gate] ++ channels);
@@ -18,7 +17,6 @@ AooSend : UGen {
 		};
 		this.tag = tag !? { tag.asSymbol }; // !
 		this.port = port;
-		this.id = id;
 		this.inputs = [port, id, gate, inputs.size] ++ inputs;
 		^0; // doesn't have any output
 	}
@@ -135,13 +133,13 @@ AooSendCtl : AooCtl {
 	handleInvite { arg sink, token, accept=true;
 		// var addr = this.prResolveAddr(sink.addr);
 		var addr = sink.addr;
-		this.prSendMsg('/invite', addr.ip, addr.port, id, token, accept.asInteger);
+		this.prSendMsg('/invite', addr.ip, addr.port, sink.id, token, accept.asInteger);
 	}
 
 	handleUninvite { arg sink, token, accept=true;
 		// var addr = this.prResolveAddr(sink.addr);
 		var addr = sink.addr;
-		this.prSendMsg('/uninvite', addr.ip, addr.port, id, token, accept.asInteger);
+		this.prSendMsg('/uninvite', addr.ip, addr.port, sink.id, token, accept.asInteger);
 	}
 
 	autoInvite { arg enable;

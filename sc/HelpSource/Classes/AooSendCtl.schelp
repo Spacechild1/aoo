@@ -1,7 +1,7 @@
 TITLE:: AooSendCtl
 summary:: Control an AooSend UGen
 categories:: External Control>AOO
-related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Classes/Aoo, Guides/AOO_Introduction
+related:: Classes/AooSend, Classes/AooReceive, Classes/AooReceiveCtl, Classes/AooAddr, Classes/AooClient, Classes/AooFormat, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 This class is used to control an link::Classes/AooSend:: UGen instance.
@@ -138,9 +138,6 @@ returns:: whether the object has been created successfully
 
 METHOD:: port
 the UDP port
-
-METHOD:: id
-the source ID
 
 METHOD:: synth
 the Synth containing the AooSend UGen
@@ -475,7 +472,7 @@ METHOD:: handleInvite
 handle an invitation in response to an code::\invite:: event, see link::#-addListener::.
 
 ARGUMENT:: sink
-the sink who sent the invitation
+the sink (link::Classes/AooEndpoint::) who sent the invitation
 
 ARGUMENT:: token
 the invitation token
@@ -493,7 +490,7 @@ METHOD:: handleUninvite
 handle an uninvitation in response to an code::\uninvite:: event, see link::#-addListener::.
 
 ARGUMENT:: sink
-the sink who sent the uninvitation
+the sink (link::Classes/AooEndpoint::) who sent the uninvitation
 
 ARGUMENT:: token
 the uninvitation token

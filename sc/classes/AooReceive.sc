@@ -1,8 +1,7 @@
 AooReceive : MultiOutUGen {
-	var <>desc;
+	var <>desc; // reference to desc in SynthDef metadata
 	var <>tag;
 	var <>port;
-	var <>id;
 
 	*ar { arg port, id=0, numChannels=1, latency=0.025, tag;
 		^this.multiNewList([\audio, tag, port, id, numChannels, latency]);
@@ -18,7 +17,6 @@ AooReceive : MultiOutUGen {
 		};
 		this.tag = tag !? { tag.asSymbol }; // !
 		this.port = port;
-		this.id = id;
 		this.inputs = [port, id, latency ? 0, numChannels];
 		if (numChannels == 0) {
 			^0; // no outputs

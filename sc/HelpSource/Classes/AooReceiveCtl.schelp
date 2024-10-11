@@ -1,7 +1,7 @@
 TITLE:: AooReceiveCtl
 summary:: Control an AooReceive UGen
 categories:: External Control>AOO
-related:: Classes/AooReceive, Classes/AooSend, Classes/AooSendCtl, Classes/AooAddr, Classes/AooClient, Classes/Aoo, Guides/AOO_Introduction
+related:: Classes/AooReceive, Classes/AooSend, Classes/AooSendCtl, Classes/AooAddr, Classes/AooClient, Classes/AooFormat, Classes/Aoo, Guides/AOO_Introduction
 
 DESCRIPTION::
 This class is used to control an link::Classes/AooReceive:: UGen instance.
@@ -134,9 +134,6 @@ returns:: whether the object has been created successfully
 METHOD:: port
 the UDP port
 
-METHOD:: id
-the sink ID
-
 METHOD:: synth
 the Synth containing the AooReceive UGen
 
@@ -218,6 +215,7 @@ table::
 
 Arguments:
 table::
+## link::Classes/AooEndpoint:: || the source
 ## Symbol || the new stream state.
 ::
 

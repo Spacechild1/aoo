@@ -16,12 +16,16 @@ METHOD:: ar
 ARGUMENT:: port
 the (fixed) UDP port number.
 
-note::The port number can be shared among several instances of code::AooSend:: and/or code::AooReceive:: emphasis::within a single application::.::
+The port number must be an Integer, i.e. you cannot set it with a Synth argument.
+
+note::The port number can be shared among several instances of code::AooSend:: and/or code::AooReceive:: emphasis::within the same application::.::
 
 ARGUMENT:: id
-a fixed, positive Integer which uniquely identifies the AOO source on the given port.
+a fixed positive Integer which uniquely identifies the AOO source on the given port.
 
-note::There must be no two code::AooSend:: objects with the same ID on the same port. You can, however, have two code::AooSend:: objects with the same ID but on different ports!::
+The ID can be set with a Synth argument so you can use the same SynthDef for multiple AOO sources on the same port.
+
+note::There must be no code::AooSend:: objects with the same ID on the same port. You can, however, have two code::AooSend:: objects with the same ID but on different ports!::
 
 ARGUMENT:: channels
 one or more UGen inputs. The size of code::channels:: determines the max. number of channels that you can send. You can, however, send fewer channels by setting the code::channels:: argument in link::Classes/AooFormat::, see link::Classes/AooSendCtl#-format::.
@@ -40,9 +44,9 @@ This is only required if you have more than one code::AooSend:: instance in a gi
 EXAMPLES::
 
 code::
-// a Synth with a single AooSend that takes two input channels
-SynthDef(\aoo_send, {
-	var sig = SinOsc.ar([440, 220]) * 0.1;
-	AooSend.ar(9998, 1, sig);
+// a SynthDef with a single AooSend that
+// reads two channels from the given bus.
+SynthDef(\aoo_send, { |bus|
+	AooSend.ar(9998, 1, In.ar(bus, 2));
 }).add;
 ::

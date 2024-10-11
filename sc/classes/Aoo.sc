@@ -69,7 +69,7 @@ Aoo {
 			metadata = ();
 			ugen.synthDef.metadata[key] = metadata;
 		};
-		ugen.desc = ( port: ugen.port, id: ugen.id );
+		ugen.desc = ( port: ugen.port );
 		// There can only be a single AooSend without a tag. In this case, the metadata will contain
 		// a (single) item at the pseudo key 'false', see ...
 		ugen.tag.notNil.if {
@@ -588,7 +588,6 @@ AooCtl {
 	var <>synth;
 	var <>synthIndex;
 	var <>port;
-	var <>id;
 
 	var eventOSCFunc;
 	var eventFuncs;
@@ -600,7 +599,7 @@ AooCtl {
 			MethodError("'tag' must be a Symbol!", this).throw;
 		};
 		md = Aoo.prFindMetadata(this.ugenClass, synth, tag, synthDef);
-		^super.new.prInit(synth, md.index, md.port, md.id).init;
+		^super.new.prInit(synth, md.index, md.port).init;
 	}
 
 	*collect { arg synth, tags, synthDef;
@@ -613,7 +612,7 @@ AooCtl {
 				};
 				value = ugens.at(tag);
 				value.notNil.if {
-					obj = super.new.prInit(synth, value.index, value.port, value.id).init;
+					obj = super.new.prInit(synth, value.index, value.port).init;
 					result.put(tag, obj);
 				} { "can't find % with tag %".format(this.name, tag).warn; }
 			}
@@ -621,7 +620,7 @@ AooCtl {
 			// get all plugins, except those without tag (shouldn't happen)
 			ugens.pairsDo { arg key, value;
 				(key.isKindOf(Symbol)).if {
-					obj = super.new.init.prInit(synth, value.index, value.port, value.id);
+					obj = super.new.prInit(synth, value.index, value.port).init;
 					result.put(key, obj);
 				} { "ignoring % without tag".format(this.ugenClass.name).warn; }
 			}
@@ -643,11 +642,10 @@ AooCtl {
 		}
 	}
 
-	prInit { arg synth, synthIndex, port, id;
+	prInit { arg synth, synthIndex, port;
 		this.synth = synth;
 		this.synthIndex = synthIndex;
 		this.port = port;
-		this.id = id;
 		eventFuncs = IdentityDictionary();
 
 		// get server reply address and setup event handler
@@ -677,7 +675,6 @@ AooCtl {
 		replyAddr = nil;
 		synth = nil;
 		port = nil;
-		id = nil;
 	}
 
 	*prNextReplyID {
