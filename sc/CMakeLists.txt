@@ -1,6 +1,6 @@
 # SuperCollider API:
 set(SC_INCLUDE_DIR "" CACHE PATH "SC include directory")
-message(STATUS "SC include directory: ${SC_INCLUDEDIR}")
+message(STATUS "SC include directory: ${SC_INCLUDE_DIR}")
 
 # install directory
 if (WIN32)
@@ -13,7 +13,7 @@ endif()
 message(STATUS "SC install directory: ${SC_INSTALL_DIR}")
 
 option(SC_SUPERNOVA "Build Supernova plugins" OFF)
-message(STATUS "SC_SUPERNOVA: ${SC_SUPERNOVA}")
+message(STATUS "Supernova: ${SC_SUPERNOVA}")
 
 set(sc_sources
     "src/Aoo.cpp" "src/Aoo.hpp"
