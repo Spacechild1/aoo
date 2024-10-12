@@ -313,7 +313,7 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
     target_compile_options(aoo_common INTERFACE -Wall -Wextra)
     # disable some useless and noisy warnings
     target_compile_options(aoo_common INTERFACE
-        -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare)
+        -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-psabi)
     # some warnings should be errors
     target_compile_options(aoo_common INTERFACE -Werror=return-type)
 
