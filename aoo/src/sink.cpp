@@ -578,7 +578,7 @@ AooError AOO_CALL aoo::Sink::process(
         if (it->process(*this, data, nsamples, t, messageHandler, user)){
             didsomething = true;
         } else if (!it->check_active(*this)){
-            LOG_VERBOSE("AooSink: removed inactive source " << it->ep);
+            LOG_INFO("AooSink: removed inactive source " << it->ep);
             auto e = make_event<source_event>(kAooEventSourceRemove, it->ep);
             send_event(std::move(e), kAooThreadLevelAudio);
             // move source to garbage list (will be freed in send())
@@ -1241,8 +1241,8 @@ void source_desc::update(const Sink& s){
         if (buffersize <= 0) {
             buffersize = latency * 2; // default
         } else if (buffersize < latency) {
-            LOG_VERBOSE("AooSink: buffer size (" << (buffersize * 1000)
-                        << " ms) smaller than latency (" << (latency * 1000) << " ms)");
+            LOG_INFO("AooSink: buffer size (" << (buffersize * 1000)
+                     << " ms) smaller than latency (" << (latency * 1000) << " ms)");
             buffersize = latency;
         }
         auto jitter_buffersize = std::max<int32_t>(latency_blocks_, std::ceil(buffersize * convert));
@@ -1564,7 +1564,7 @@ AooError source_desc::handle_data(const Sink& s, net_packet& d, bool binary)
                 LOG_DEBUG("AooSink: uninvite -> timeout failed");
             }
             // always send timeout event
-            LOG_VERBOSE("AooSink: " << ep << ": uninvitation timed out");
+            LOG_INFO("AooSink: " << ep << ": uninvitation timed out");
             auto e = make_event<source_event>(kAooEventUninviteTimeout, ep);
             s.send_event(std::move(e), kAooThreadLevelNetwork);
         } else {
@@ -2053,7 +2053,7 @@ void source_desc::on_underrun(const Sink &s) {
 }
 
 void source_desc::handle_underrun(const Sink& s){
-    LOG_VERBOSE("AooSink: jitter buffer underrun!");
+    LOG_INFO("AooSink: jitter buffer underrun!");
 
     if (!jitter_buffer_.empty()) {
         LOG_ERROR("AooSink: bug: jitter buffer not empty");
@@ -2090,7 +2090,7 @@ void source_desc::handle_underrun(const Sink& s){
 }
 
 void source_desc::handle_overrun(const Sink& s){
-    LOG_VERBOSE("AooSink: jitter buffer overrun!");
+    LOG_INFO("AooSink: jitter buffer overrun!");
 
     jitter_buffer_.reset();
 
@@ -2136,12 +2136,12 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
     if (d.sequence <= jitter_buffer_.last_popped()) {
         // try to detect wrap around
         if ((jitter_buffer_.last_popped() - d.sequence) >= (INT32_MAX / 2)) {
-            LOG_VERBOSE("AooSink: stream sequence has wrapped around!");
+            LOG_INFO("AooSink: stream sequence has wrapped around!");
             jitter_buffer_.reset();
             // continue!
         } else {
             // block too old, discard!
-            LOG_VERBOSE("AooSink: discard old block " << d.sequence);
+            LOG_INFO("AooSink: discard old block " << d.sequence);
             LOG_DEBUG("AooSink: oldest: " << jitter_buffer_.last_popped());
             return false;
         }
@@ -2155,7 +2155,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
     #if 1
         // can this ever happen!?
         if (d.sequence <= newest){
-            LOG_VERBOSE("AooSink: discard outdated block " << d.sequence);
+            LOG_INFO("AooSink: discard outdated block " << d.sequence);
             LOG_DEBUG("AooSink: newest: " << newest);
             return false;
         }
@@ -2165,7 +2165,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
 
             // notify for gap
             if (numblocks > 1) {
-                LOG_VERBOSE("AooSink: skipped " << (numblocks - 1) << " blocks");
+                LOG_INFO("AooSink: skipped " << (numblocks - 1) << " blocks");
             }
 
             // check for jitter buffer overrun.
@@ -2177,7 +2177,7 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
                 // only keep most recent packet
                 newest = d.sequence - 1;
             #else
-                LOG_VERBOSE("AooSink: jitter buffer overrun!");
+                LOG_INFO("AooSink: jitter buffer overrun!");
                 // reset the buffer to latency_blocks_, considering both the stored blocks
                 // and the incoming block(s).
                 // TODO: how does this affect the stream latency?
@@ -2225,11 +2225,11 @@ bool source_desc::add_packet(const Sink& s, const net_packet& d,
             block->init(d);
         } else if (block->empty()) {
             // empty block already received
-            LOG_VERBOSE("AooSink: empty block " << d.sequence << " already received");
+            LOG_INFO("AooSink: empty block " << d.sequence << " already received");
             return false;
         } else if (block->has_frame(d.frame_index)){
             // frame already received
-            LOG_VERBOSE("AooSink: frame " << d.frame_index << " of block " << d.sequence << " already received");
+            LOG_INFO("AooSink: frame " << d.frame_index << " of block " << d.sequence << " already received");
             return false;
         }
 
@@ -2286,7 +2286,7 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
             // where the source stops sending data while still buffering, but we don't
             // receive a /stop message (and thus never would become 'inactive').
             if (elapsed > latency_samples_ * 4) {
-                LOG_VERBOSE("AooSink: abort buffering after " << elapsed << " samples");
+                LOG_INFO("AooSink: abort buffering after " << elapsed << " samples");
                 return false;
             }
 
@@ -2402,7 +2402,7 @@ bool source_desc::try_decode_block(const Sink& s, AooSample* buffer, stream_stat
         sr = format_->sampleRate; // nominal samplerate
         // keep current channel
         stats.dropped++;
-        LOG_VERBOSE("AooSink: dropped block " << b.sequence);
+        LOG_INFO("AooSink: dropped block " << b.sequence);
         LOG_DEBUG("AooSink: remaining blocks: " << jitter_buffer_.size() - 1);
     }
 
@@ -2613,7 +2613,7 @@ void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
                 #endif
                 } else {
                     // this may happen with xruns
-                    LOG_VERBOSE("AooSink: skip stream time event (offset: " << offset << ")");
+                    LOG_INFO("AooSink: skip stream time event (offset: " << offset << ")");
                 }
             } else {
                 // b) stream message
@@ -2642,7 +2642,7 @@ void source_desc::dispatch_stream_messages(const Sink &s, int nsamples,
                     fn(user, &msg, &ep);
                 } else {
                     // this may happen with xruns
-                    LOG_VERBOSE("AooSink: skip stream message (offset: " << offset << ")");
+                    LOG_INFO("AooSink: skip stream message (offset: " << offset << ")");
                 }
             }
 
@@ -2747,7 +2747,7 @@ void source_desc::send_pong(const Sink &s, time_tag tt1, time_tag tt2, const sen
 // /aoo/src/<id>/start <sink> <version>
 // called without lock!
 void source_desc::send_start_request(const Sink& s, const sendfn& fn) {
-    LOG_VERBOSE("AooSink: request " kAooMsgStart " for source " << ep);
+    LOG_INFO("AooSink: request " kAooMsgStart " for source " << ep);
 
     AooByte buf[AOO_MAX_PACKET_SIZE];
     osc::OutboundPacketStream msg((char *)buf, sizeof(buf));
@@ -2769,7 +2769,7 @@ void source_desc::send_start_request(const Sink& s, const sendfn& fn) {
 // /aoo/src/<id>/stop <sink> <stream>
 // called without lock!
 void source_desc::send_stop_request(const Sink& s, int32_t stream, const sendfn& fn) {
-    LOG_VERBOSE("AooSink: request " kAooMsgStop " for source " << ep);
+    LOG_INFO("AooSink: request " kAooMsgStop " for source " << ep);
 
     AooByte buf[AOO_MAX_PACKET_SIZE];
     osc::OutboundPacketStream msg((char *)buf, sizeof(buf));
@@ -2985,7 +2985,7 @@ void source_desc::send_invitations(const Sink &s, const sendfn &fn){
             LOG_DEBUG("AooSink: send_invitation: invite -> timeout failed");
         }
         // always send timeout event
-        LOG_VERBOSE("AooSink: " << ep << ": invitation timed out");
+        LOG_INFO("AooSink: " << ep << ": invitation timed out");
         auto e = make_event<source_event>(kAooEventInviteTimeout, ep);
         s.send_event(std::move(e), kAooThreadLevelNetwork);
     } else {

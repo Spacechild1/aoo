@@ -318,7 +318,7 @@ public:
 #endif
 #endif
         if (size > large_alloc_limit) {
-            LOG_VERBOSE("RT memory request (" << size << " bytes) too large - using default allocator");
+            LOG_INFO("RT memory request (" << size << " bytes) too large - using default allocator");
             // fall back to heap allocation
             return alloc_type::allocate(size);
         } else if (size > 0) {

@@ -36,9 +36,9 @@ system_time_fn get_system_time = [](){
         auto fn = (void *)GetProcAddress(module, "GetSystemTimePreciseAsFileTime");
         if (fn){
             return reinterpret_cast<system_time_fn>(fn);
-            LOG_VERBOSE("using GetSystemTimePreciseAsFileTime");
+            LOG_INFO("using GetSystemTimePreciseAsFileTime");
         } else {
-            LOG_VERBOSE("using GetSystemTimeAsFileTime");
+            LOG_INFO("using GetSystemTimeAsFileTime");
         }
     } else {
         LOG_ERROR("couldn't open kernel32.dll!");

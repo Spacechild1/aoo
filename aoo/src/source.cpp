@@ -216,8 +216,8 @@ AooError AOO_CALL aoo::Source::control(
         GETSINKARG
         auto chn = as<int32_t>(ptr);
         sink->set_channel(chn);
-        LOG_VERBOSE("AooSource: send to sink " << sink->ep
-                    << " on channel " << chn);
+        LOG_INFO("AooSource: send to sink " << sink->ep
+                 << " on channel " << chn);
         break;
     }
     case kAooCtlGetSinkChannelOffset:
@@ -1928,7 +1928,7 @@ void Source::send_data(const sendfn& fn){
         #if SKIP_OUTDATED_MESSAGES
             if (offset < 0) {
                 // skip outdated message; can happen with xrun blocks
-                LOG_VERBOSE("AooSource: skip stream message (offset: " << offset << ")");
+                LOG_INFO("AooSource: skip stream message (offset: " << offset << ")");
             } else
         #endif
             message_prio_queue_.emplace(msg.time, msg.channel, msg.type, msg.data, msg.size);
@@ -2324,10 +2324,10 @@ void Source::handle_start_request(const osc::ReceivedMessage& msg,
 
             notify_start();
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgStart << "' message: sink not active");
+            LOG_INFO("AooSource: ignoring '" << kAooMsgStart << "' message: sink not active");
         }
     } else {
-        LOG_VERBOSE("AooSource: ignoring '" << kAooMsgStart << "' message: sink not found");
+        LOG_INFO("AooSource: ignoring '" << kAooMsgStart << "' message: sink not found");
     }
 }
 
@@ -2356,11 +2356,11 @@ void Source::handle_stop_request(const osc::ReceivedMessage& msg,
             r.stop.offset = 0;
             push_request(r);
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgStop << "' message: sink is active");
+            LOG_INFO("AooSource: ignoring '" << kAooMsgStop << "' message: sink is active");
         }
     } else {
         // TODO: should we still send /stop message?
-        LOG_VERBOSE("AooSource: ignoring '" << kAooMsgStop<< "' message: sink not found");
+        LOG_INFO("AooSource: ignoring '" << kAooMsgStop<< "' message: sink not found");
     }
 }
 
@@ -2388,7 +2388,7 @@ void Source::handle_data_request(const osc::ReceivedMessage& msg,
     auto sink = find_sink(addr, id);
     if (sink){
         if (sink->stream_id() != stream_id){
-            LOG_VERBOSE("ignoring '" << kAooMsgData
+            LOG_INFO("ignoring '" << kAooMsgData
                         << "' message: stream ID mismatch (outdated?)");
             return;
         }
@@ -2403,10 +2403,10 @@ void Source::handle_data_request(const osc::ReceivedMessage& msg,
                 sink->push_data_request(r);
             }
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgData << "' message: sink not active");
+            LOG_INFO("AooSource: ignoring '" << kAooMsgData << "' message: sink not active");
         }
     } else {
-        LOG_VERBOSE("AooSource: ignoring '" << kAooMsgData << "' message: sink not found");
+        LOG_INFO("AooSource: ignoring '" << kAooMsgData << "' message: sink not found");
     }
 }
 
@@ -2442,7 +2442,7 @@ void Source::handle_data_request(const AooByte *msg, int32_t n,
     auto sink = find_sink(addr, id);
     if (sink){
         if (sink->stream_id() != stream_id){
-            LOG_VERBOSE("AooSource: ignore binary data message: stream ID mismatch (outdated?)");
+            LOG_INFO("AooSource: ignore binary data message: stream ID mismatch (outdated?)");
             return;
         }
         if (sink->is_active()){
@@ -2460,10 +2460,10 @@ void Source::handle_data_request(const AooByte *msg, int32_t n,
                 sink->push_data_request(r);
             }
         } else {
-            LOG_VERBOSE("AooSource: ignore binary data message: sink not active");
+            LOG_INFO("AooSource: ignore binary data message: sink not active");
         }
     } else {
-        LOG_VERBOSE("AooSource: ignore binary data message: sink not found");
+        LOG_INFO("AooSource: ignore binary data message: sink not found");
     }
 }
 
@@ -2513,7 +2513,7 @@ void Source::handle_invite(const osc::ReceivedMessage& msg,
         // NOTE: when we accept an invitation, we essentially start a new stream.
         // Even if our initial /start messages was lost, the subsequent /data messages
         // (with a matching stream ID) would tell the sink that the invitation has been accepted.
-        LOG_VERBOSE("AooSource: " << sink->ep << ": ignore redundant/outdated invitation");
+        LOG_INFO("AooSource: " << sink->ep << ": ignore redundant/outdated invitation");
     }
 }
 
@@ -2544,8 +2544,8 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
                 // let the user handle the uninvitation, don't send a /stop message yet!
                 return;
             } else {
-                LOG_VERBOSE("AooSource: ignoring '" << kAooMsgUninvite
-                            << "' message: stream token mismatch (outdated?)");
+                LOG_INFO("AooSource: ignoring '" << kAooMsgUninvite
+                          << "' message: stream token mismatch (outdated?)");
                 // TODO: should we just return instead?
             }
         } else {
@@ -2555,7 +2555,7 @@ void Source::handle_uninvite(const osc::ReceivedMessage& msg,
                       << " sink not active (/stop message got lost?)");
         }
     } else {
-        LOG_VERBOSE("ignoring '" << kAooMsgUninvite << "' message: sink not found");
+        LOG_INFO("ignoring '" << kAooMsgUninvite << "' message: sink not found");
         // Don't return because we still want to send a /stop message, see below.
     }
     // Tell the remote side that we have stopped. If the sink is NULL, just use
@@ -2589,10 +2589,10 @@ void Source::handle_ping(const osc::ReceivedMessage& msg,
             r.pong.tt2 = aoo::time_tag::now(); // local receive time
             push_request(r);
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPing << "' message: sink not active");
+            LOG_INFO("AooSource: ignoring '" << kAooMsgPing << "' message: sink not active");
         }
     } else {
-        LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPing << "' message: sink not found");
+        LOG_INFO("AooSource: ignoring '" << kAooMsgPing << "' message: sink not found");
     }
 }
 
@@ -2620,10 +2620,10 @@ void Source::handle_pong(const osc::ReceivedMessage& msg,
             auto e = make_event<sink_ping_event>(sink->ep, tt1, tt2, tt3, tt4, packetloss);
             send_event(std::move(e), kAooThreadLevelNetwork);
         } else {
-            LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPong << "' message: sink not active");
+            LOG_INFO("AooSource: ignoring '" << kAooMsgPong << "' message: sink not active");
         }
     } else {
-        LOG_VERBOSE("AooSource: ignoring '" << kAooMsgPong << "' message: sink not found");
+        LOG_INFO("AooSource: ignoring '" << kAooMsgPong << "' message: sink not found");
     }
 }
 

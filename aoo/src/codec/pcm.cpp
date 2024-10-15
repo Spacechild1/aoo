@@ -159,11 +159,11 @@ AooSample float64_to_sample(const AooByte *in)
 
 void print_format(const AooFormatPcm& f)
 {
-    LOG_VERBOSE("PCM settings: "
-                << "nchannels = " << f.header.numChannels
-                << ", blocksize = " << f.header.blockSize
-                << ", samplerate = " << f.header.sampleRate
-                << ", bitdepth = " << bytes_per_sample(f.bitDepth));
+    LOG_INFO("PCM settings: "
+             << "nchannels = " << f.header.numChannels
+             << ", blocksize = " << f.header.blockSize
+             << ", samplerate = " << f.header.sampleRate
+             << ", bitdepth = " << bytes_per_sample(f.bitDepth));
 }
 
 bool validate_format(AooFormatPcm& f, bool loud = true)

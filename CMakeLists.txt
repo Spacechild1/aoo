@@ -248,7 +248,7 @@ message(STATUS "Audio sample size: ${AOO_SAMPLE_SIZE} bits")
 
 # logging
 set(AOO_LOG_LEVEL "Warning" CACHE STRING "compile time log level")
-set_property(CACHE AOO_LOG_LEVEL PROPERTY STRINGS "None;Error;Warning;Verbose;Debug")
+set_property(CACHE AOO_LOG_LEVEL PROPERTY STRINGS "Silent;Error;Warning;Info;Debug;Verbose")
 message(STATUS "Log level: ${AOO_LOG_LEVEL}")
 
 # opus support

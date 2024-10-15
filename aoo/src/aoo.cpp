@@ -106,11 +106,14 @@ void AOO_CALL default_logfunc(AooLogLevel level, const char *message) {
     case kAooLogLevelWarning:
         label = "warning";
         break;
-    case kAooLogLevelVerbose:
-        label = "verbose";
+    case kAooLogLevelInfo:
+        label = "info";
         break;
     case kAooLogLevelDebug:
         label = "debug";
+        break;
+    case kAooLogLevelVerbose:
+        label = "verbose";
         break;
     default:
         break;
@@ -820,7 +823,7 @@ AOO_API AooError AOO_CALL aoo_registerCodec(const AooCodecInterface *codec){
         return kAooErrorAlreadyExists;
     }
     aoo::g_codec_list.emplace_back(codec->name, codec);
-    LOG_VERBOSE("registered codec '" << codec->name << "'");
+    LOG_INFO("registered codec '" << codec->name << "'");
     return kAooOk;
 }
 

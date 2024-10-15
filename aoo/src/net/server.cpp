@@ -145,7 +145,7 @@ AooError AOO_CALL aoo::net::Server::run(AooSeconds timeout) {
                 for (auto& [id, client] : clients_) {
                     auto [timeout, wait] = client.update(*this, now, settings);
                     if (timeout) {
-                        LOG_VERBOSE("AooServer: client " << id << " not responding");
+                        LOG_INFO("AooServer: client " << id << " not responding");
                         client_timeouts.push_back(id);
                     } else if (wait < sleep) {
                         sleep = wait;

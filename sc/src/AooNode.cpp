@@ -66,7 +66,7 @@ AooNode::AooNode(int port) {
     });
 #endif
 
-    LOG_VERBOSE("new node on port " << port);
+    LOG_INFO("new node on port " << port);
 }
 
 AooNode::~AooNode() {
@@ -94,7 +94,7 @@ AooNode::~AooNode() {
     }
 #endif
 
-    LOG_VERBOSE("release node on port " << port_);
+    LOG_INFO("release node on port " << port_);
 }
 
 // NB: nodes are always unique, so we don't need to keep a per-world dictionary!

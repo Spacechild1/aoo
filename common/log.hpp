@@ -22,10 +22,10 @@
 # define LOG_WARNING(msg)
 #endif
 
-#if AOO_LOG_LEVEL >= kAooLogLevelVerbose
-# define LOG_VERBOSE(msg) DO_LOG(kAooLogLevelVerbose, msg)
+#if AOO_LOG_LEVEL >= kAooLogLevelInfo
+# define LOG_INFO(msg) DO_LOG(kAooLogLevelInfo, msg)
 #else
-# define LOG_VERBOSE(msg)
+# define LOG_INFO(msg)
 #endif
 
 #if AOO_LOG_LEVEL >= kAooLogLevelDebug
@@ -34,13 +34,19 @@
 # define LOG_DEBUG(msg)
 #endif
 
+#if AOO_LOG_LEVEL >= kAooLogLevelVerbose
+# define LOG_VERBOSE(msg) DO_LOG(kAooLogLevelVerbose, msg)
+#else
+# define LOG_VERBOSE(msg)
+#endif
+
 namespace aoo {
 
 class Log final : std::streambuf, public std::ostream {
 public:
     static const int32_t buffer_size = 256;
 
-    Log(AooLogLevel level = kAooLogLevelNone)
+    Log(AooLogLevel level = kAooLogLevelSilent)
         : std::ostream(this), level_(level) {}
     ~Log() {
         buffer_[pos_] = 0;

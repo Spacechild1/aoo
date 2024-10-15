@@ -131,7 +131,7 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         global_ipv6_addr_ = ip_address(ipv6_addr.name(), udp_client_.port());
         LOG_DEBUG("AooClient: global IPv6 address: " << global_ipv6_addr_);
     } catch (const std::exception& e) {
-        LOG_VERBOSE("AooClient: could not get global IPv6 address");
+        LOG_INFO("AooClient: could not get global IPv6 address");
         LOG_DEBUG(e.what());
     }
 #endif
@@ -142,7 +142,7 @@ AooError AOO_CALL aoo::net::Client::setup(AooClientSettings& settings)
         local_ipv4_addr_ = ip_address(ipv4_addr.name(), udp_client_.port());
         LOG_DEBUG("AooClient: private IPv4 address: " << local_ipv4_addr_);
     } catch (const std::exception& e) {
-        LOG_VERBOSE("AooClient: could not get private IPv4 address");
+        LOG_INFO("AooClient: could not get private IPv4 address");
         LOG_DEBUG(e.what());
     }
 
@@ -1131,7 +1131,7 @@ void Client::do_connect(const ip_host& server, AooSeconds timeout) {
                && b.type() == ip_address::IPv6;
     });
 
-    LOG_VERBOSE("AooClient: try to connect to " << server.name << " on port " << server.port);
+    LOG_INFO("AooClient: try to connect to " << server.name << " on port " << server.port);
     // try to connect to both addresses (just because the hostname resolves to IPv4
     // and IPv6 addresses does not mean that the AOO server actually supports both).
     socket_error err;
@@ -1139,7 +1139,7 @@ void Client::do_connect(const ip_host& server, AooSeconds timeout) {
         LOG_DEBUG("AooClient: try to connect to " << addr);
         try {
             tcp_socket_.connect(addr, timeout);
-            LOG_VERBOSE("AooClient: successfully connected to " << addr);
+            LOG_INFO("AooClient: successfully connected to " << addr);
             return; // success
         } catch (const socket_error& e) {
             err = e;
@@ -1357,7 +1357,7 @@ void Client::handle_response(const group_join_cmd& cmd, const osc::ReceivedMessa
         }
 
         cmd.reply((AooResponse&)response);
-        LOG_VERBOSE("AooClient: successfully joined group " << cmd.group_name_);
+        LOG_INFO("AooClient: successfully joined group " << cmd.group_name_);
     } else {
         auto code = (it++)->AsInt32();
         auto msg = (it++)->AsString();
@@ -1419,7 +1419,7 @@ void Client::handle_response(const group_leave_cmd& cmd, const osc::ReceivedMess
         AooResponseGroupLeave response; // default constructor
 
         cmd.reply((AooResponse&)response);
-        LOG_VERBOSE("AooClient: successfully left group " << cmd.group_);
+        LOG_INFO("AooClient: successfully left group " << cmd.group_);
     } else {
         auto code = (it++)->AsInt32();
         auto msg = (it++)->AsString();
@@ -1461,7 +1461,7 @@ void Client::handle_response(const group_update_cmd& cmd, const osc::ReceivedMes
         response.groupMetadata.size = cmd.md_.size();
 
         cmd.reply((AooResponse&)response);
-        LOG_VERBOSE("AooClient: successfully updated group " << cmd.group_);
+        LOG_INFO("AooClient: successfully updated group " << cmd.group_);
     } else {
         auto code = (it++)->AsInt32();
         auto msg = (it++)->AsString();
@@ -1504,7 +1504,7 @@ void Client::handle_response(const user_update_cmd& cmd, const osc::ReceivedMess
         response.userMetadata.size = cmd.md_.size();
 
         cmd.reply((AooResponse&)response);
-        LOG_VERBOSE("AooClient: successfully updated user in group " << cmd.group_);
+        LOG_INFO("AooClient: successfully updated user in group " << cmd.group_);
     } else {
         auto code = (it++)->AsInt32();
         auto msg = (it++)->AsString();
@@ -1772,8 +1772,8 @@ void Client::handle_login(const osc::ReceivedMessage& msg){
 
             // connected!
             state_.store(client_state::connected);
-            LOG_VERBOSE("AooClient: successfully logged in (client ID: "
-                        << id << ")");
+            LOG_INFO("AooClient: successfully logged in (client ID: "
+                     << id << ")");
             // start ping timer
             server_ping_timer_.reset();
 
@@ -1839,7 +1839,7 @@ void Client::handle_group_eject(const osc::ReceivedMessage& msg) {
     auto e = std::make_unique<group_eject_event>(group);
     send_event(std::move(e));
 
-    LOG_VERBOSE("AooClient: ejected from group " << group);
+    LOG_INFO("AooClient: ejected from group " << group);
 }
 
 void Client::handle_group_changed(const osc::ReceivedMessage& msg) {
@@ -1854,7 +1854,7 @@ void Client::handle_group_changed(const osc::ReceivedMessage& msg) {
     auto e = std::make_unique<group_update_event>(group, user, *md);
     send_event(std::move(e));
 
-    LOG_VERBOSE("AooClient: group " << group << " has been updated");
+    LOG_INFO("AooClient: group " << group << " has been updated");
 }
 
 void Client::handle_user_changed(const osc::ReceivedMessage& msg) {
@@ -1869,7 +1869,7 @@ void Client::handle_user_changed(const osc::ReceivedMessage& msg) {
     auto e = std::make_unique<user_update_event>(group, user, *md);
     send_event(std::move(e));
 
-    LOG_VERBOSE("AooClient: user " << user << " has been updated");
+    LOG_INFO("AooClient: user " << user << " has been updated");
 }
 
 static osc::ReceivedPacket unwrap_message(const osc::ReceivedMessage& msg, ip_address& addr)
@@ -1971,7 +1971,7 @@ void Client::handle_peer_join(const osc::ReceivedMessage& msg){
     auto e = std::make_unique<peer_event>(kAooEventPeerHandshake, *peer);
     send_event(std::move(e));
 
-    LOG_VERBOSE("AooClient: peer " << *peer << " joined");
+    LOG_INFO("AooClient: peer " << *peer << " joined");
 }
 
 void Client::handle_peer_leave(const osc::ReceivedMessage& msg){
@@ -2023,7 +2023,7 @@ void Client::handle_peer_leave(const osc::ReceivedMessage& msg){
 
     peers_.erase(peer);
 
-    LOG_VERBOSE("AooClient: peer " << group << "|" << user << " left");
+    LOG_INFO("AooClient: peer " << group << "|" << user << " left");
 }
 
 void Client::handle_peer_changed(const osc::ReceivedMessage& msg) {
@@ -2041,7 +2041,7 @@ void Client::handle_peer_changed(const osc::ReceivedMessage& msg) {
             auto e = std::make_unique<peer_update_event>(group, user, *md);
             send_event(std::move(e));
 
-            LOG_VERBOSE("AooClient: peer " << peer << " has been updated");
+            LOG_INFO("AooClient: peer " << peer << " has been updated");
 
             return;
         }
@@ -2090,7 +2090,7 @@ void Client::close_with_error(int err) {
 void Client::close() {
     if (tcp_socket_.is_open()){
         tcp_socket_.close();
-        LOG_VERBOSE("AooClient: closed connection");
+        LOG_INFO("AooClient: closed connection");
     }
 
     connection_ = nullptr;
@@ -2241,7 +2241,7 @@ AooError udp_client::handle_bin_message(Client& client, const AooByte *data, int
         // a) pings from a peer which we haven't had the chance to add yet
         // b) pings sent to alternative endpoint addresses
         if (!client.handle_peer_bin_message(data, size, onset, addr)){
-            LOG_VERBOSE("AooClient: ignore UDP binary message from endpoint " << addr);
+            LOG_INFO("AooClient: ignore UDP binary message from endpoint " << addr);
         }
         return kAooOk;
     } else {
@@ -2264,8 +2264,8 @@ AooError udp_client::handle_osc_message(Client& client, const AooByte *data, int
             // a) pings from a peer which we haven't had the chance to add yet
             // b) pings sent to alternative endpoint addresses
             if (!client.handle_peer_osc_message(msg, onset, addr)){
-                LOG_VERBOSE("AooClient: ignore UDP message " << msg.AddressPattern() + onset
-                            << " from endpoint " << addr);
+                LOG_INFO("AooClient: ignore UDP message " << msg.AddressPattern() + onset
+                         << " from endpoint " << addr);
             }
         } else if (type == kAooMsgTypeClient){
             // server message

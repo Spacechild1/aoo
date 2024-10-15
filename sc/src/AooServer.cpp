@@ -101,7 +101,7 @@ AooServer::AooServer(int port, const char *password, bool relay)
         receive();
     });
 
-    LOG_VERBOSE("AooServer: listening on port " << port);
+    LOG_INFO("AooServer: listening on port " << port);
 }
 
 AooServer::~AooServer() {

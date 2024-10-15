@@ -273,8 +273,8 @@ AOO_FLAG(AooSetupFlags)
      * will always equal the block size. */
     kAooFixedBlockSize = 0x01,
     /** assume that the timestamps are sufficiently precise;
-     * for example, they come from a very precise network clock
-     * or they have already been filtered. */
+     * for example, your host or audio backend might be able
+     * to provide accurate system time snapshots. */
     kAooPreciseTimestamp = 0x02
 };
 
@@ -831,18 +831,14 @@ typedef void * (AOO_CALL *AooAllocFunc)
 typedef AooInt32 AooLogLevel;
 
 /* NB: log level constants must be macros, otherwise they cannot
- * be used in #if clause, as they would expand to zero! */
+ * be used in #if clauses as they would expand to zero! */
 
-/** no logging */
-#define kAooLogLevelNone 0
-/** only errors */
+#define kAooLogLevelSilent 0
 #define kAooLogLevelError 1
-/** only errors and warnings */
 #define kAooLogLevelWarning 2
-/** errors, warnings and notifications */
-#define kAooLogLevelVerbose 3
-/** errors, warnings, notifications and debug messages */
+#define kAooLogLevelInfo 3
 #define kAooLogLevelDebug 4
+#define kAooLogLevelVerbose 5
 
 /** \brief custom log function type
  * \param level the log level

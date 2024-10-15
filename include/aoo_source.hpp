@@ -67,7 +67,7 @@ public:
      * \param numChannels the max. number of channels
      * \param sampleRate the sample rate
      * \param maxBlockSize the max. number of samples per block
-     * \param flags optional flags (currently always 0)
+     * \param flags optional flags
      */
     virtual AooError AOO_CALL setup(
             AooInt32 numChannels, AooSampleRate sampleRate,

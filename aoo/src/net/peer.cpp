@@ -193,14 +193,14 @@ void peer::do_send(Client& client, const sendfn& fn, time_tag now,
         auto e = std::make_unique<peer_state_event>(*this, true);
         client.send_event(std::move(e));
 
-        LOG_VERBOSE("AooClient: " << *this << " became inactive");
+        LOG_INFO("AooClient: " << *this << " became inactive");
     } else if (!active_ && result.state != ping_state::inactive) {
         active_ = true; // -> active
         // send event
         auto e = std::make_unique<peer_state_event>(*this, false);
         client.send_event(std::move(e));
 
-        LOG_VERBOSE("AooClient: " << *this << " became active again");
+        LOG_INFO("AooClient: " << *this << " became active again");
     }
 
     // 2) reply to /ping message
@@ -543,8 +543,8 @@ void peer::handle_first_ping(Client &client, const aoo::ip_address& addr) {
     auto e = std::make_unique<peer_event>(kAooEventPeerJoin, *this);
     client.send_event(std::move(e));
 
-    LOG_VERBOSE("AooClient: successfully established connection with "
-                << *this << " " << addr << (need_relay() ? " (relayed)" : ""));
+    LOG_INFO("AooClient: successfully established connection with "
+             << *this << " " << addr << (need_relay() ? " (relayed)" : ""));
 }
 
 void peer::handle_ping(Client& client, osc::ReceivedMessageArgumentIterator it,

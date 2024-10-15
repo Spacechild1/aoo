@@ -18,7 +18,7 @@ namespace {
 //---------------- helper functions -----------------//
 
 void print_format(const AooFormatOpus& f){
-#if AOO_LOG_LEVEL >= kAooLogLevelVerbose
+#if AOO_LOG_LEVEL >= kAooLogLevelInfo
     const char *application;
 
     switch (f.applicationType){
@@ -33,11 +33,11 @@ void print_format(const AooFormatOpus& f){
         break;
     }
 
-    LOG_VERBOSE("Opus settings: "
-                << "nchannels = " << f.header.numChannels
-                << ", blocksize = " << f.header.blockSize
-                << ", samplerate = " << f.header.sampleRate
-                << ", application = " << application);
+    LOG_INFO("Opus settings: "
+             << "nchannels = " << f.header.numChannels
+             << ", blocksize = " << f.header.blockSize
+             << ", samplerate = " << f.header.sampleRate
+             << ", application = " << application);
 #endif
 }
 
@@ -61,8 +61,8 @@ bool validate_format(AooFormatOpus& f, bool loud = true)
         break;
     default:
         if (loud){
-            LOG_VERBOSE("Opus: samplerate " << f.header.sampleRate
-                        << " not supported - using 48000");
+            LOG_INFO("Opus: samplerate " << f.header.sampleRate
+                     << " not supported - using 48000");
         }
         f.header.sampleRate = 48000;
         break;
@@ -295,7 +295,7 @@ AooError Encoder_encode(
         *outSize = result;
         return kAooOk;
     } else {
-        LOG_VERBOSE("Opus: opus_encode_float() failed with error code " << result);
+        LOG_INFO("Opus: opus_encode_float() failed with error code " << result);
         // LATER try to translate Opus error codes to AOO error codes?
         return kAooErrorCodec;
     }
@@ -401,7 +401,7 @@ AooError Decoder_decode(
         *frameSize = result;
         return kAooOk;
     } else {
-        LOG_VERBOSE("Opus: opus_decode_float() failed with error code " << result);
+        LOG_INFO("Opus: opus_decode_float() failed with error code " << result);
         // LATER try to translate Opus error codes to AOO error codes?
         return kAooErrorCodec;
     }

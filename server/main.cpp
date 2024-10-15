@@ -28,17 +28,20 @@ AooLogLevel g_loglevel = kAooLogLevelWarning;
 void log_function(AooLogLevel level, const AooChar *msg) {
     if (level <= g_loglevel) {
         switch (level) {
+        case kAooLogLevelError:
+            std::cout << "[error] ";
+            break;
+        case kAooLogLevelWarning:
+            std::cout << "[warning] ";
+            break;
+        case kAooLogLevelInfo:
+            std::cout << "[info] ";
+            break;
         case kAooLogLevelDebug:
             std::cout << "[debug] ";
             break;
         case kAooLogLevelVerbose:
             std::cout << "[verbose] ";
-            break;
-        case kAooLogLevelWarning:
-            std::cout << "[warning] ";
-            break;
-        case kAooLogLevelError:
-            std::cout << "[error] ";
             break;
         default:
             break;
@@ -250,7 +253,7 @@ int main(int argc, const char **argv) {
                 relay = true;
             } else if (auto arg = match_option<int>(argv, argc, "-l", "--log-level")) {
                 auto level = *arg;
-                if (level < kAooLogLevelNone || level > kAooLogLevelDebug) {
+                if (level < kAooLogLevelSilent || level > kAooLogLevelVerbose) {
                     std::cout << "Log level " << level << " out of range" << std::endl;
                     return EXIT_FAILURE;
                 }
@@ -288,7 +291,7 @@ int main(int argc, const char **argv) {
     }
 
     // we only need the event handler for logging
-    if (g_loglevel >= kAooLogLevelVerbose) {
+    if (g_loglevel >= kAooLogLevelInfo) {
         g_server->setEventHandler(handle_event, nullptr, kAooEventModeCallback);
     }
 
@@ -313,7 +316,7 @@ int main(int argc, const char **argv) {
 
     g_server->setUseInternalRelay(relay);
 
-    if (g_loglevel >= kAooLogLevelVerbose) {
+    if (g_loglevel >= kAooLogLevelInfo) {
         std::cout << "Listening on port " << port << std::endl;
     }
 

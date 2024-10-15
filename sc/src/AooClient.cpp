@@ -53,7 +53,7 @@ namespace sc {
 AooClient::AooClient(int32_t port) {
     auto node = INode::get(port);
     if (node && node->registerClient(this)) {
-        LOG_VERBOSE("new AooClient on port " << port);
+        LOG_INFO("new AooClient on port " << port);
         node_ = node;
     } else {
         throw std::runtime_error("cannot create");

@@ -17,10 +17,10 @@ namespace {
 
 void print_format(const AooFormatNull& f)
 {
-    LOG_VERBOSE("Null codec settings: "
-                << "nchannels = " << f.header.numChannels
-                << ", blocksize = " << f.header.blockSize
-                << ", samplerate = " << f.header.sampleRate);
+    LOG_INFO("Null codec settings: "
+             << "nchannels = " << f.header.numChannels
+             << ", blocksize = " << f.header.blockSize
+             << ", samplerate = " << f.header.sampleRate);
 }
 
 bool validate_format(AooFormatNull& f, bool loud = true)
