@@ -65,9 +65,13 @@ struct t_aoo_client
 
     t_priority_queue<t_peer_message> x_queue;
 
+#if PD_MINOR_VERSION < 49
+    bool check(const char *name);
+    bool check(int argc, t_atom *argv, int minargs, const char *name);
+#else
     bool check(const char *name) const;
-
     bool check(int argc, t_atom *argv, int minargs, const char *name) const;
+#endif
 
     void handle_message(AooId group, AooId user, AooNtpTime time, const AooData& msg);
 
@@ -106,7 +110,11 @@ struct t_aoo_client
     t_outlet *x_msgout = nullptr;
 };
 
+#if PD_MINOR_VERSION < 49
+bool t_aoo_client::check(const char *name)
+#else
 bool t_aoo_client::check(const char *name) const
+#endif
 {
     if (x_node){
         return true;
@@ -116,7 +124,11 @@ bool t_aoo_client::check(const char *name) const
     }
 }
 
+#if PD_MINOR_VERSION < 49
+bool t_aoo_client::check(int argc, t_atom *argv, int minargs, const char *name)
+#else
 bool t_aoo_client::check(int argc, t_atom *argv, int minargs, const char *name) const
+#endif
 {
     if (!check(name)) return false;
 

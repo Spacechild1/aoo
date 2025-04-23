@@ -10,3 +10,5 @@
 *.includes
 build**
 install/**
+
+.vscode/

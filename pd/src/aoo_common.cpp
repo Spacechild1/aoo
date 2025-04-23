@@ -332,7 +332,11 @@ int atoms_to_data(AooDataType type, int argc, const t_atom *argv,
     }
     auto ptr = data;
     for (int i = 0; i < argc; ++i) {
-        auto f = atom_getfloat(argv + i);
+#if PD_MINOR_VERSION < 49
+    auto f = atom_getfloat(const_cast<t_atom*>(argv + i));
+#else
+    auto f = atom_getfloat(argv + i);
+#endif
         switch (type) {
         case kAooDataFloat32:
             aoo::write_bytes<float>(f, ptr);

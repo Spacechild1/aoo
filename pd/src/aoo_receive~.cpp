@@ -71,18 +71,27 @@ struct t_aoo_receive
 
     t_priority_queue<t_stream_message> x_queue;
 
+#if PD_MINOR_VERSION < 49
+    bool get_source_arg(int argc, t_atom *argv,
+                        aoo::ip_address& addr, AooId& id, bool check);
+    bool check(const char *name);
+    bool check(int argc, t_atom *argv, int minargs, const char *name);
+#else
     bool get_source_arg(int argc, t_atom *argv,
                         aoo::ip_address& addr, AooId& id, bool check) const;
-
     bool check(const char *name) const;
-
     bool check(int argc, t_atom *argv, int minargs, const char *name) const;
+#endif
 
     void dispatch_stream_message(const AooStreamMessage& msg, const aoo::ip_address& address, AooId id);
 };
-
+#if PD_MINOR_VERSION < 49
+bool t_aoo_receive::get_source_arg(int argc, t_atom *argv,
+                                   aoo::ip_address& addr, AooId& id, bool check)
+#else
 bool t_aoo_receive::get_source_arg(int argc, t_atom *argv,
                                    aoo::ip_address& addr, AooId& id, bool check) const
+#endif
 {
     if (!x_node) {
         pd_error(this, "%s: no socket!", classname(this));
@@ -139,8 +148,11 @@ bool t_aoo_receive::get_source_arg(int argc, t_atom *argv,
         }
     }
 }
-
+#if PD_MINOR_VERSION < 49
+bool t_aoo_receive::check(const char *name)
+#else 
 bool t_aoo_receive::check(const char *name) const
+#endif
 {
     if (x_node){
         return true;
@@ -149,8 +161,11 @@ bool t_aoo_receive::check(const char *name) const
         return false;
     }
 }
-
+#if PD_MINOR_VERSION < 49
+bool t_aoo_receive::check(int argc, t_atom *argv, int minargs, const char *name)
+#else
 bool t_aoo_receive::check(int argc, t_atom *argv, int minargs, const char *name) const
+#endif
 {
     if (!check(name)) return false;
 

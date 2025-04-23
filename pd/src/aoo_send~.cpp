@@ -70,12 +70,21 @@ struct t_aoo_send
     bool x_auto_invite = true; // on by default
     bool x_multi = false;
 
+#if PD_MINOR_VERSION < 49
+    bool get_sink_arg(int argc, t_atom *argv,
+                      aoo::ip_address& addr, AooId& id, bool check);
+
+    bool check(const char *name);
+
+    bool check(int argc, t_atom *argv, int minargs, const char *name);
+#else
     bool get_sink_arg(int argc, t_atom *argv,
                       aoo::ip_address& addr, AooId& id, bool check) const;
 
     bool check(const char *name) const;
 
     bool check(int argc, t_atom *argv, int minargs, const char *name) const;
+#endif
 
     void add_sink(const aoo::ip_address& addr, AooId id);
 
@@ -85,9 +94,13 @@ struct t_aoo_send
 
     const t_sink *find_sink(const aoo::ip_address& addr, AooId id) const;
 };
-
+#if PD_MINOR_VERSION < 49
+bool t_aoo_send::get_sink_arg(int argc, t_atom *argv,
+                              aoo::ip_address& addr, AooId& id, bool check)
+#else
 bool t_aoo_send::get_sink_arg(int argc, t_atom *argv,
                               aoo::ip_address& addr, AooId& id, bool check) const
+#endif
 {
     if (!x_node) {
         pd_error(this, "%s: no socket!", classname(this));
@@ -144,8 +157,11 @@ bool t_aoo_send::get_sink_arg(int argc, t_atom *argv,
         }
     }
 }
-
+#if PD_MINOR_VERSION < 49
+bool t_aoo_send::check(const char *name)
+#else
 bool t_aoo_send::check(const char *name) const
+#endif
 {
     if (x_node){
         return true;
@@ -155,7 +171,11 @@ bool t_aoo_send::check(const char *name) const
     }
 }
 
+#if PD_MINOR_VERSION < 49
+bool t_aoo_send::check(int argc, t_atom *argv, int minargs, const char *name)
+#else
 bool t_aoo_send::check(int argc, t_atom *argv, int minargs, const char *name) const
+#endif
 {
     if (!check(name)) return false;
 
