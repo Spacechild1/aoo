@@ -817,7 +817,7 @@ AooError AOO_CALL aoo::Source::process(
 #if AOO_DEBUG_AUDIO_BUFFER
     auto resampler_available = resampler_.balance() / (double)blocksize_;
     LOG_DEBUG("AooSource: audio_queue: " << audio_queue_.read_available() / resampler_.ratio()
-              << ", resampler: " << resampler_size / resampler_.ratio()
+              << ", resampler ratio: " << resampler_.ratio()
               << ", capacity: " << audio_queue_.capacity() / resampler_.ratio());
 #endif
     process_samples_ += nsamples;
@@ -839,24 +839,33 @@ AooError AOO_CALL aoo::Source::process(
             return kAooErrorOverflow;
         }
     } else {
-        // try to write to resampler
-        if (!resampler_.write(buf, nsamples)) {
-            LOG_WARNING("AooSource: send buffer overflow");
-            add_xrun(nsamples);
-            // NB: clients are still supposed to call send() to drain the buffer
-            return kAooErrorOverflow;
-        }
-        // try to move samples from resampler to audiobuffer
-        while (audio_queue_.write_available()){
-            // copy audio samples
-            auto ptr = (block_data *)audio_queue_.write_data();
-            if (!resampler_.read(ptr->data, format_->blockSize)) {
-                break;
-            }
-            // push samplerate
-            ptr->sr = sr;
+        bool repeat{ true };
 
-            audio_queue_.write_commit();
+        for (int attempt = 0; attempt < 2 && repeat; ++attempt) {
+            // try to write to resampler
+            if (!resampler_.write(buf, nsamples)) {
+                if (attempt == 1) {
+                    LOG_WARNING("AooSource: resampler buffer overflow");
+                    add_xrun(nsamples);
+                    // NB: clients are still supposed to call send() to drain the buffer
+                    return kAooErrorOverflow;
+                }
+            } else {
+                repeat = false;
+            }
+
+            // try to move samples from resampler to audiobuffer
+            while (audio_queue_.write_available()) {
+                // copy audio samples
+                auto ptr = (block_data *)audio_queue_.write_data();
+                if (!resampler_.read(ptr->data, format_->blockSize)) {
+                    break;
+                }
+                // push samplerate
+                ptr->sr = sr;
+
+                audio_queue_.write_commit();
+            }
         }
     }
     return kAooOk;
