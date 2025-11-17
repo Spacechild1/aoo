@@ -60,6 +60,9 @@ struct t_aoo_receive
     AooId x_id = 0;
     bool x_multi = false;
     std::unique_ptr<t_sample *[]> x_vec;
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+    std::vector<AooSample> x_buffer;
+#endif
     // sources
     std::vector<t_source> x_sources;
     // node
@@ -694,20 +697,43 @@ static t_int * aoo_receive_perform(t_int *w)
     t_aoo_receive *x = (t_aoo_receive *)(w[1]);
     int n = (int)(w[2]);
 
-    if (x->x_node){
-        auto err = x->x_sink->process(x->x_vec.get(), n, get_osctime(),
+    if (x->x_node) {
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+        // write sink output to buffer
+        AooSample** buf = nullptr;
+        auto nchannels = x->x_nchannels;
+        if (nchannels > 0) {
+            buf = (AooSample**)alloca(nchannels * sizeof(AooSample*));
+            for (int i = 0; i < nchannels; ++i) {
+                buf[i] = &x->x_buffer[i * n];
+            }
+        }
+#else
+        auto buf = x->x_vec.get();
+#endif
+        auto err = x->x_sink->process(buf, n, get_osctime(),
                                       (AooStreamMessageHandler)aoo_receive_handle_stream_message, x);
-        if (err != kAooErrorIdle){
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+        // copy buffer to signal outlets
+        for (int i = 0; i < nchannels; ++i) {
+            auto src = buf[i];
+            auto dst = x->x_vec[i];
+            for (int k = 0; k < n; ++k) {
+                dst[k] = src[k];
+            }
+        }
+#endif
+        if (err != kAooErrorIdle) {
             x->x_node->notify();
         }
 
         // handle events
-        if (x->x_sink->eventsAvailable()){
+        if (x->x_sink->eventsAvailable()) {
             clock_delay(x->x_clock, 0);
         }
     } else {
         // zero outputs
-        for (int i = 0; i < x->x_nchannels; ++i){
+        for (int i = 0; i < x->x_nchannels; ++i) {
             std::fill(x->x_vec[i], x->x_vec[i] + n, 0);
         }
     }
@@ -753,14 +779,17 @@ static void aoo_receive_dsp(t_aoo_receive *x, t_signal **sp)
             x->x_vec = std::make_unique<t_sample *[]>(nchannels);
             channels_changed = true;
         }
-        for (int i = 0; i < nchannels; ++i){
+        for (int i = 0; i < nchannels; ++i) {
             x->x_vec[i] = &sp[0]->s_vec[i * blocksize];
         }
     } else {
-        for (int i = 0; i < nchannels; ++i){
+        for (int i = 0; i < nchannels; ++i) {
             x->x_vec[i] = sp[i]->s_vec;
         }
     }
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+    x->x_buffer.resize(nchannels * blocksize);
+#endif
 
     if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
             || channels_changed) {
@@ -860,18 +889,17 @@ t_aoo_receive::t_aoo_receive(int argc, t_atom *argv)
         x_nchannels = std::max<int>(atom_getfloatarg(0, argc, argv), 1);
     } else {
         // NB: users may explicitly specify 0 channels for pure message streams!
-        noutlets = argc > 0 ? atom_getfloat(argv) : 1;
-        if (noutlets < 0) {
-            noutlets = 0;
-        } else if (noutlets > AOO_MAX_NUM_CHANNELS) {
-            // NB: in theory we can support any number of channels;
-            // this rather meant to handle patches that accidentally
-            // use the old argument order where the port would come first!
+        x_nchannels = argc > 0 ? atom_getfloat(argv) : 1;
+        if (x_nchannels < 0) {
+            x_nchannels = 0;
+        } else if (x_nchannels > AOO_MAX_NUM_CHANNELS) {
+            // see comment above AOO_MAX_NUM_CHANNELS
             pd_error(this, "%s: channel count (%d) out of range",
-                     classname(this), noutlets);
-            noutlets = 0;
+                     classname(this), x_nchannels);
+            x_nchannels = 0;
         }
-        x_nchannels = noutlets;
+        // however, we need at least one signal outlet for the "dsp" method...
+        noutlets = std::max<int>(x_nchannels, 1);
     }
 
     // arg #2 (optional): port number

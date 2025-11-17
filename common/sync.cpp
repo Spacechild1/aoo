@@ -7,7 +7,8 @@
 #ifdef _WIN32
 # include <windows.h>
 #else
-# include "sys/time.h"
+# include <sys/time.h>
+# include <pthread.h>
 #endif
 
 #include <cassert>
@@ -17,17 +18,20 @@ namespace sync {
 
 //-------------------------- thread priority -----------------------------//
 
-void lower_thread_priority()
+void set_low_realtime_priority()
 {
-#ifdef _WIN32
+#if defined(_WIN32)
     // lower thread priority only for high priority or real time processes
     DWORD cls = GetPriorityClass(GetCurrentProcess());
     if (cls == HIGH_PRIORITY_CLASS || cls == REALTIME_PRIORITY_CLASS){
-        int priority = GetThreadPriority(GetCurrentThread());
-        SetThreadPriority(GetCurrentThread(), priority - 2);
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     }
+#elif defined(__APPLE__)
+    // make sure that the network thread is not scheduled on an efficiency core.
+    // Otherwise it might not be able to keep up with the audio thread.
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 #else
-
+    // QUESTION: what should we do on Linux?
 #endif
 }
 
@@ -193,18 +197,18 @@ void shared_mutex::unlock_shared() {
 
 void shared_recursive_mutex::lock(void) {
     auto id = std::this_thread::get_id();
-    if (owner_.load(std::memory_order_relaxed) != id) {
+    if (owner_.load(std::memory_order_acquire) != id) {
         shared_mutex::lock();
-        owner_.store(id, std::memory_order_relaxed);
+        owner_.store(id, std::memory_order_release);
     }
     count_++;
 }
 
 bool shared_recursive_mutex::try_lock() {
     auto id = std::this_thread::get_id();
-    if (owner_.load(std::memory_order_relaxed) != id) {
+    if (owner_.load(std::memory_order_acquire) != id) {
         if (shared_mutex::try_lock()) {
-            owner_.store(id, std::memory_order_relaxed);
+            owner_.store(id, std::memory_order_release);
         } else {
             return false;
         }
@@ -217,19 +221,19 @@ void shared_recursive_mutex::unlock(void) {
     assert(count_ > 0);
     assert(owner_.load() == std::this_thread::get_id());
     if (--count_ == 0) {
-        owner_.store(std::thread::id{}, std::memory_order_relaxed);
+        owner_.store(std::thread::id{}, std::memory_order_release);
         shared_mutex::unlock();
     }
 }
 
 void shared_recursive_mutex::lock_shared() {
-    if (owner_ != std::this_thread::get_id()) {
+    if (owner_.load(std::memory_order_acquire) != std::this_thread::get_id()) {
         shared_mutex::lock_shared();
     }
 }
 
 bool shared_recursive_mutex::try_lock_shared() {
-    if (owner_ != std::this_thread::get_id()) {
+    if (owner_.load(std::memory_order_acquire) != std::this_thread::get_id()) {
         return shared_mutex::try_lock_shared();
     } else {
         return true;
@@ -237,7 +241,7 @@ bool shared_recursive_mutex::try_lock_shared() {
 }
 
 void shared_recursive_mutex::unlock_shared() {
-    if (owner_ != std::this_thread::get_id()) {
+    if (owner_.load(std::memory_order_acquire) != std::this_thread::get_id()) {
         shared_mutex::unlock_shared();
     }
 }

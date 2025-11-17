@@ -19,10 +19,9 @@ variables:
 
 # clone SC repository
 .script:sc: &script_sc
-  - git clone https://github.com/supercollider/supercollider.git "${SC_PATH}"
-  - pushd "${SC_PATH}"
-  - git submodule update --init
-  - popd
+  # NB: we only need the nova-tt submodule!
+  - git clone --depth 1 --recurse-submodules=external_libraries/nova-tt
+    --shallow-submodules https://github.com/supercollider/supercollider.git "${SC_PATH}"
 
 # download Pd sources
 .script:pd: &script_pd
@@ -49,32 +48,18 @@ variables:
   # static AOO library, Pd external, SC extension, AOO server, tests, examples and documentation
   - cmake -H. -Bbuild -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
-    -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
     -DAOO_BUILD_SERVER=ON -DAOO_BUILD_TESTS=ON -DAOO_BUILD_EXAMPLES=ON
     -DAOO_BUILD_DOCUMENTATION=${DOXYGEN}
     -DAOO_BUILD_PD_EXTERNAL=ON -DPD_INCLUDE_DIR="${PD_PATH}/src" -DPD_BIN_DIR="${PD_PATH}/bin"
     -DPD_INSTALL_DIR="${prefix}/pd" -DPD_EXTENSION=${PD_EXTENSION}
-    -DAOO_BUILD_SC_EXTENSION=ON -DSC_INCLUDE_DIR="${SC_PATH}" -DSC_INSTALL_DIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
+    -DAOO_BUILD_SC_EXTENSION=ON -DSC_PATH="${SC_PATH}" -DSC_INSTALL_DIR="$prefix/sc" -DSC_SUPERNOVA=${SUPERNOVA}
   # shared AOO library
   - cmake -H. -Bbuild_shared -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="$prefix/aoo"
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES="${OSX_ARCHITECTURES}"
     -DCMAKE_DEPENDS_USE_COMPILER=OFF
     -DAOO_LOG_LEVEL=${LOG_LEVEL} -DAOO_STATIC_RUNTIME=${STATIC_RUNTIME} -DAOO_LOCAL_OPUS=ON
     -DAOO_BUILD_SHARED_LIBRARY=ON
-
-   # NOTE: by default, CMake 3.21+ uses the compiler to obtain dependencies for makefiles ('compiler_depends.make').
-   # For some reason, on the 'Hopper' runner that file would contain bogus file paths which will cause the following
-   # invocation of 'cmake --build ./build --target install/strip' to fail with 'multiple target patterns'.
-   # As a workaround, we force the legacy behavior with -DCMAKE_DEPENDS_USE_COMPILER=OFF.
-
-### ad-hoc code signing for macOS
-.script:codesign:macos: &script_codesign_macos
-  - dir="$(pwd)/build/${CI_JOB_NAME}"
-  - codesign --force --sign - "${dir}/aoo/lib/libaoo.dylib"
-  - codesign --force --sign - "${dir}/aoo/bin/aooserver"
-  - codesign --force --sign - "${dir}/pd/aoo/aoo.${PD_EXTENSION}"
-  - find "${dir}/sc/aoo/plugins" -name "*.scx" -exec codesign --force --sign - {} \;
 
 ### build snippets
 .script:make: &script_make
@@ -107,6 +92,8 @@ variables:
 .build:linux: &build_linux
   extends: .build:script
   image: registry.git.iem.at/devtools/docker/debiancross:amd64
+  tags:
+    - docker@lucier
   variables:
     SUPERNOVA: 1
     DOXYGEN: 1
@@ -140,8 +127,9 @@ variables:
 
 .build:macos: &build_macos
   extends: .build:script
+  image: registry.git.iem.at/devtools/docker/tart/macos-monterey-xcode:latest
   tags:
-     - bigsur
+    - tart
   variables:
     OSX_ARCHITECTURES: "arm64;x86_64"
     SUPERNOVA: 1
@@ -154,12 +142,16 @@ variables:
     - *script_pd
     - *script_cmake
   after_script:
-    - *script_codesign_macos
+    - IEM_SIGN_SRCDIR="$(pwd)/build/${CI_JOB_NAME}"
+    - CODESIGNFLAGS="--strict --force --verbose --timestamp"
+    - !reference [.script:codesign:macos]
 
 .build:w32: &build_w32
   extends: .build:script
   tags:
-    - windows
+  # - windows
+    - sardinecake
+  image: registry.git.iem.at/devtools/sardinecake/windows:latest
   variables:
     IEMCI_CONFIGURATIONS: mingw32
     SUPERNOVA: 1
@@ -204,95 +196,46 @@ variables:
 ### if you want to automatically upload a package, you need to
 ### set DEKEN_USERNAME/DEKEN_PASSWORD in the CI-project settings.
 ### (https://git.iem.at/help/ci/variables/README#variables)
-.package:deps: &package_deps
-  - apt-get update && apt-get --no-install-recommends -y install deken git zip
-
-.package:script:
+.package:
   stage: deploy
-  image: debian:buster
-  variables:
-    DEKEN_ROOT: "yes"
+  image: registry.git.iem.at/pd/deken:latest
   artifacts:
-    name: ${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_JOB_NAME}
+    name: ${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}
     paths:
-      - ./aoo*
-      - ./pd*
-      - ./sc*
+      - ./*.zip
+      - ./deken
     expire_in: 1d
   before_script:
-    - *package_deps
+    - apt-get update && apt-get --no-install-recommends -y install zip git
   script:
-  # create zip files for platform (e.g. aoo_v0.6.0_win64.zip)
-  # with the following structure:
-  # - aoo
-  # - pd/aoo
-  # - sc/aoo
-    - rm -rf ./aoo
-    - rm -rf ./pd
-    - rm -rf ./sc
-    - mkdir aoo
-    - mkdir pd
-    - mkdir sc
-    - mv build/${JOBNAME}/aoo .
-    - mv build/${JOBNAME}/pd .
-    - mv build/${JOBNAME}/sc ./sc
+    # create zip files for each platform (e.g. aoo_v2.0.0_win64.zip)
+    # with the following structure:
+    # - aoo/bin
+    # - aoo/lib
+    # - aoo/share
+    # - pd/aoo
+    # - sc/aoo
+    - rm -f ./*.zip
+    - for d in build/*/aoo; do
+        d=${d%/aoo};
+        a=${d#build/};
+        echo "zipping ${d}";
+        (cd ${d}; zip -qr ../../${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${a}.zip aoo pd sc);
+      done
 
-.package_deken: &package_deken
-  stage: deploy
-  image: debian:buster
-  variables:
-    DEKEN_ROOT: "yes"
-  artifacts:
-    name: ${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_deken
-    paths:
-      - ./*.dek
-    expire_in: 1d
-  before_script:
-    - *package_deps
-  script:
-    - rm -f ./*.dek
-    - rm -rf ./pd/aoo
-    - mkdir -p ./pd/aoo
-# create a single deken package containing binaries for all platforms
-    - for dir in ./build/*/pd/aoo; do cp -r $dir/* ./pd/aoo; done
-    - deken package --version="${CI_COMMIT_TAG#v}" ./pd/aoo
-# upload deken package (optional)
-    - test -z "${CI_COMMIT_TAG}" || test -z "${DEKEN_USERNAME}" || test -z "${DEKEN_PASSWORD}" || deken upload --no-source-error ./*.dek
+    # create source package
+    - git archive --format=tar --prefix=build/Sources/pd/aoo/ HEAD | tar xf -
 
-.package:linux: &package_linux
-  extends: .package:script
-  variables:
-    JOBNAME: Linux
+    # create deken-packages
+    - rm -rf ./deken; mkdir -p ./deken
+    - deken --verbose package --output-dir ./deken --version="${CI_COMMIT_TAG#v}" build/*/pd/*
 
-.package:linux_i386: &package_linux_i386
-  extends: .package:script
-  variables:
-    JOBNAME: Linux_i386
+    # upload deken package (optional)
+    - test -z "${CI_COMMIT_TAG}" || test -z "${DEKEN_USERNAME}" || test -z "${DEKEN_PASSWORD}"
+      || deken upload ./deken/*.dek
 
-.package:linux_armhf: &package_linux_armhf
-  extends: .package:script
-  variables:
-    JOBNAME: Linux_ARMhf
-
-.package:linux_arm64: &package_linux_arm64
-  extends: .package:script
-  variables:
-    JOBNAME: Linux_ARM64
-
-.package:macos: &package_macos
-  extends: .package:script
-  variables:
-    JOBNAME: macOS
-
-.package:win64: &package_win64
-  extends: .package:script
-  variables:
-    JOBNAME: win64
-
-.package:win32: &package_win32
-  extends: .package:script
-  variables:
-    JOBNAME: win32
+  after_script:
+    - find * -type f -ls
 
 #######################################################################
 ### the actual jobs:
@@ -328,19 +271,11 @@ win64:
     - .base
 
 ## release packages
-Linux_package:
-  <<: *package_linux
-Linux_i386_package:
-  <<: *package_linux_i386
-Linux_ARMhf_package:
-  <<: *package_linux_armhf
-Linux_ARM64_package:
-  <<: *package_linux_arm64
-macOS_package:
-  <<: *package_macos
-win32_package:
-  <<: *package_win32
-win64_package:
-  <<: *package_win64
-deken_package:
-  <<: *package_deken
+package:
+  extends:
+    - .package
+
+
+include:
+  # for the codesign templates
+  - https://git.iem.at/pd/iem-ci/-/raw/main/pd-lib-builder/codesign.yml

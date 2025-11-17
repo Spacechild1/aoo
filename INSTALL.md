@@ -23,7 +23,7 @@ add_executable(my_project main.cpp)
 target_link_libraries(my_project PRIVATE Aoo::aoo)
 ```
 
-If `BUILD_SHARED_LIBRARIES` or `AOO_BUILD_SHARED_LIBRARIES` is set to `ON`,
+If `BUILD_SHARED_LIBS` or `AOO_BUILD_SHARED_LIBRARIES` is set to `ON`,
 `aoo` will be built as a shared library. Otherwise it is built as a static library.
 
 See [Build instructions](INSTALL.md#build-instructions) for the most important options.
@@ -182,32 +182,53 @@ Follow these instructions if you want to build the Pd external.
 
    Windows/macOS: http://msp.ucsd.edu/software.html
 
-   Linux: `sudo apt-get install pure-data-dev`
+   Linux: install the `puredata-dev` package, e.g. `sudo apt install puredata-dev`
 
 2. The `AOO_BUILD_PD_EXTERNAL` CMake variable must be `ON`.
 
-3. Make sure that `PD_INCLUDE_DIR` points to the Pd `src` or `include` directory.
+3. If Pd cannot be found by the build system, or is installed in a non-standard location,
+   you have to manually set `PD_INCLUDE_DIR` to the directory containing `m_pd.h`.
+   On Windows you also have to set `PD_BIN_DIR` to the `bin` folder (containing `pd.dll`).
 
-4. Windows: make sure that `PD_BIN_DIR` points to the Pd `bin` directory.
+   On Windows and macOS you can alternatively set `PD_PATH` to your Pd application folder,
+   which will in turn set `PD_INCLUDE_DIR` and `PD_BIN_DIR`.
 
-5. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
+4. Set `PD_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
-**NOTE**: If you *only* want to build and install the Pd external,
-set `AOO_INSTALL_LIBRARY` to `OFF` to prevent the `aoo` library from being installed as well.
+**NOTE**: If you *only* want to build and install the Pd external, set `AOO_INSTALL_LIBRARY`
+to `OFF` to prevent the `aoo` library from being installed as well.
+
+Additional options:
+
+- `PD_EXTENSION` (STRING) - Override the default plugin extension.
+  Example: `-DPD_EXTENSION=m_amd64_32`
+
+- `PD_MULTI_INSTANCE` (BOOL) - Build with multi-instance support (for libpd). (Default = `OFF`)
+
+- `PD_FLOAT_SIZE` (STRING) - Specify the float size. (Default = 32)
+  Possible values: 32 (single precision) or 64 (double precision)
 
 ---
 
 ### 2.1.4 SuperCollider
 
-1. Clone the SuperCollider source code from https://github.com/supercollider/supercollider.
+1. macOS/Windows: clone the SuperCollider source code from https://github.com/supercollider/supercollider
+
+   Linux: same as above. Alternatively, install the SuperCollider development package (e.g. Debian: `apt install supercollider-dev`).
 
 2. The `AOO_BUILD_SC_EXTENSION` CMake variable must be `ON`.
 
-3. Set `SC_INCLUDE_DIR` to the `supercollider` folder (which should contain the subfolders `common` and `include`)
+3. Set `SC_PATH` to the SuperCollider source code directory, which will in turn set `SC_INCLUDE_DIR`.
+
+   Linux: this is not necessary if you have installed `supercollider-dev`. In this case,  `SC_INCLUDE_DIR`
+   is automatically set to the correct SuperCollider include directory, e.g. `/usr/include/SuperCollider`.
 
 4. Set `SC_INSTALL_DIR` to the desired installation path (if you're not happy with the default).
 
 5. Set `SC_SUPERNOVA` to `ON` if you want to also build the Supernova version.
+
+**NOTE**: If you *only* want to build and install the SuperCollider external, set
+`AOO_INSTALL_LIBRARY` to `OFF` to prevent the `aoo` library from being installed as well.
 
 ---
 
@@ -253,7 +274,7 @@ CMake options are set with the following syntax:
 These are the most important project options:
 
 - `CMAKE_BUILD_TYPE` (STRING) - Choose one of the following build types:
-   "Release", "RelMinSize", "RelWithDebInfo", "Debug". Default: "Release".
+  "Release", "RelMinSize", "RelWithDebInfo", "Debug". Default: "Release".
 
 - `CMAKE_INSTALL_PREFIX` (PATH) - Where to install the AOO C/C++ library.
 
@@ -274,19 +295,22 @@ These are the most important project options:
 - `AOO_USE_OPUS` (BOOL) - Enable/disable built-in Opus support
 
 - `AOO_LOG_LEVEL` (STRING) - Choose one of the following log levels:
-   "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".
+  "None", "Error", "Warning", "Verbose", "Debug". Default: "Warning".
 
 - `AOO_NET` (BOOL) - Build with integrated networking support (`AooClient` and `AooServer`).
   Disable it if you don't need it and want to reduce code size.
   **NOTE**: This option is required for the Pd external and `aooserver` program. (Default = `ON`)
 
 - `AOO_STATIC_RUNTIME` (BOOL) - Linux and MinGW only:
-   Link all binaries with static versions of `libgcc` and `libstdc++` and - on MinGW - also `libpthread`.
-   This makres sure that the resulting binaries are portable across systems.
-   (MingGW: default = `ON`, Linux: default = `OFF`)
+  Link all binaries with static versions of `libgcc` and `libstdc++` and - on MinGW - also `libpthread`.
+  This makes sure that the resulting binaries are portable across systems.
+  (MingGW: default = `ON`, Linux: default = `OFF`)
 
-- `AOO_NATIVE` (BOOL) - optimize for this particular machine.
-  NB: the resulting binaries are not portable and might not run on other machines! (Default = `OFF`)
+- `AOO_NATIVE` (BOOL) - Optimize for this particular machine. (Default = `OFF`)
+  NB: the resulting binaries are not portable and might not run on other machines!
+
+- `AOO_SAMPLE_SIZE` (STRING) - Set the size of the audio sample type. (Default = 32)
+  Possible values: 32 (single precision) or 64 (double precision)
 
 - `CMAKE_INSTALL_LIBRARY` (BOOL) - Install the `aoo` library. (Default = `ON`)
 

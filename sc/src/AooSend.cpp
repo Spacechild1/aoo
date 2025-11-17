@@ -171,8 +171,8 @@ bool AooSend::removeSink(const aoo::ip_address& addr, AooId id){
     return source()->removeSink(ep) == kAooOk;
 }
 
-void AooSend::removeAll(){
-    source()->removeAll();
+void AooSend::removeAllSinks(){
+    source()->removeAllSinks();
 }
 
 /*////////////////// AooSendUnit ////////////////*/
@@ -239,7 +239,14 @@ void AooSendUnit::next(int numSamples){
         uint64_t t = getOSCTime(mWorld);
         auto vec = mInBuf + bufferIndex;
 
-        if (source->process(vec, numSamples, t) == kAooOk){
+        auto err = source->process(vec, numSamples, t);
+
+        if (err == kAooErrorOverflow) {
+            Print("AooSend: send buffer overflow. Try to lower your "
+                  "hardware buffer size.\n");
+        }
+
+        if (err != kAooErrorIdle) {
             delegate().node()->notify();
         }
 
@@ -318,7 +325,7 @@ void aoo_send_remove(AooSendUnit *unit, sc_msg_iter* args){
                 }
             } else {
                 msg << (int32_t)1;
-                owner.removeAll();
+                owner.removeAllSinks();
             }
 
             owner.sendMsgNRT(msg);

@@ -1,31 +1,73 @@
 # Pd directories:
-if (NOT PD_DIR)
-    if (WIN32)
-        set(_pddir "${PROGRAMFILES}/Pd")
-        if (NOT PD_INCLUDE_DIR AND NOT (EXISTS "${_pddir}"))
-            message(FATAL_ERROR "Could not find Pd installation - please set PD_INCLUDE_DIR or PD_DIR")
+if (WIN32)
+    # This is how PD_INCLUDE_DIR and PD_BIN_DIR are set (in descending order of priority):
+    # 1. set from the command line or in the GUI (ignores PD_PATH)
+    # 2. deduced from PD_PATH, if set
+    # 3. otherwise try to find Pd installation and set PD_PATH, PD_INCLUDE_DIR and PD_BIN_DIR
+    set(PD_INCLUDE_DIR "" CACHE PATH "Path to Pd headers ('src' folder)")
+    set(PD_BIN_DIR "" CACHE PATH "Path to Pd executables ('bin' folder)")
+    set(PD_PATH "" CACHE PATH "Path to Pd application")
+    if (NOT (PD_INCLUDE_DIR AND PD_BIN_DIR))
+        if (NOT PD_PATH)
+            # try to find Pd installation
+            set(_pddir "${PROGRAMFILES}/Pd")
+            if (EXISTS "${_pddir}")
+                set(PD_PATH "${_pddir}" CACHE PATH "Path to Pd application" FORCE)
+            else()
+                message(WARNING "No Pd installation found! "
+                    "Please set PD_PATH or PD_INCLUDE_DIR + PD_BIN_DIR")
+            endif()
         endif()
-        set(PD_INCLUDE_DIR "${_pddir}/src" CACHE PATH "Pd header files")
-        set(PD_BIN_DIR "${_pddir}/bin" CACHE PATH "Pd executables")
-    elseif(APPLE)
-        file(GLOB _globresult "/Applications/Pd*.app")
-        if (_globresult)
-            list(GET _globresult 0 _pddir)
+        if (PD_PATH)
+            # set PD_INCLUDE_DIR and PD_BIN_DIR
+            set(PD_INCLUDE_DIR "${PD_PATH}/src" CACHE PATH "Path to Pd headers ('src' folder)" FORCE)
+            set(PD_BIN_DIR "${PD_PATH}/bin" CACHE PATH "Path to Pd executables ('bin' folder)" FORCE)
         endif()
-        if (NOT PD_INCLUDE_DIR AND NOT (EXISTS "${_pddir}"))
-            message(FATAL_ERROR "Could not find Pd installation - please set PD_INCLUDE_DIR")
+    endif()
+elseif(APPLE)
+    # This is how PD_INCLUDE_DIR is set (in descending order of priority):
+    # 1. set from the command line (ignores PD_PATH)
+    # 2. deduced from PD_PATH, if set
+    # 3. otherwise try to find Pd installation and set PD_PATH and PD_INCLUDE_DIR
+    set(PD_INCLUDE_DIR "" CACHE PATH "Path to Pd headers ('src' folder)")
+    set(PD_PATH "" CACHE PATH "Path to Pd application")
+    if (NOT PD_INCLUDE_DIR)
+        if (NOT PD_PATH)
+            # try to find Pd installation
+            file(GLOB _globresult "/Applications/Pd*.app")
+            if (_globresult)
+                list(GET _globresult 0 _pddir)
+                set(PD_PATH "${_pddir}" CACHE PATH "Path to Pd application" FORCE)
+            else()
+                message(WARNING "No Pd installation found! Please set PD_PATH or PD_INCLUDE_DIR")
+            endif()
         endif()
-        set(PD_INCLUDE_DIR "${_pddir}/Contents/Resources/src" CACHE PATH "Pd header files")
-    else()
-        set(PD_INCLUDE_DIR "/usr/include/pd" CACHE PATH "Pd header files")
+        if (PD_PATH)
+            # set PD_INCLUDE_DIR
+            set(PD_INCLUDE_DIR "${PD_PATH}/Contents/Resources/src" CACHE PATH
+                "Path to Pd headers ('src' folder)" FORCE)
+        endif()
     endif()
 else()
-    set(PD_INCLUDE_DIR "${PD_DIR}/src" CACHE PATH "Pd include directory" FORCE)
-    if (WIN32)
-        set(PD_BIN_DIR "${PD_DIR}/bin" CACHE PATH "Pd binary directory" FORCE)
+    # Linux
+    set(PD_INCLUDE_DIR "" CACHE PATH "Path to Pd headers")
+    if (NOT PD_INCLUDE_DIR)
+        # try to find Pd installation
+        unset(PD_INCLUDE_DIR CACHE)
+        find_path(PD_INCLUDE_DIR NAMES "m_pd.h"
+            PATHS "/usr/include/pd" "/usr/local/include/pd"
+            DOC "Path to Pd headers"
+        )
+        if (NOT PD_INCLUDE_DIR)
+            message(WARNING "Could not find Pd headers. "
+                "Install puredata-dev or manually set PD_INCLUDE_DIR.")
+        endif()
     endif()
 endif()
 
+if (PD_PATH)
+    message(STATUS "Pd application: ${PD_PATH}")
+endif()
 message(STATUS "Pd include directory: ${PD_INCLUDE_DIR}")
 if (WIN32)
     message(STATUS "Pd binary directory: ${PD_BIN_DIR}")
@@ -53,6 +95,8 @@ add_library(pd MODULE
     "src/aoo_setup.cpp")
 
 if (BUILD_SHARED_LIBS)
+    # we can't take these from the static aoo library,
+    # so we must add them to our target.
     target_sources(pd PRIVATE
         "../common/net_utils.cpp"
         "../common/net_utils.hpp"
@@ -61,7 +105,11 @@ if (BUILD_SHARED_LIBS)
         "../common/sync.cpp"
         "../common/sync.hpp"
         "../common/time.cpp"
-        "../common/time.hpp")
+        "../common/time.hpp"
+    )
+    if (WIN32)
+        target_link_libraries(pd PRIVATE ws2_32)
+    endif()
 endif()
 
 target_include_directories(pd PRIVATE ${PD_INCLUDE_DIR})
@@ -74,6 +122,12 @@ message(STATUS "Pd multi-instance support: ${PD_MULTI_INSTANCE}")
 if (PD_MULTI_INSTANCE)
     target_compile_definitions(pd PRIVATE PDINSTANCE)
 endif()
+
+# specify float size
+set(PD_FLOAT_SIZE 32 CACHE STRING "Pd float size")
+set_property(CACHE PD_FLOAT_SIZE PROPERTY STRINGS "32;64")
+message(STATUS "Pd float size: ${PD_FLOAT_SIZE}")
+target_compile_definitions(pd PRIVATE PD_FLOATSIZE=${PD_FLOAT_SIZE})
 
 # plugin extension
 set(PD_EXTENSION "" CACHE STRING "Pd plugin extension")
@@ -106,9 +160,6 @@ if (WIN32)
         target_link_libraries(pd PRIVATE "${PD_BIN_DIR}/pd.dll")
     else()
         target_link_libraries(pd PRIVATE "${PD_BIN_DIR}/pd.lib")
-    endif()
-    if (BUILD_SHARED_LIBS)
-        target_link_libraries(pd PRIVATE ws2_32)
     endif()
 elseif(APPLE)
     target_link_options(pd PRIVATE -undefined suppress -flat_namespace -bundle)

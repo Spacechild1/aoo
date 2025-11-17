@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-Now Christof Ressi, Winfried Ritsch and others. 
+/* Copyright (c) 2010-Now Christof Ressi, Winfried Ritsch and others.
  * For information on usage and redistribution, and for a DISCLAIMER OF ALL
  * WARRANTIES, see the file, "LICENSE.txt," in this distribution.  */
 
@@ -49,14 +49,17 @@ struct t_aoo_send
 
     t_float x_f = 0;
     AooSource::Ptr x_source;
-    t_symbol *x_codec = nullptr;
+    std::vector<t_atom> x_format;
     int32_t x_samplerate = 0;
     int32_t x_blocksize = 0;
     int32_t x_nchannels = 0;
     int32_t x_port = 0;
     AooId x_id = 0;
     double x_logicaltime = 0;
-    std::unique_ptr<t_float *[]> x_vec;
+    std::unique_ptr<t_sample *[]> x_vec;
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+    std::vector<AooSample> x_buffer;
+#endif
     // sinks
     std::vector<t_sink> x_sinks;
     // node
@@ -69,6 +72,8 @@ struct t_aoo_send
     bool x_running = false;
     bool x_auto_invite = true; // on by default
     bool x_multi = false;
+
+    void update_format();
 
     bool get_sink_arg(int argc, t_atom *argv,
                       aoo::ip_address& addr, AooId& id, bool check) const;
@@ -85,6 +90,14 @@ struct t_aoo_send
 
     const t_sink *find_sink(const aoo::ip_address& addr, AooId id) const;
 };
+
+void t_aoo_send::update_format()
+{
+    AooFormatStorage fmt;
+    format_parse((t_pd*)this, fmt, x_format.size(), x_format.data(),
+                 x_nchannels, x_samplerate, x_blocksize);
+    x_source->setFormat(fmt.header);
+}
 
 bool t_aoo_send::get_sink_arg(int argc, t_atom *argv,
                               aoo::ip_address& addr, AooId& id, bool check) const
@@ -186,7 +199,7 @@ void t_aoo_send::add_sink(const aoo::ip_address& addr, AooId id)
 
 void t_aoo_send::remove_all()
 {
-    x_source->removeAll();
+    x_source->removeAllSinks();
 
     int numsinks = x_sinks.size();
     if (!numsinks){
@@ -375,8 +388,9 @@ static void aoo_send_codec_set(t_aoo_send *x, t_symbol *s, int argc, t_atom *arg
     if (!x->check(argc, argv, 2, "codec_set")) return;
 
     auto name = atom_getsymbol(argv);
+    t_symbol *codec = atom_getsymbolarg(0, x->x_format.size(), x->x_format.data());
 #if AOO_USE_OPUS
-    if (x->x_codec == gensym("opus")){
+    if (codec == gensym("opus")){
         opus_int32 value;
         if (name == gensym("bitrate")){
             set_opus_bitrate(x, argv + 1);
@@ -391,7 +405,7 @@ static void aoo_send_codec_set(t_aoo_send *x, t_symbol *s, int argc, t_atom *arg
     }
 #endif
     pd_error(x,"%s: unknown parameter '%s' for codec '%s'",
-             classname(x), name->s_name, x->x_codec->s_name);
+             classname(x), name->s_name, codec->s_name);
 }
 
 static void aoo_send_codec_get(t_aoo_send *x, t_symbol *s){
@@ -400,8 +414,9 @@ static void aoo_send_codec_get(t_aoo_send *x, t_symbol *s){
     t_atom msg[2];
     SETSYMBOL(msg, s);
 
+    t_symbol *codec = atom_getsymbolarg(0, x->x_format.size(), x->x_format.data());
 #if AOO_USE_OPUS
-    if (x->x_codec == gensym("opus")){
+    if (codec == gensym("opus")){
         if (s == gensym("bitrate")){
             if (get_opus_bitrate(x, msg + 1)){
                 goto codec_sendit;
@@ -424,7 +439,7 @@ static void aoo_send_codec_get(t_aoo_send *x, t_symbol *s){
     }
 #endif
     pd_error(x,"%s: unknown parameter '%s' for codec '%s'",
-             classname(x), s->s_name, x->x_codec->s_name);
+             classname(x), s->s_name, codec->s_name);
     return;
 
 codec_sendit:
@@ -568,7 +583,8 @@ static void aoo_send_tick(t_aoo_send *x)
 static void aoo_send_format(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 {
     AooFormatStorage f;
-    if (format_parse((t_pd *)x, f, argc, argv, x->x_nchannels)){
+    if (format_parse((t_pd *)x, f, argc, argv, x->x_nchannels,
+                     x->x_samplerate, x->x_blocksize)) {
         // Prevent user from accidentally creating huge number of channels.
         // This also helps to catch an issue with old patches (before 2.0-pre3),
         // which would pass the block size as the channel count because the
@@ -592,7 +608,9 @@ static void aoo_send_format(t_aoo_send *x, t_symbol *s, int argc, t_atom *argv)
 
         auto err = x->x_source->setFormat(f.header);
         if (err == kAooOk) {
-            x->x_codec = gensym(f.header.codecName);
+            // store original format for updates, see "dsp" method
+            x->x_format.assign(argv, argv + argc);
+
             // output actual format
             t_atom msg[16];
             int n = format_to_atoms(f.header, 16, msg);
@@ -910,23 +928,36 @@ static t_int * aoo_send_perform(t_int *w)
     t_aoo_send *x = (t_aoo_send *)(w[1]);
     int n = (int)(w[2]);
 
-    static_assert(sizeof(t_sample) == sizeof(AooSample),
-                  "AooSample size must match t_sample");
-
-    if (x->x_node){
-        auto err = x->x_source->process(x->x_vec.get(), n, get_osctime());
+    if (x->x_node) {
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+        // buffer input signals and convert to AooSample
+        AooSample** buf = nullptr;
+        if (auto nchannels = x->x_nchannels; nchannels > 0) {
+            buf = (AooSample**)alloca(nchannels * sizeof(AooSample*));
+            for (int i = 0; i < nchannels; ++i) {
+                auto src = x->x_vec[i];
+                auto dst = buf[i] = &x->x_buffer[i * n];
+                for (int k = 0; k < n; ++k) {
+                    dst[k] = src[k];
+                }
+            }
+        }
+#else
+        auto buf = x->x_vec.get();
+#endif
+        auto err = x->x_source->process(buf, n, get_osctime());
 
         if (err == kAooErrorOverflow) {
             pd_error(x, "%s: send buffer overflow. Try to manually increase "
-                     "the send buffer size with the 'buffersize' method.",
-                     classname(x));
+                     "the send buffer size with the 'buffersize' method or "
+                     "lower your hardware buffer size.", classname(x));
         }
 
-        if (err != kAooErrorIdle){
+        if (err != kAooErrorIdle) {
             x->x_node->notify();
         }
 
-        if (x->x_source->eventsAvailable()){
+        if (x->x_source->eventsAvailable()) {
             clock_delay(x->x_clock, 0);
         }
     }
@@ -959,6 +990,9 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
             x->x_vec[i] = sp[i]->s_vec;
         }
     }
+#if PD_FLOATSIZE != AOO_SAMPLE_SIZE
+    x->x_buffer.resize(nchannels * blocksize);
+#endif
 
     if (blocksize != x->x_blocksize || samplerate != x->x_samplerate
             || nchannels != x->x_nchannels) {
@@ -966,6 +1000,8 @@ static void aoo_send_dsp(t_aoo_send *x, t_signal **sp)
         x->x_blocksize = blocksize;
         x->x_samplerate = samplerate;
         x->x_nchannels = nchannels;
+
+        x->update_format();
     }
 
     dsp_add(aoo_send_perform, 2, (t_int)x, (t_int)x->x_blocksize);
@@ -1054,35 +1090,37 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
     int ninlets;
     if (x_multi) {
         // one multi-channel inlet
+        // NB: x_nchannels will be set in the "dsp" method and the format
+        // will be updated accordingly.
         ninlets = 1;
-        // x_nchannels is used to keep track of the channel count, see "dsp" method.
-        // The creation argument sets the initial number of channels, so we can set
-        // the default format. NB: the channel count cannot be zero!
-        x_nchannels = std::max<int>(atom_getfloatarg(0, argc, argv), 1);
     } else {
         // NB: users may explicitly specify 0 channels for pure message streams!
-        // (In this case, the user must provide the number of "message channels"
-        // - if needed - with the "format" message.)
-        ninlets = argc > 0 ? atom_getfloat(argv) : 1;
-        if (ninlets < 0){
-            ninlets = 0;
-        } else if (ninlets > AOO_MAX_NUM_CHANNELS) {
-            // NB: in theory we can support any number of channels;
-            // this rather meant to handle patches that accidentally
-            // use the old argument order where the port would come first!
-            pd_error(this, "%s: channel count (%d) out of range",
-                     classname(this), ninlets);
-            ninlets = 0;
+        // (In this case, the user must provide the number of "message channels",
+        // if needed, with the "format" message.)
+        if (argc > 0) {
+            ninlets = atom_getfloat(argv);
+            argv++;
+            argc--;
+            if (ninlets < 0) {
+                ninlets = 0;
+            } else if (ninlets > AOO_MAX_NUM_CHANNELS) {
+                // see comment above AOO_MAX_NUM_CHANNELS
+                pd_error(this, "%s: channel count (%d) out of range",
+                         classname(this), ninlets);
+                ninlets = 0;
+            }
+        } else {
+            ninlets = 1; // default
         }
         x_nchannels = ninlets;
     }
 
-    // arg #2 (optional): port number
+    // arg #2/#1 (optional): port number
     // NB: 0 means "don't listen"
-    int port = atom_getfloatarg(1, argc, argv);
+    int port = atom_getfloatarg(0, argc, argv);
 
-    // arg #3 (optional): ID
-    AooId id = atom_getfloatarg(2, argc, argv);
+    // arg #3/#2 (optional): ID
+    AooId id = atom_getfloatarg(1, argc, argv);
     if (id < 0) {
         pd_error(this, "%s: bad id % d, setting to 0", classname(this), id);
         id = 0;
@@ -1108,10 +1146,10 @@ t_aoo_send::t_aoo_send(int argc, t_atom *argv)
                               this, kAooEventModePoll);
 
     // set default format
-    AooFormatStorage fmt;
-    format_makedefault(fmt, x_nchannels);
-    x_source->setFormat(fmt.header);
-    x_codec = gensym(fmt.header.codecName);
+    t_atom codec;
+    SETSYMBOL(&codec, gensym("pcm"));
+    x_format.push_back(codec);
+    update_format();
 
     x_source->setBufferSize(DEFBUFSIZE * 0.001);
 

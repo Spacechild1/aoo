@@ -524,11 +524,11 @@ AooClient {
 	}
 
 	packetSize { arg size;
-		server.sendMsg('/cmd', '/aoo_packetsize', this.port, size);
+		server.sendMsg('/cmd', '/aoo_client_packet_size', this.port, size);
 	}
 
 	pingInterval { arg seconds;
-		server.sendMsg('/cmd', '/aoo_ping', this.port, seconds);
+		server.sendMsg('/cmd', '/aoo_client_ping', this.port, seconds);
 	}
 
 	// Try to find peer, but only if no IP/port is given.
@@ -547,5 +547,17 @@ AooClient {
 
 	*prNextToken {
 		^nextToken = nextToken + 1;
+	}
+
+	prSimPacketLoss { arg pct;
+		server.sendMsg('/cmd', '/aoo_client_sim_packet_loss', this.port, pct.asFloat);
+	}
+
+	prSimPacketReorder { arg sec;
+		server.sendMsg('/cmd', '/aoo_client_sim_packet_reorder', this.port, sec.asFloat);
+	}
+
+	prSimPacketJitter { arg enable;
+		server.sendMsg('/cmd', '/aoo_client_sim_packet_jitter', this.port, enable.asInteger);
 	}
 }

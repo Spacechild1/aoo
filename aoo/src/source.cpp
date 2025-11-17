@@ -782,6 +782,7 @@ AooError AOO_CALL aoo::Source::process(
     if (!encoder_){
         return kAooErrorIdle;
     }
+    assert(format_ != nullptr);
 
     // non-interleaved -> interleaved
     // only as many channels as current format needs
@@ -1009,7 +1010,6 @@ AOO_API AooError AOO_CALL AooSource_removeSink(
 
 AooError AOO_CALL aoo::Source::removeSink(const AooEndpoint& ep) {
     ip_address addr((const sockaddr *)ep.address, ep.addrlen);
-
     // NB: sinks can be added/removed from different threads,
     // so we have to lock a mutex to avoid the ABA problem!
     sync::scoped_lock<sync::mutex> lock1(sink_mutex_);
@@ -1021,21 +1021,19 @@ AooError AOO_CALL aoo::Source::removeSink(const AooEndpoint& ep) {
     }
 }
 
-AOO_API AooError AOO_CALL AooSource_removeAll(AooSource *source)
+AOO_API AooError AOO_CALL AooSource_removeAllSinks(AooSource *source)
 {
-    return source->removeAll();
+    return source->removeAllSinks();
 }
 
-AooError AOO_CALL aoo::Source::removeAll() {
-    // just lock once for all stream ids
-    scoped_shared_lock lock1(update_mutex_);
-
+AooError AOO_CALL aoo::Source::removeAllSinks() {
     bool running = is_running();
-
     // NB: sinks can be added/removed from different threads,
     // so we have to lock a mutex to avoid the ABA problem!
-    sync::scoped_lock<sync::mutex> lock2(sink_mutex_);
-    sink_lock lock3(sinks_);
+    sync::scoped_lock<sync::mutex> lock1(sink_mutex_);
+    sink_lock lock2(sinks_);
+    // just lock once for all stream ids, see do_remove_sink().
+    scoped_shared_lock lock3(update_mutex_);
     // send /stop messages
     for (auto& s : sinks_){
         if (running && s.is_active()){
@@ -1231,6 +1229,7 @@ AooError Source::set_format(AooFormat &f){
     // setup encoder - will validate format!
     if (auto err = AooEncoder_setup(encoder_.get(), &f); err != kAooOk) {
         encoder_ = nullptr;
+        format_ = nullptr;
         LOG_ERROR("AooSource: couldn't setup encoder!");
         return err;
     }
@@ -1357,8 +1356,9 @@ void Source::handle_xrun(int32_t nsamples) {
     reset_timer();
 }
 
-void Source::update_audio_queue(){
-    if (encoder_ && samplerate_ > 0){
+void Source::update_audio_queue() {
+    if (encoder_ && samplerate_ > 0) {
+        assert(format_ != nullptr);
         // convert buffersize from seconds to samples
         auto buffersize = buffersize_.load();
         int32_t buffersamples = buffersize * (double)samplerate_;
@@ -1568,6 +1568,7 @@ void Source::send_start(const sendfn& fn){
         return;
     }
 #endif
+    assert(format_ != nullptr);
 
     // calculate stream start time.
     auto tt = stream_tt_ + aoo::time_tag::from_seconds(stream_samples_ / (double)format_->sampleRate);
@@ -1584,6 +1585,7 @@ void Source::send_start(const sendfn& fn){
 
     // cache stream format
     auto format_id = format_id_;
+    assert(format_id >= 0);
 
     AooFormatStorage f;
     memcpy(&f, format_.get(), format_->structSize);
@@ -1913,6 +1915,7 @@ void Source::send_data(const sendfn& fn){
         if (!encoder_ || sequence_ == invalid_stream) {
             return;
         }
+        assert(format_ != nullptr);
 
         // reset and reserve space for message count
         sendbuffer_.resize(4);
