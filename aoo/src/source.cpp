@@ -165,7 +165,11 @@ T& as(void *p){
     return *reinterpret_cast<T *>(p);
 }
 
-#define CHECKARG(type) assert(size == sizeof(type))
+#define CHECKARG(type)                  \
+    assert(size == sizeof(type));       \
+    if (size != sizeof(type)) {         \
+        return kAooErrorBadArgument;    \
+    }                                   \
 
 #define GETSINKARG \
     sink_lock lock(sinks_);             \

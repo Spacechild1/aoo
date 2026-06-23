@@ -130,9 +130,13 @@ T& as(void *p){
 
 } // aoo
 
-#define CHECKARG(type) assert(size == sizeof(type))
+#define CHECKARG(type)                  \
+    assert(size == sizeof(type));       \
+    if (size != sizeof(type)) {         \
+        return kAooErrorBadArgument;    \
+    }                                   \
 
-#define GETSOURCEARG \
+#define GETSOURCEARG                    \
     source_lock lock(sources_);         \
     auto src = get_source_arg(index);   \
     if (!src) {                         \

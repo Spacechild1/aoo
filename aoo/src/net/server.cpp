@@ -578,7 +578,11 @@ T& as(void *p){
     return *reinterpret_cast<T *>(p);
 }
 
-#define CHECKARG(type) assert(size == sizeof(type))
+#define CHECKARG(type)                  \
+    assert(size == sizeof(type));       \
+    if (size != sizeof(type)) {         \
+        return kAooErrorBadArgument;    \
+}                                       \
 
 AooError AOO_CALL aoo::net::Server ::groupControl(
         AooId group, AooCtl ctl, AooIntPtr index,
