@@ -39,6 +39,10 @@
 # include "esp_system.h"
 #endif
 
+#ifdef __EMSCRIPTEN__
+# include <emscripten/emscripten.h>
+#endif
+
 //--------------------- interface table -------------------//
 
 namespace aoo {
@@ -69,14 +73,16 @@ int32_t get_random_id(){
     return esp_random() & 0x7fffffff;
 #else
     // software PRNG
+    // std::minstd_rand is fast, uses very little memory
+    // and is good enough for our purposes.
+# if defined (__EMSCRIPTEN__)
+    // std::random_device is not supported in AudioWorklets,
+    // so we seed the engine it with the browser time instead.
+    thread_local std::minstd_rand eng((uint32_t)(emscripten_get_now() * 1e6));
+# else
     static std::random_device rd;
-#if 0
-    // WARNING: needs lots of memory!
-    thread_local std::mt19937 eng(rd());
-#else
-    // good enough for our purposes
     thread_local std::minstd_rand eng(rd());
-#endif
+# endif
     std::uniform_int_distribution<int32_t> dist;
     return dist(eng);
 #endif
