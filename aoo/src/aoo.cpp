@@ -39,6 +39,10 @@
 # include "esp_system.h"
 #endif
 
+#ifdef __EMSCRIPTEN__
+# include <emscripten/emscripten.h>
+#endif
+
 //--------------------- interface table -------------------//
 
 namespace aoo {
@@ -67,6 +71,11 @@ int32_t get_random_id(){
 #if defined(ESP_PLATFORM)
     // use ESP hardware RNG
     return esp_random() & 0x7fffffff;
+#elif defined (__EMSCRIPTEN__)
+    // std::random_device is unsupported on the AudioWorklet thread
+    // Seed the PRNG from a high-res timestamp instead — 
+    // good enough for non-colliding stream/format IDs.
+    thread_local std::minstd_rand eng((uint32_t)(emscripten_get_now() * 1e3));
 #else
     // software PRNG
     static std::random_device rd;
@@ -77,9 +86,9 @@ int32_t get_random_id(){
     // good enough for our purposes
     thread_local std::minstd_rand eng(rd());
 #endif
-    std::uniform_int_distribution<int32_t> dist;
-    return dist(eng);
 #endif
+std::uniform_int_distribution<int32_t> dist;
+return dist(eng);
 }
 
 } // namespace "aoo"
